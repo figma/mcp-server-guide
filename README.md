@@ -40,15 +40,17 @@ If you want to use our remote server, there's nothing to enable, it's already av
 3. In the toolbar at the bottom, toggle to [Dev Mode](https://help.figma.com/hc/en-us/articles/15023124644247-Guide-to-Dev-Mode) or use the keyboard shortcut <kbd>Shift</kbd><kbd>D</kbd>.
 4. In the **MCP server** section of the inspect panel, click **Enable desktop MCP server**.
 
-    <img width="500" height="251" alt="enable-desktop-mcp-server" src="https://github.com/user-attachments/assets/964c7665-1aaa-42e5-ad45-e87ea68d4bdd" />
+<img width="500" height="251" alt="enable-desktop-mcp-server" src="https://github.com/user-attachments/assets/964c7665-1aaa-42e5-ad45-e87ea68d4bdd" />
 
 You should see a confirmation message at the bottom of the screen letting you know the server is enabled and running.
 
 > [!TIP]
 > The server runs locally at this location:
+>
 > ```bash
 > http://127.0.0.1:3845/mcp
 > ```
+>
 > Keep this address handy for your configuration file in the next step.
 
 ### Step 2: Set up your MCP client
@@ -63,12 +65,13 @@ Different MCP clients require slightly different setups to get connected to your
 
    Remote server url - `https://mcp.figma.com/mcp`
 
-   Local server url  - `http://127.0.0.1:3845/mcp`
+   Local server url - `http://127.0.0.1:3845/mcp`
 
 4. When you're prompted for a server ID, enter one of the following:
 
-    - `figma` for the remote MCP server
-    - `figma-desktop` for the desktop MCP server
+   - `figma` for the remote MCP server
+   - `figma-desktop` for the desktop MCP server
+
 5. Select whether you want to add this server globally or only for the current workspace. Once confirmed, you'll see a configuration like this in your `mcp.json` file:
 
 <table>
@@ -86,6 +89,7 @@ Different MCP clients require slightly different setups to get connected to your
   }
 }
 ```
+
 </td>
 <td>
 
@@ -99,6 +103,7 @@ Different MCP clients require slightly different setups to get connected to your
   }
 }
 ```
+
 </td>
 </tr>
 </table>
@@ -132,6 +137,7 @@ Different MCP clients require slightly different setups to get connected to your
   }
 }
 ```
+
 </td>
 <td>
 
@@ -144,6 +150,7 @@ Different MCP clients require slightly different setups to get connected to your
   }
 }
 ```
+
 </td>
 </tr>
 </table>
@@ -154,8 +161,6 @@ For more information, see [Cursor's official documentation](https://docs.cursor.
 
 1. Open your terminal and run:
 
-
-
 <table>
 <tr><th>Using the remote MCP Server</th><th>Using the desktop MCP Server</th></tr>
 <tr>
@@ -164,17 +169,20 @@ For more information, see [Cursor's official documentation](https://docs.cursor.
 ```bash
 claude mcp add --transport http figma https://mcp.figma.com/mcp
 ```
+
 </td>
 <td>
 
 ```bash
 claude mcp add --transport http figma-desktop http://127.0.0.1:3845/mcp
 ```
+
 </td>
 </tr>
 </table>
 
 2. Use the following commands to check MCP settings and manage servers:
+
 - List all configured servers
   ```bash
   claude mcp list
@@ -189,6 +197,18 @@ claude mcp add --transport http figma-desktop http://127.0.0.1:3845/mcp
   ```
 
 For more information, see [Anthropic's official documentation](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/tutorials#set-up-model-context-protocol-mcp).
+
+#### Claude Code (Plugin Installation)
+
+You can also set up the Figma MCP server by installing the Figma Plugin for Claude Code, which includes both remote and desktop MCP server settings as well as Agent Skills for common workflows.
+
+Run the following command to install the plugin from Anthropic's official plugin marketplace.
+
+```bash
+claude plugin install figma@claude-plugins-official
+```
+
+Learn more about Anthropic's [Claude Code Plugins](https://claude.com/blog/claude-code-plugins) and [Agent Skills](https://claude.com/blog/skills).
 
 #### Other editors
 
@@ -210,6 +230,7 @@ If you're using a different editor or tool, check its documentation to confirm i
   }
 }
 ```
+
 </td>
 <td>
 
@@ -222,6 +243,7 @@ If you're using a different editor or tool, check its documentation to confirm i
   }
 }
 ```
+
 </td>
 </tr>
 </table>
@@ -249,7 +271,6 @@ There are two ways to provide Figma design context to your AI client:
 
    <img src="https://help.figma.com/hc/article_attachments/32209690330263" width="300" />
 
-
 ## Tools and usage suggestions
 
 ### `get_design_context`
@@ -259,11 +280,13 @@ There are two ways to provide Figma design context to your AI client:
 Use this to get design context for your Figma selection using the MCP server. The default output is **React + Tailwind**, but you can customize this through your prompts:
 
 - Change the framework
+
   - "Generate my Figma selection in Vue."
   - "Generate my Figma selection in plain HTML + CSS."
   - "Generate my Figma selection in iOS."
 
 - Use your components
+
   - "Generate my Figma selection using components from src/components/ui"
   - "Generate my Figma selection using components from src/ui and style with Tailwind"
 
@@ -272,7 +295,7 @@ Use this to get design context for your Figma selection using the MCP server. Th
 > [!NOTE]
 > Selection-based prompting only works with the desktop MCP server. The remote server requires a link to a frame or layer to extract context.
 
-  [Learn how to set up Code Connect for better component reuse →](https://help.figma.com/hc/en-us/articles/23920389749655-Code-Connect)
+[Learn how to set up Code Connect for better component reuse →](https://help.figma.com/hc/en-us/articles/23920389749655-Code-Connect)
 
 ### `get_variable_defs`
 
@@ -459,7 +482,9 @@ alwaysApply: true
 
 ```markdown
 # MCP Servers
+
 ## Figma MCP server rules
+
 - The Figma MCP server provides an assets endpoint which can serve image and SVG assets
 - IMPORTANT: If the Figma MCP server returns a localhost source for an image or an SVG, use that image or SVG source directly
 - IMPORTANT: DO NOT import/add new icon packages, all the assets should be in the Figma payload
@@ -520,7 +545,7 @@ With this integration, you can:
 **Goal:** Implement a popup component in your production codebase that matches the design and behavior defined in Make.
 
 1. Share your Make project link with your agent.
-2. Prompt the agent: *"I want to get the popup component behavior and styles from this Make file and implement it using my popup component."*
+2. Prompt the agent: _"I want to get the popup component behavior and styles from this Make file and implement it using my popup component."_
 
 Your agent will fetch the relevant context from Make and guide you in extending your existing popup component with the prototype's functionality and styles.
 
