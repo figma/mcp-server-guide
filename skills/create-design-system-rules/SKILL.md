@@ -9,7 +9,15 @@ metadata:
 
 ## Overview
 
-This skill helps you generate custom design system rules tailored to your project's specific needs. These rules guide Claude to produce consistent, high-quality code when implementing Figma designs, ensuring that your team's conventions, component patterns, and architectural decisions are followed automatically.
+This skill helps you generate custom design system rules tailored to your project's specific needs. These rules guide AI coding agents to produce consistent, high-quality code when implementing Figma designs, ensuring that your team's conventions, component patterns, and architectural decisions are followed automatically.
+
+### Supported Rule Files
+
+| Agent | Rule File |
+|-------|-----------|
+| Claude Code | `CLAUDE.md` |
+| Codex CLI | `AGENTS.md` |
+| Cursor | `.cursor/rules/figma-design-system.mdc` |
 
 ## What Are Design System Rules?
 
@@ -35,7 +43,7 @@ Once defined, these rules dramatically reduce repetitive prompting and ensure co
 Use this skill when:
 
 - Starting a new project that will use Figma designs
-- Onboarding Claude to an existing project with established patterns
+- Onboarding an AI coding agent to an existing project with established patterns
 - Standardizing Figma-to-code workflows across your team
 - Updating or refining existing design system conventions
 - Users explicitly request: "create design system rules", "set up Figma guidelines", "customize rules for my project"
@@ -159,26 +167,40 @@ These rules define how to translate Figma inputs into code for this project and 
 - [Add any performance considerations]
 ```
 
-### Step 4: Save Rules to CLAUDE.md
+### Step 4: Save Rules to the Appropriate Rule File
 
-Guide the user to save the generated rules to the `CLAUDE.md` file in their project root:
+Detect which AI coding agent the user is working with and save the generated rules to the corresponding file:
+
+| Agent | Rule File | Notes |
+|-------|-----------|-------|
+| Claude Code | `CLAUDE.md` in project root | Markdown format. Can also use `.claude/rules/figma-design-system.md` for modular organization. |
+| Codex CLI | `AGENTS.md` in project root | Markdown format. Append as a new section if file already exists. 32 KiB combined size limit. |
+| Cursor | `.cursor/rules/figma-design-system.mdc` | Markdown with YAML frontmatter (`description`, `globs`, `alwaysApply`). |
+
+If unsure which agent the user is working with, check for existing rule files in the project or ask the user.
+
+For Cursor, wrap the rules with YAML frontmatter:
 
 ```markdown
-# MCP Servers
+---
+description: Rules for implementing Figma designs using the Figma MCP server. Covers component organization, styling conventions, design tokens, asset handling, and the required Figma-to-code workflow.
+globs: "src/components/**"
+alwaysApply: false
+---
 
-## Figma MCP Server Rules
-
-[Paste generated rules here]
+[Generated rules here]
 ```
 
-After saving, the rules will be automatically loaded by Claude Code and applied to all Figma implementation tasks.
+Customize the `globs` pattern to match the directories where Figma-derived code will live in the project (e.g., `"src/**/*.tsx"` or `["src/components/**", "src/pages/**"]`).
+
+After saving, the rules will be automatically loaded by the agent and applied to all Figma implementation tasks.
 
 ### Step 5: Validate and Iterate
 
 After creating rules:
 
 1. Test with a simple Figma component implementation
-2. Verify Claude follows the rules correctly
+2. Verify the agent follows the rules correctly
 3. Refine any rules that aren't working as expected
 4. Share with team members for feedback
 5. Update rules as the project evolves
@@ -306,10 +328,10 @@ User says: "Create design system rules for my React project"
 - DO NOT install new icon libraries
 ```
 
-4. Save to `CLAUDE.md` in project root
+4. Save to the appropriate rule file for the user's agent
 5. Test with a simple button implementation
 
-**Result:** Claude now consistently follows the project's conventions when implementing Figma designs.
+**Result:** The agent now consistently follows the project's conventions when implementing Figma designs.
 
 ### Example 2: Vue + Custom CSS Project
 
@@ -352,10 +374,10 @@ User says: "Set up Figma rules for my Vue app"
 - Scoped styles with CSS modules
 ```
 
-4. Save to `CLAUDE.md` in project root
+4. Save to the appropriate rule file for the user's agent
 5. Validate with a card component
 
-**Result:** Claude now correctly translates Figma designs to Vue components using the project's design token system.
+**Result:** The agent now correctly translates Figma designs to Vue components using the project's design token system.
 
 ### Example 3: Design System Team
 
@@ -406,7 +428,7 @@ User says: "Generate rules for our design system library"
 6. Update documentation
 ```
 
-4. Save to `CLAUDE.md` and share with team
+4. Save to the appropriate rule file and share with team
 5. Add to team documentation
 
 **Result:** Entire team follows consistent patterns when adding components from Figma to the design system.
@@ -424,14 +446,14 @@ Write: "Always use Button components from `src/components/ui/Button.tsx` with va
 
 ### Make Rules Actionable
 
-Each rule should tell Claude exactly what to do, not just what to avoid.
+Each rule should tell the agent exactly what to do, not just what to avoid.
 
 Good: "Colors are defined in `src/theme/colors.ts` - import and use these constants"
 Bad: "Don't hardcode colors"
 
 ### Use IMPORTANT for Critical Rules
 
-Prefix rules that must never be violated with "IMPORTANT:" to ensure Claude prioritizes them.
+Prefix rules that must never be violated with "IMPORTANT:" to ensure the agent prioritizes them.
 
 ```markdown
 - IMPORTANT: Never expose API keys in client-side code
@@ -449,14 +471,14 @@ When rules seem arbitrary, explain the reasoning:
 
 ## Common Issues and Solutions
 
-### Issue: Claude isn't following the rules
+### Issue: The agent isn't following the rules
 
-**Cause:** Rules may be too vague or not properly loaded into the IDE/MCP client.
+**Cause:** Rules may be too vague or not properly loaded by the agent.
 **Solution:**
 
 - Make rules more specific and actionable
 - Verify rules are saved in the correct configuration file
-- Restart your IDE or MCP client to reload rules
+- Restart your agent or IDE to reload rules
 - Add "IMPORTANT:" prefix to critical rules
 
 ### Issue: Rules conflict with each other
@@ -469,7 +491,7 @@ When rules seem arbitrary, explain the reasoning:
 - Remove redundant rules
 - Consolidate related rules into single, clear statements
 
-### Issue: Too many rules make Claude slow
+### Issue: Too many rules increase latency
 
 **Cause:** Excessive rules increase context size and processing time.
 **Solution:**
@@ -491,11 +513,11 @@ When rules seem arbitrary, explain the reasoning:
 
 ## Understanding Design System Rules
 
-Design system rules transform how Claude works with your Figma designs:
+Design system rules transform how AI coding agents work with your Figma designs:
 
 **Before rules:**
 
-- Claude makes assumptions about component structure
+- The agent makes assumptions about component structure
 - Inconsistent styling approaches across implementations
 - Hardcoded values that don't match design tokens
 - Components created in random locations
@@ -503,7 +525,7 @@ Design system rules transform how Claude works with your Figma designs:
 
 **After rules:**
 
-- Claude automatically follows your conventions
+- The agent automatically follows your conventions
 - Consistent component structure and styling
 - Proper use of design tokens from the start
 - Components organized correctly
