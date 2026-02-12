@@ -11,6 +11,5 @@
   "repository": "https://github.com/figma/mcp-server-guide",
   "keywords": ["figma", "design", "mcp", "ui", "code-connect"],
   "skills": "./skills/",
-  "rules": "./rules/",
   "mcpServers": "./mcp.json"
 }
