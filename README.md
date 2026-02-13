@@ -157,6 +157,22 @@ Different MCP clients require slightly different setups to get connected to your
 
 For more information, see [Cursor's official documentation](https://docs.cursor.com/context/model-context-protocol).
 
+#### Cursor (Plugin Installation)
+
+You can also set up the Figma MCP server by installing the Figma Plugin for Cursor, which includes both remote and desktop MCP server settings as well as Agent Skills for common workflows.
+
+Install the plugin by typing the following command in Cursor's agent chat:
+
+```
+/plugin-add figma
+```
+
+The plugin includes:
+
+- MCP server configuration for both remote and desktop Figma servers
+- Skills for implementing designs, connecting components via Code Connect, and creating design system rules
+- Rules for proper asset handling from the Figma MCP server
+
 #### Claude Code
 
 1. Open your terminal and run:
