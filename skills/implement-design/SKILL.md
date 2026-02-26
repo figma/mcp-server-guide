@@ -2,7 +2,7 @@
 name: implement-design
 description: Translates Figma designs into production-ready code with 1:1 visual fidelity. Use when implementing UI from Figma files, when user mentions "implement design", "generate code", "implement component", "build Figma design", provides Figma URLs, or asks to build components matching Figma specs. Requires Figma MCP server connection.
 metadata:
-  mcp-server: figma, figma-desktop
+  mcp-server: figma
 ---
 
 # Implement Design
@@ -14,10 +14,11 @@ This skill provides a structured workflow for translating Figma designs into pro
 ## Prerequisites
 
 - Figma MCP server must be connected and accessible
+  - Before proceeding, verify the Figma MCP server is connected by checking if Figma MCP tools (e.g., `get_design_context`) are available.
+  - If the tools are not available, the Figma MCP server may not be enabled. Guide the user to enable the Figma MCP server that is included with the plugin. They may need to restart their MCP client afterward.
 - User must provide a Figma URL in the format: `https://figma.com/design/:fileKey/:fileName?node-id=1-2`
   - `:fileKey` is the file key
   - `1-2` is the node ID (the specific component or frame to implement)
-- **OR** when using `figma-desktop` MCP: User can select a node directly in the Figma desktop app (no URL required)
 - Project should have an established design system or component library (preferred)
 
 ## Required Workflow
@@ -37,19 +38,11 @@ When the user provides a Figma URL, extract the file key and node ID to pass as 
 - **File key:** `:fileKey` (the segment after `/design/`)
 - **Node ID:** `1-2` (the value of the `node-id` query parameter)
 
-**Note:** When using the local desktop MCP (`figma-desktop`), `fileKey` is not passed as a parameter to tool calls. The server automatically uses the currently open file, so only `nodeId` is needed.
-
 **Example:**
 
 - URL: `https://figma.com/design/kL9xQn2VwM8pYrTb4ZcHjF/DesignSystem?node-id=42-15`
 - File key: `kL9xQn2VwM8pYrTb4ZcHjF`
 - Node ID: `42-15`
-
-#### Option B: Use Current Selection from Figma Desktop App (figma-desktop MCP only)
-
-When using the `figma-desktop` MCP and the user has NOT provided a URL, the tools automatically use the currently selected node from the open Figma file in the desktop app.
-
-**Note:** Selection-based prompting only works with the `figma-desktop` MCP server. The remote server requires a link to a frame or layer to extract context. The user must have the Figma desktop app open with a node selected.
 
 ### Step 2: Fetch Design Context
 

@@ -3,9 +3,11 @@
 The Figma MCP server brings Figma directly into your workflow by providing important design information and context to AI agents generating code from Figma design files.
 
 > [!NOTE]
+> Rate limits apply to Figma MCP server tools that read data from Figma. Some tools, such as those that write to Figma files, are exempt from the rate limits.
+> <br><br>
 > Users on the Starter plan or with View or Collab seats on paid plans will be limited to up to 6 tool calls per month.
 > <br><br>
-> Users with a [Dev or Full seat](https://help.figma.com/hc/en-us/articles/27468498501527-Updates-to-Figma-s-pricing-seats-and-billing-experience#h_01JCPBM8X2MBEXTABDM92HWZG4) seat on the [Professional, Organization, or Enterprise plans](https://help.figma.com/hc/en-us/articles/360040328273-Figma-plans-and-features) have per minute rate limits, which follow the same limits as the Tier 1 [Figma REST API](https://developers.figma.com/docs/rest-api/rate-limits/). As with Figma’s REST API, Figma reserves the right to change rate limits.
+> Users with a [Dev or Full seat](https://help.figma.com/hc/en-us/articles/27468498501527-Updates-to-Figma-s-pricing-seats-and-billing-experience#h_01JCPBM8X2MBEXTABDM92HWZG4) on the [Professional, Organization, or Enterprise plans](https://help.figma.com/hc/en-us/articles/360040328273-Figma-plans-and-features) have per minute rate limits, which follow the same limits as the Tier 1 [Figma REST API](https://developers.figma.com/docs/rest-api/rate-limits/). As with Figma’s REST API, Figma reserves the right to change rate limits.
 
 For the complete set of Figma MCP server docs, see our [developer documentation](https://developers.figma.com/docs/figma-mcp-server/).
 
@@ -25,59 +27,23 @@ For the complete set of Figma MCP server docs, see our [developer documentation]
 
   [Learn more about Code Connect →](https://help.figma.com/hc/en-us/articles/23920389749655-Code-Connect)
 
+- **Generate Figma designs from web pages** *(rolling out)*
+
+  Capture, import, or convert a web page into a Figma design directly from your AI coding agent.
+
 ## Installation & Setup
 
-### Step 1: Enabling the MCP server
+### Connect to the Figma MCP server
 
-Figma provides two ways to use the MCP server. Remotely using our hosted server, and locally using Figma's desktop app.
-
-If you want to use our remote server, there's nothing to enable, it's already available! To get the local desktop server set up, you'll need to follow the steps below.
-
-#### Enabling the desktop server
-
-1. Open the [Figma desktop app](https://www.figma.com/downloads/) and make sure you've [updated to the latest version](https://help.figma.com/hc/en-us/articles/5601429983767-Guide-to-the-Figma-desktop-app#h_01HE5QD60DG6FEEDTZVJYM82QW).
-2. Create or open a Figma Design file.
-3. In the toolbar at the bottom, toggle to [Dev Mode](https://help.figma.com/hc/en-us/articles/15023124644247-Guide-to-Dev-Mode) or use the keyboard shortcut <kbd>Shift</kbd><kbd>D</kbd>.
-4. In the **MCP server** section of the inspect panel, click **Enable desktop MCP server**.
-
-<img width="500" height="251" alt="enable-desktop-mcp-server" src="https://github.com/user-attachments/assets/964c7665-1aaa-42e5-ad45-e87ea68d4bdd" />
-
-You should see a confirmation message at the bottom of the screen letting you know the server is enabled and running.
-
-> [!TIP]
-> The server runs locally at this location:
->
-> ```bash
-> http://127.0.0.1:3845/mcp
-> ```
->
-> Keep this address handy for your configuration file in the next step.
-
-### Step 2: Set up your MCP client
-
-Different MCP clients require slightly different setups to get connected to your MCP server. Follow the instructions below for your specific client to add the Figma MCP server.
+Different MCP clients require slightly different setups. Follow the instructions below for your specific client to connect to the Figma MCP server.
 
 #### VS Code
 
 1. Use the shortcut `⌘ Shift P` to search for `MCP:Add Server`.
 2. Select `HTTP`.
-3. Copy the correct server url from below, and paste the server url in the search bar. Then hit `Enter`.
-
-   Remote server url - `https://mcp.figma.com/mcp`
-
-   Local server url - `http://127.0.0.1:3845/mcp`
-
-4. When you're prompted for a server ID, enter one of the following:
-
-   - `figma` for the remote MCP server
-   - `figma-desktop` for the desktop MCP server
-
+3. Paste the server url `https://mcp.figma.com/mcp` in the search bar. Then hit `Enter`.
+4. When you're prompted for a server ID, enter `figma`.
 5. Select whether you want to add this server globally or only for the current workspace. Once confirmed, you'll see a configuration like this in your `mcp.json` file:
-
-<table>
-<tr><th>Using the remote MCP Server</th><th>Using the desktop MCP Server</th></tr>
-<tr>
-<td>
 
 ```json
 {
@@ -90,26 +56,8 @@ Different MCP clients require slightly different setups to get connected to your
 }
 ```
 
-</td>
-<td>
-
-```json
-{
-  "servers": {
-    "figma-desktop": {
-      "type": "http",
-      "url": "http://127.0.0.1:3845/mcp"
-    }
-  }
-}
-```
-
-</td>
-</tr>
-</table>
-
 6. Open the chat toolbar using `⌥⌘B` or `⌃⌘I` and switch to **Agent** mode.
-7. With the chat open, type in `#get_design_context` to confirm that the Figma MCP server tools are available. If no tools are listed, restart the Figma desktop app and VS Code.
+7. With the chat open, type in `#get_design_context` to confirm that the Figma MCP server tools are available. If no tools are listed, restart VS Code.
 
 > [!NOTE]
 > You must have [GitHub Copilot](https://github.com/features/copilot) enabled on your account to use MCP in VS Code.
@@ -118,48 +66,7 @@ Different MCP clients require slightly different setups to get connected to your
 
 #### Cursor
 
-1. Open **Cursor → Settings → Cursor Settings**.
-2. Go to the **MCP** tab.
-3. Click **+ Add new global MCP server**.
-4. Enter the following configuration and save:
-
-<table>
-<tr><th>Using the remote MCP Server</th><th>Using the desktop MCP Server</th></tr>
-<tr>
-<td>
-
-```json
-{
-  "mcpServers": {
-    "figma": {
-      "url": "https://mcp.figma.com/mcp"
-    }
-  }
-}
-```
-
-</td>
-<td>
-
-```json
-{
-  "mcpServers": {
-    "figma-desktop": {
-      "url": "http://127.0.0.1:3845/mcp"
-    }
-  }
-}
-```
-
-</td>
-</tr>
-</table>
-
-For more information, see [Cursor's official documentation](https://docs.cursor.com/context/model-context-protocol).
-
-#### Cursor (Plugin Installation)
-
-You can also set up the Figma MCP server by installing the Figma Plugin for Cursor, which includes both remote and desktop MCP server settings as well as Agent Skills for common workflows.
+The recommended way to set up the Figma MCP server in Cursor is by installing the Figma Plugin, which includes MCP server settings as well as Agent Skills for common workflows.
 
 Install the plugin by typing the following command in Cursor's agent chat:
 
@@ -169,33 +76,52 @@ Install the plugin by typing the following command in Cursor's agent chat:
 
 The plugin includes:
 
-- MCP server configuration for both remote and desktop Figma servers
+- MCP server configuration for the Figma MCP server
 - Skills for implementing designs, connecting components via Code Connect, and creating design system rules
 - Rules for proper asset handling from the Figma MCP server
 
+<details>
+<summary>Manual setup</summary>
+
+1. Open **Cursor → Settings → Cursor Settings**.
+2. Go to the **MCP** tab.
+3. Click **+ Add new global MCP server**.
+4. Enter the following configuration and save:
+
+```json
+{
+  "mcpServers": {
+    "figma": {
+      "url": "https://mcp.figma.com/mcp"
+    }
+  }
+}
+```
+
+For more information, see [Cursor's official documentation](https://docs.cursor.com/context/model-context-protocol).
+
+</details>
+
 #### Claude Code
 
-1. Open your terminal and run:
+The recommended way to set up the Figma MCP server in Claude Code is by installing the Figma Plugin, which includes MCP server settings as well as Agent Skills for common workflows.
 
-<table>
-<tr><th>Using the remote MCP Server</th><th>Using the desktop MCP Server</th></tr>
-<tr>
-<td>
+Run the following command to install the plugin from Anthropic's official plugin marketplace.
+
+```bash
+claude plugin install figma@claude-plugins-official
+```
+
+Learn more about Anthropic's [Claude Code Plugins](https://claude.com/blog/claude-code-plugins) and [Agent Skills](https://claude.com/blog/skills).
+
+<details>
+<summary>Manual setup</summary>
+
+1. Open your terminal and run:
 
 ```bash
 claude mcp add --transport http figma https://mcp.figma.com/mcp
 ```
-
-</td>
-<td>
-
-```bash
-claude mcp add --transport http figma-desktop http://127.0.0.1:3845/mcp
-```
-
-</td>
-</tr>
-</table>
 
 2. Use the following commands to check MCP settings and manage servers:
 
@@ -214,28 +140,13 @@ claude mcp add --transport http figma-desktop http://127.0.0.1:3845/mcp
 
 For more information, see [Anthropic's official documentation](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/tutorials#set-up-model-context-protocol-mcp).
 
-#### Claude Code (Plugin Installation)
-
-You can also set up the Figma MCP server by installing the Figma Plugin for Claude Code, which includes both remote and desktop MCP server settings as well as Agent Skills for common workflows.
-
-Run the following command to install the plugin from Anthropic's official plugin marketplace.
-
-```bash
-claude plugin install figma@claude-plugins-official
-```
-
-Learn more about Anthropic's [Claude Code Plugins](https://claude.com/blog/claude-code-plugins) and [Agent Skills](https://claude.com/blog/skills).
+</details>
 
 #### Other editors
 
 Other code editors and tools that support Streamable HTTP can also connect to the Figma MCP server.
 
 If you're using a different editor or tool, check its documentation to confirm it supports Streamable HTTP based communication. If it does, you can manually add the Figma MCP server using this configuration:
-
-<table>
-<tr><th>Using the remote MCP Server</th><th>Using the desktop MCP Server</th></tr>
-<tr>
-<td>
 
 ```json
 {
@@ -247,30 +158,11 @@ If you're using a different editor or tool, check its documentation to confirm i
 }
 ```
 
-</td>
-<td>
-
-```json
-{
-  "mcpServers": {
-    "figma-desktop": {
-      "url": "http://127.0.0.1:3845/mcp"
-    }
-  }
-}
-```
-
-</td>
-</tr>
-</table>
-
 ## Prompting your MCP client
 
 The Figma MCP server introduces a set of tools that help LLMs translate designs in Figma. Once connected, you can prompt your MCP client to access a specific design node.
 
-There are two ways to provide Figma design context to your AI client:
-
-### Link-based
+To provide Figma design context to your AI client:
 
 1. Copy the link to a frame or layer in Figma.
 2. Prompt your client to help you implement the design at the selected URL.
@@ -279,13 +171,6 @@ There are two ways to provide Figma design context to your AI client:
 
 > [!NOTE]
 > Your client won't be able to navigate to the selected URL, but it will extract the node-id that is required for the MCP server to identify which object to return information about.
-
-### Selection-based (desktop only)
-
-1. Select a frame or layer inside Figma using the desktop app.
-2. Prompt your client to help you implement your current selection.
-
-   <img src="https://help.figma.com/hc/article_attachments/32209690330263" width="300" />
 
 ## Tools and usage suggestions
 
@@ -306,12 +191,18 @@ Use this to get design context for your Figma selection using the MCP server. Th
   - "Generate my Figma selection using components from src/components/ui"
   - "Generate my Figma selection using components from src/ui and style with Tailwind"
 
-  You can paste links or select the frame or component in Figma before prompting.
-
-> [!NOTE]
-> Selection-based prompting only works with the desktop MCP server. The remote server requires a link to a frame or layer to extract context.
+  You can paste links to the frame or component in Figma before prompting.
 
 [Learn how to set up Code Connect for better component reuse →](https://help.figma.com/hc/en-us/articles/23920389749655-Code-Connect)
+
+### `generate_figma_design` (specific clients only, remote only)
+
+**Supported file types:** Figma Design
+
+Captures, imports, or converts a web page into a Figma design. You can send live UI interfaces as design layers to new or existing Figma files, or to your clipboard.
+
+- "Start a local server for my app and capture the UI in a new Figma file"
+- "Capture the login page to [Figma file URL]"
 
 ### `get_variable_defs`
 
@@ -336,6 +227,24 @@ Retrieves a mapping between Figma node IDs and their corresponding code componen
 - `codeConnectName`: The name of the component in your codebase.
 
 This mapping is used to connect Figma design elements directly to their React (or other framework) implementations, enabling seamless design-to-code workflows and ensuring that the correct components are used for each part of the design. If a Figma node is connected to a code component, this function helps you identify and use the exact component in your project.
+
+### `add_code_connect_map`
+
+**Supported file types:** Figma Design
+
+Creates mappings between Figma node IDs and corresponding code components in your codebase. This improves design-to-code workflow quality by linking specific design elements to their code implementations.
+
+### `get_code_connect_suggestions`
+
+**Supported file types:** Figma Design
+
+Detects and suggests Code Connect mappings between Figma components and code components in your codebase. Works in conjunction with `send_code_connect_mappings` to confirm suggestions.
+
+### `send_code_connect_mappings`
+
+**Supported file types:** Figma Design
+
+Confirms and finalizes Code Connect mappings after suggestions are reviewed through `get_code_connect_suggestions`.
 
 ### `get_screenshot`
 
@@ -365,6 +274,15 @@ This is useful for very large designs where `get_design_context` produces output
 
 This tool returns metadata for FigJam diagrams in XML format, similar to `get_metadata`. In addition to returning basic properties like layer IDs, names, types, positions, and sizes, it also includes screenshots of the nodes.
 
+### `generate_diagram`
+
+**Supported file types:** No file context required
+
+Generates FigJam diagrams from Mermaid syntax. The agent can generate diagrams from natural language descriptions without requiring you to write Mermaid syntax. Supports flowcharts, Gantt charts, state diagrams, and sequence diagrams.
+
+- "Create a flowchart for the user authentication flow using the Figma MCP generate_diagram tool"
+- "Generate a sequence diagram for the payment processing system"
+
 ### `whoami` (remote only)
 
 **Supported file types:** No file context required
@@ -374,24 +292,6 @@ This tool returns the identity of the user that's authenticated to Figma, includ
 - The user's email address
 - All of the plans the user belongs to
 - The seat type the user has on each plan
-
-## Desktop Figma MCP server settings
-
-These are additional settings you can toggle under Preferences and use with the MCP client.
-
-**Image settings**
-
-- **Use local image server**: Hosts images on a local server with URLs like `http://localhost:3845/assets/89f254d1a998c9a6d1d324d43c73539c3993b16e.png`.
-
-- **Download**: Saves images directly to disk.
-
-- **(DEPRECATED) Use placeholder images:** Skips image extraction and adds generic placeholders instead - helpful if you prefer swapping them manually in code.
-
-**Enable Code Connect**
-
-Includes Code Connect mappings in the response, so the generated code can reuse components from your connected codebase where possible.
-
-> As you use the Figma MCP server, you may see a popup inside Figma asking you for feedback. To give us feedback, [please use this form](https://form.asana.com/?k=jMdFq_1SBUOyh8_k3q76QA&d=10497086658021).
 
 # MCP best practices
 

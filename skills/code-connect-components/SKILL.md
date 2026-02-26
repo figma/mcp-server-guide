@@ -2,7 +2,7 @@
 name: code-connect-components
 description: Connects Figma design components to code components using Code Connect. Use when user says "code connect", "connect this component to code", "connect Figma to code", "map this component", "link component to code", "create code connect mapping", "add code connect", "connect design to code", or wants to establish mappings between Figma designs and code implementations. Requires Figma MCP server connection.
 metadata:
-  mcp-server: figma, figma-desktop
+  mcp-server: figma
 ---
 
 # Code Connect Components
@@ -14,9 +14,10 @@ This skill helps you connect Figma design components to their corresponding code
 ## Prerequisites
 
 - Figma MCP server must be connected and accessible
+  - Before proceeding, verify the Figma MCP server is connected by checking if Figma MCP tools (e.g., `get_code_connect_suggestions`) are available.
+  - If the tools are not available, the Figma MCP server may not be enabled. Guide the user to enable the Figma MCP server that is included with the plugin. They may need to restart their MCP client afterward.
 - User must provide a Figma URL with node ID: `https://figma.com/design/:fileKey/:fileName?node-id=1-2`
   - **IMPORTANT:** The Figma URL must include the `node-id` parameter. Code Connect mapping will fail without it.
-- **OR** when using `figma-desktop` MCP: User can select a node directly in the Figma desktop app (no URL required)
 - **IMPORTANT:** The Figma component must be published to a team library. Code Connect only works with published components or component sets.
 - **IMPORTANT:** Code Connect is only available on Organization and Enterprise plans.
 - Access to the project codebase for component scanning
@@ -33,14 +34,6 @@ Call `get_code_connect_suggestions` to identify all unmapped components in a sin
 - Identifies published components in the selection
 - Checks existing Code Connect mappings and filters out already-connected components
 - Returns component names, properties, and thumbnail images for each unmapped component
-
-#### Option A: Using `figma-desktop` MCP (no URL provided)
-
-If the `figma-desktop` MCP server is connected and the user has NOT provided a Figma URL, immediately call `get_code_connect_suggestions`. No URL parsing is needed — the desktop MCP server automatically uses the currently selected node from the open Figma file.
-
-**Note:** The user must have the Figma desktop app open with a node selected. `fileKey` is not passed as a parameter — the server uses the currently open file.
-
-#### Option B: When a Figma URL is provided
 
 Parse the URL to extract `fileKey` and `nodeId`, then call `get_code_connect_suggestions`.
 
