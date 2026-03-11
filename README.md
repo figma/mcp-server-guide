@@ -71,7 +71,7 @@ The recommended way to set up the Figma MCP server in Cursor is by installing th
 Install the plugin by typing the following command in Cursor's agent chat:
 
 ```
-/plugin-add figma
+/add-plugin figma
 ```
 
 The plugin includes:
