@@ -3,6 +3,8 @@ name: code-connect-components
 description: Connects Figma design components to code components using Code Connect. Use when user says "code connect", "connect this component to code", "connect Figma to code", "map this component", "link component to code", "create code connect mapping", "add code connect", "connect design to code", or wants to establish mappings between Figma designs and code implementations. Requires Figma MCP server connection.
 metadata:
   mcp-server: figma
+  source: https://github.com/figma/mcp-server-guide
+  author: Figma
 ---
 
 # Code Connect Components
