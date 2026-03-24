@@ -299,9 +299,7 @@ This tool returns the identity of the user that's authenticated to Figma, includ
 
 ### `use_figma`
 
-:::note
 **Note:** We're quickly improving how Figma supports AI agents. This will eventually be a usage-based paid feature, but is currently available for free during the beta period.
-:::
 
 **Supported file types:** Figma Design, FigJam
 
