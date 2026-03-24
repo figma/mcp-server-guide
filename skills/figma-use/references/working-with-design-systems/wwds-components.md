@@ -7,7 +7,7 @@ Properties can vary from code in different ways, but alignment to code can still
 Figma has four property types, which can be inspected in the component definition's `componentPropertyDefinitions`. To fully understand the component, its descendants must be traversed. Property types include:
 
 - Variant
-  - This is reflected as permutations of the component in a Component Set on the canvas. Each variant is explicitly visualized, including an redundant permutations ("Small + Primary + Disabled" may look the same as "Small Secondary Sisabled"). These permutations create different variants implicitly in Figma and it is handled through layer naming (`Variant=Primary,Size=Small,State=Disabled`).
+  - This is reflected as permutations of the component in a Component Set on the canvas. Each variant is explicitly visualized, including any redundant permutations ("Small + Primary + Disabled" may look the same as "Small Secondary Disabled"). These permutations create different variants implicitly in Figma and it is handled through layer naming (`Variant=Primary,Size=Small,State=Disabled`).
 - Text/String
   - Text properties are stored on the component parent, but can be mapped to Text node descendants.
   - `node.componentPropertyReferences.characters` on a descendant text node are how you determine where the text property is referenced (can be multiple, though unlikely).

@@ -10,11 +10,11 @@ One gap is the lack of composite tokens. You can't put a box shadow behind a sin
 
 ### Collections
 
-Collections can be thought of a groups in Figma. An example Collection would be "Colors" where there might be a light and dark "Mode." Each value would have two definitions.
+Collections can be thought of as groups in Figma. An example Collection would be "Colors" where there might be a light and dark "Mode." Each value would have two definitions.
 
 ### Extended Collections
 
-Extended collections allow you to create a colleciton based on another collection and only override _some_ of the values. Just like inheritance and overrides in CSS. This aligns well for scenarios like branded color themes.
+Extended collections allow you to create a collection based on another collection and only override _some_ of the values. Just like inheritance and overrides in CSS. This aligns well for scenarios like branded color themes.
 
 ### Modes
 

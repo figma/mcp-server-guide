@@ -1,11 +1,11 @@
 {
-    "name": "figma",
-    "description": "Plugin that includes the Figma MCP server and Skills for common workflows.",
-    "version": "2.0.1",
-    "author": {
-        "name": "Figma",
-        "url": "https://www.figma.com"
-    },
-    "homepage": "https://github.com/figma/mcp-server-guide",
-    "keywords": ["figma", "design", "mcp", "ui", "code-connect"]
+  "name": "figma",
+  "description": "Plugin that includes the Figma MCP server and Skills for common workflows.",
+  "version": "2.0.2",
+  "author": {
+    "name": "Figma",
+    "url": "https://www.figma.com"
+  },
+  "homepage": "https://github.com/figma/mcp-server-guide",
+  "keywords": ["figma", "design", "mcp", "ui", "code-connect"]
 }
