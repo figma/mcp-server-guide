@@ -4,5 +4,11 @@
   "version": "1.2.0",
   "author": {
     "name": "Figma"
+  },
+  "mcpServers": {
+    "figma": {
+      "type": "http",
+      "url": "https://mcp.figma.com/mcp"
+    }
   }
 }
