@@ -297,7 +297,7 @@ This tool returns the identity of the user that's authenticated to Figma, includ
 - All of the plans the user belongs to
 - The seat type the user has on each plan
 
-### use_figma
+### `use_figma`
 
 :::note
 **Note:** We're quickly improving how Figma supports AI agents. This will eventually be a usage-based paid feature, but is currently available for free during the beta period.
@@ -326,7 +326,7 @@ The `use_figma` tool is best invoked with the `figma-use` skill.
   - `fix the auto-layout spacing on the nav component`
   - `update the typography styles to match the design spec`
 
-### search_design_system
+### `search_design_system`
 
 **Supported file types:** Figma Design
 
@@ -343,7 +343,7 @@ Searches across all connected design libraries to find components, variables, an
 - **Narrow by type**
   - `search for icon styles in my design system`
 
-### create_new_file
+### `create_new_file`
 
 **Supported file types:** No file context required
 
