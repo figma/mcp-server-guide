@@ -2,7 +2,7 @@
 
 When using Figma variables, you need to start by understanding the state of the source and the state of Figma.
 
-For the source, you need to know the breadth of variables code representation. CSS, JSON, theme providers etc will all be able to indicate what the user will expect you to cover in Figma. Some beginner users might not even know what does and doesn't exist in Figma, and if you cant discover that on your own, you will need their help making the right decision.
+For the source, you need to know the breadth of variable code representations. CSS, JSON, theme providers etc will all be able to indicate what the user will expect you to cover in Figma. Some beginner users might not even know what does and doesn't exist in Figma, and if you can't discover that on your own, you will need their help making the right decision.
 
 For Figma, you need to know what collections exist, what their modes are, and what values and names and code syntaxes are in them. This will help you make sure you are using the right things. For properties that "should" have variables but don't, you likely will need to ask the user what to do. Your understanding of Figma's current state should come first.
 
