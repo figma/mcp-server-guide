@@ -13,6 +13,10 @@ For the complete set of Figma MCP server docs, see our [developer documentation]
 
 ## Features
 
+- **Write to the canvas**: Create and modify native Figma content directly from your MCP client. With the right skills, agents can build and update frames, components, variables, and auto layout in your Figma files using your design system as the source of truth.
+
+    **Note:** We're quickly improving how Figma supports AI agents. The write to canvas feature will eventually be a usage-based paid feature, but is currently available for free during the beta period.
+
 - **Generate code from selected frames**
 
   Select a Figma frame and turn it into code. Great for product teams building new flows or iterating on app features.
@@ -292,6 +296,66 @@ This tool returns the identity of the user that's authenticated to Figma, includ
 - The user's email address
 - All of the plans the user belongs to
 - The seat type the user has on each plan
+
+### use_figma
+
+:::note
+**Note:** We're quickly improving how Figma supports AI agents. This will eventually be a usage-based paid feature, but is currently available for free during the beta period.
+:::
+
+**Supported file types:** Figma Design, FigJam
+
+The general-purpose tool for writing to Figma. Use it to create, edit, delete, or inspect any object in a Figma file: pages, frames, components, variants, variables, styles, text, images, and more.
+
+When relevant, the agent will first check your design system for existing components to reuse before creating anything from scratch.
+
+The `use_figma` tool is best invoked with the `figma-use` skill.
+
+**You can ask it to:**
+
+- **Create or modify designs**
+  - `add a new frame to my Figma file`
+  - `update the button component to use the correct fill color`
+- **Set up design tokens, variables, or styles**
+  - `create a color variable collection from my design tokens`
+  - `set up spacing tokens in my Figma file`
+- **Build or update component and variant systems**
+  - `generate variants for the card component`
+  - `sync my Figma components with my latest code changes`
+- **Fix layout or visual issues**
+  - `fix the auto-layout spacing on the nav component`
+  - `update the typography styles to match the design spec`
+
+### search_design_system
+
+**Supported file types:** Figma Design
+
+Searches across all connected design libraries to find components, variables, and styles matching a text query. Returns matching assets so the agent can reuse existing design system elements rather than creating new ones from scratch.
+
+**You can ask it to:**
+
+- **Find components**
+  - `search for a button component in my design system`
+  - `find a card component I can use for this layout`
+- **Look up tokens**
+  - `search for the primary color variable in my design system`
+  - `find spacing tokens in my design libraries`
+- **Narrow by type**
+  - `search for icon styles in my design system`
+
+### create_new_file
+
+**Supported file types:** No file context required
+
+Creates a new blank Figma Design or FigJam file in your drafts folder. If you belong to multiple plans, you'll be asked which team or organization to create the file in.
+
+**You can ask it to:**
+
+- **Create a new design file**
+  - `create a new Figma file called "Homepage Redesign"`
+- **Create a new FigJam file**
+  - `create a new FigJam board for our project planning session`
+
 
 # MCP best practices
 
