@@ -13,7 +13,7 @@ For the complete set of Figma MCP server docs, see our [developer documentation]
 
 ## Features
 
-- **Write to the canvas**: Create and modify native Figma content directly from your MCP client. With the right skills, agents can build and update frames, components, variables, and auto layout in your Figma files using your design system as the source of truth.
+- **Write to the canvas** (remote server only): Create and modify native Figma content directly from your MCP client. With the right skills, agents can build and update frames, components, variables, and auto layout in your Figma files using your design system as the source of truth.
 
     **Note:** We're quickly improving how Figma supports AI agents. The write to canvas feature will eventually be a usage-based paid feature, but is currently available for free during the beta period.
 
@@ -297,11 +297,9 @@ This tool returns the identity of the user that's authenticated to Figma, includ
 - All of the plans the user belongs to
 - The seat type the user has on each plan
 
-### `use_figma`
+### `use_figma` (remote only)
 
-:::note
 **Note:** We're quickly improving how Figma supports AI agents. This will eventually be a usage-based paid feature, but is currently available for free during the beta period.
-:::
 
 **Supported file types:** Figma Design, FigJam
 
