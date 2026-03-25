@@ -146,6 +146,26 @@ For more information, see [Anthropic's official documentation](https://docs.anth
 
 </details>
 
+#### Gemini CLI
+
+Install the Figma extension for Gemini CLI by running the following command:
+
+```bash
+gemini extensions install https://github.com/figma/mcp-server-guide
+```
+
+Once installed, authenticate with Figma by running `gemini` and then executing the following command within the CLI:
+
+```
+/mcp auth figma
+```
+
+To uninstall the extension:
+
+```bash
+gemini extensions uninstall figma
+```
+
 #### Other editors
 
 Other code editors and tools that support Streamable HTTP can also connect to the Figma MCP server.
