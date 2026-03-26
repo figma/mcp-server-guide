@@ -166,6 +166,44 @@ To uninstall the extension:
 gemini extensions uninstall figma
 ```
 
+#### GitHub Copilot CLI
+
+1. Launch the Copilot CLI and run `/mcp add`. Fill in the prompts as follows:
+
+   - **Server Name:** `figma`
+   - **Server Type:** `3` (HTTP)
+   - **Command:** `https://mcp.figma.com/mcp`
+   - **Environment Variables:** *(leave blank)*
+   - **Tools:** `*` *(default — allows all tools)*
+
+2. Run `/mcp show` to confirm the server is listed as connected.
+
+3. On your first Figma tool call, a browser window will open automatically to complete OAuth authentication with Figma.
+
+<details>
+<summary>Manual setup</summary>
+
+1. Create or edit `~/.copilot/mcp-config.json`:
+
+```json
+{
+  "mcpServers": {
+    "figma": {
+      "type": "http",
+      "url": "https://mcp.figma.com/mcp"
+    }
+  }
+}
+```
+
+2. Restart the Copilot CLI, then run `/mcp show` to confirm the server is connected.
+
+</details>
+
+> [!NOTE]
+> You must have [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) installed and authenticated (`/login`) with a GitHub account that has an active Copilot subscription.
+
+
 #### Other editors
 
 Other code editors and tools that support Streamable HTTP can also connect to the Figma MCP server.
