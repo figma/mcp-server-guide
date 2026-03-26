@@ -13,7 +13,6 @@
 - Node cleanup and empty-fill pitfalls
 - detachInstance() and node ID invalidation
 
-
 ## New nodes default to (0,0) and overlap existing content
 
 Every `figma.create*()` call places the node at position (0,0). If you append multiple nodes directly to the page, they all stack on top of each other and on top of any existing content.
@@ -22,30 +21,30 @@ Every `figma.create*()` call places the node at position (0,0). If you append mu
 
 ```js
 // WRONG — top-level node lands at (0,0), overlapping existing page content
-const frame = figma.createFrame()
-frame.name = "My New Frame"
-frame.resize(400, 300)
-figma.currentPage.appendChild(frame)
+const frame = figma.createFrame();
+frame.name = "My New Frame";
+frame.resize(400, 300);
+figma.currentPage.appendChild(frame);
 
 // CORRECT — find existing content bounds and place the new top-level node to the right
-const page = figma.currentPage
-let maxX = 0
+const page = figma.currentPage;
+let maxX = 0;
 for (const child of page.children) {
-  const right = child.x + child.width
-  if (right > maxX) maxX = right
+  const right = child.x + child.width;
+  if (right > maxX) maxX = right;
 }
-const frame = figma.createFrame()
-frame.name = "My New Frame"
-frame.resize(400, 300)
-figma.currentPage.appendChild(frame)
-frame.x = maxX + 100  // 100px gap from rightmost existing content
-frame.y = 0
+const frame = figma.createFrame();
+frame.name = "My New Frame";
+frame.resize(400, 300);
+figma.currentPage.appendChild(frame);
+frame.x = maxX + 100; // 100px gap from rightmost existing content
+frame.y = 0;
 
 // NOT NEEDED — child nodes inside a parent don't need overlap scanning
-const card = figma.createFrame()
-card.layoutMode = 'VERTICAL'
-const label = figma.createText()
-card.appendChild(label)  // positioned by auto-layout, no x/y needed
+const card = figma.createFrame();
+card.layoutMode = "VERTICAL";
+const label = figma.createText();
+card.appendChild(label); // positioned by auto-layout, no x/y needed
 ```
 
 ## `addComponentProperty` returns a string key, not an object — never hardcode or guess it
@@ -54,18 +53,18 @@ Figma generates the property key dynamically (e.g. `"label#4:0"`). The suffix is
 
 ```js
 // WRONG — guessing / hardcoding the key
-comp.addComponentProperty('label', 'TEXT', 'Button')
-labelNode.componentPropertyReferences = { characters: 'label#0:1' }  // Error: key not found
+comp.addComponentProperty("label", "TEXT", "Button");
+labelNode.componentPropertyReferences = { characters: "label#0:1" }; // Error: key not found
 
 // WRONG — treating the return value as an object
-const result = comp.addComponentProperty('Label', 'TEXT', 'Button')
-const propKey = Object.keys(result)[0]  // BUG: returns '0' (first char index of string!)
-labelNode.componentPropertyReferences = { characters: propKey }  // Error: property '0' not found
+const result = comp.addComponentProperty("Label", "TEXT", "Button");
+const propKey = Object.keys(result)[0]; // BUG: returns '0' (first char index of string!)
+labelNode.componentPropertyReferences = { characters: propKey }; // Error: property '0' not found
 
 // CORRECT — the return value IS the key string, use it directly
-const propKey = comp.addComponentProperty('Label', 'TEXT', 'Button')
+const propKey = comp.addComponentProperty("Label", "TEXT", "Button");
 // propKey === "label#4:0" (exact value varies; never assume it)
-labelNode.componentPropertyReferences = { characters: propKey }
+labelNode.componentPropertyReferences = { characters: propKey };
 ```
 
 The same applies to `COMPONENT_SET` nodes — `addComponentProperty` always returns the property key as a string.
@@ -76,92 +75,96 @@ Every script that creates or mutates nodes on the canvas must track and return a
 
 ```js
 // WRONG — only returns the parent frame ID, loses track of children
-const frame = figma.createFrame()
-const rect = figma.createRectangle()
-const text = figma.createText()
-frame.appendChild(rect)
-frame.appendChild(text)
-return { nodeId: frame.id }
+const frame = figma.createFrame();
+const rect = figma.createRectangle();
+const text = figma.createText();
+frame.appendChild(rect);
+frame.appendChild(text);
+return { nodeId: frame.id };
 
 // CORRECT — returns all created node IDs in a structured response
-const frame = figma.createFrame()
-const rect = figma.createRectangle()
-const text = figma.createText()
-frame.appendChild(rect)
-frame.appendChild(text)
+const frame = figma.createFrame();
+const rect = figma.createRectangle();
+const text = figma.createText();
+frame.appendChild(rect);
+frame.appendChild(text);
 return {
   createdNodeIds: [frame.id, rect.id, text.id],
-  rootNodeId: frame.id
-}
+  rootNodeId: frame.id,
+};
 
 // CORRECT — when mutating existing nodes, return those IDs too
-const nodes = figma.currentPage.findAll(n => n.name === 'Card')
+const nodes = figma.currentPage.findAll((n) => n.name === "Card");
 for (const n of nodes) {
-  n.fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0 } }]
+  n.fills = [{ type: "SOLID", color: { r: 1, g: 0, b: 0 } }];
 }
 return {
-  mutatedNodeIds: nodes.map(n => n.id),
-  count: nodes.length
-}
+  mutatedNodeIds: nodes.map((n) => n.id),
+  count: nodes.length,
+};
 ```
 
 ## Colors are 0–1 range
 
 ```js
 // WRONG — will throw validation error (ZeroToOne enforced)
-node.fills = [{ type: 'SOLID', color: { r: 255, g: 0, b: 0 } }]
+node.fills = [{ type: "SOLID", color: { r: 255, g: 0, b: 0 } }];
 
 // CORRECT
-node.fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0 } }]
+node.fills = [{ type: "SOLID", color: { r: 1, g: 0, b: 0 } }];
 ```
 
 ## Fills/strokes are immutable arrays
 
 ```js
 // WRONG — modifying in place does nothing
-node.fills[0].color = { r: 1, g: 0, b: 0 }
+node.fills[0].color = { r: 1, g: 0, b: 0 };
 
 // CORRECT — clone, modify, reassign
-const fills = JSON.parse(JSON.stringify(node.fills))
-fills[0].color = { r: 1, g: 0, b: 0 }
-node.fills = fills
+const fills = JSON.parse(JSON.stringify(node.fills));
+fills[0].color = { r: 1, g: 0, b: 0 };
+node.fills = fills;
 ```
 
 ## setBoundVariableForPaint returns a NEW paint
 
 ```js
 // WRONG — ignoring return value
-figma.variables.setBoundVariableForPaint(paint, "color", colorVar)
-node.fills = [paint]  // paint is unchanged!
+figma.variables.setBoundVariableForPaint(paint, "color", colorVar);
+node.fills = [paint]; // paint is unchanged!
 
 // CORRECT — capture the returned new paint
-const boundPaint = figma.variables.setBoundVariableForPaint(paint, "color", colorVar)
-node.fills = [boundPaint]
+const boundPaint = figma.variables.setBoundVariableForPaint(
+  paint,
+  "color",
+  colorVar,
+);
+node.fills = [boundPaint];
 ```
 
 ## Variable collection starts with 1 mode
 
 ```js
 // A new collection already has one mode — rename it, don't try to add first
-const collection = figma.variables.createVariableCollection("Colors")
+const collection = figma.variables.createVariableCollection("Colors");
 // collection.modes = [{ modeId: "...", name: "Mode 1" }]
-collection.renameMode(collection.modes[0].modeId, "Light")
-const darkModeId = collection.addMode("Dark")
+collection.renameMode(collection.modes[0].modeId, "Light");
+const darkModeId = collection.addMode("Dark");
 ```
 
 ## combineAsVariants requires ComponentNodes
 
 ```js
 // WRONG — passing frames
-const f1 = figma.createFrame()
-figma.combineAsVariants([f1], figma.currentPage) // Error!
+const f1 = figma.createFrame();
+figma.combineAsVariants([f1], figma.currentPage); // Error!
 
 // CORRECT — passing components
-const c1 = figma.createComponent()
-c1.name = "variant=primary, size=md"
-const c2 = figma.createComponent()
-c2.name = "variant=secondary, size=md"
-figma.combineAsVariants([c1, c2], figma.currentPage)
+const c1 = figma.createComponent();
+c1.name = "variant=primary, size=md";
+const c2 = figma.createComponent();
+c2.name = "variant=secondary, size=md";
+figma.combineAsVariants([c1, c2], figma.currentPage);
 ```
 
 ## Page switching: sync setter does NOT work
@@ -171,6 +174,7 @@ The sync setter `figma.currentPage = page` does **NOT work** in `use_figma` — 
 Note: **reading** `figma.currentPage` is fine — it's only the **assignment** (`figma.currentPage = ...`) that throws.
 
 ```js
+<<<<<<< HEAD
 // WRONG — throws "Setting figma.currentPage is not supported"
 figma.currentPage = targetPage
 
@@ -179,6 +183,13 @@ await figma.setCurrentPageAsync(targetPage)
 
 // ALSO CORRECT — reading currentPage is fine
 const page = figma.currentPage  // works
+=======
+// WRONG — throws "Setting figma.currentPage is not supported in this runtime"
+figma.currentPage = targetPage;
+
+// CORRECT — async method switches and loads content
+await figma.setCurrentPageAsync(targetPage);
+>>>>>>> f71e3de (Removes references to TextStyle.setBoundVariable not working and bumps version)
 ```
 
 ## `get_metadata` only sees one page — use `use_figma` to discover all pages
@@ -190,8 +201,10 @@ A Figma file can have multiple pages (canvas nodes). `get_metadata` operates on 
 // get_metadata only returns the subtree of the node you pass it
 
 // CORRECT — use use_figma to list pages, then inspect each one
-const pages = figma.root.children.map(p => `${p.name} id=${p.id} children=${p.children.length}`);
-return pages.join('\n');
+const pages = figma.root.children.map(
+  (p) => `${p.name} id=${p.id} children=${p.children.length}`,
+);
+return pages.join("\n");
 ```
 
 Icons, variables, and components may live on pages other than the first. Always enumerate all pages before concluding that the file has no existing assets.
@@ -200,10 +213,10 @@ Icons, variables, and components may live on pages other than the first. Always 
 
 ```js
 // WRONG — throws "not implemented" error
-figma.notify("Done!")
+figma.notify("Done!");
 
 // CORRECT — return a value to send data back to the agent
-return "Done!"
+return "Done!";
 ```
 
 ## `getPluginData()` / `setPluginData()` are not supported
@@ -212,16 +225,16 @@ These APIs are not available in `use_figma`. Use `getSharedPluginData()` / `setS
 
 ```js
 // WRONG — not supported in use_figma
-node.setPluginData('my_key', 'my_value')
-const val = node.getPluginData('my_key')
+node.setPluginData("my_key", "my_value");
+const val = node.getPluginData("my_key");
 
 // CORRECT — use shared plugin data (requires a namespace)
-node.setSharedPluginData('my_namespace', 'my_key', 'my_value')
-const val = node.getSharedPluginData('my_namespace', 'my_key')
+node.setSharedPluginData("my_namespace", "my_key", "my_value");
+const val = node.getSharedPluginData("my_namespace", "my_key");
 
 // ALSO CORRECT — return node IDs and track them across calls
-const rect = figma.createRectangle()
-return { nodeId: rect.id }
+const rect = figma.createRectangle();
+return { nodeId: rect.id };
 // Then pass nodeId as a string literal in the next use_figma call
 ```
 
@@ -229,11 +242,11 @@ return { nodeId: rect.id }
 
 ```js
 // WRONG — no return, caller gets no useful response
-figma.createRectangle()
+figma.createRectangle();
 
 // CORRECT — return a result (objects are auto-serialized, errors are auto-captured)
-const rect = figma.createRectangle()
-return { nodeId: rect.id }
+const rect = figma.createRectangle();
+return { nodeId: rect.id };
 ```
 
 ## setBoundVariable for paint fields only works on SOLID paints
@@ -241,56 +254,42 @@ return { nodeId: rect.id }
 ```js
 // Only SOLID paint type supports color variable binding
 // Gradient paints, image paints, etc. will throw
-const solidPaint = { type: 'SOLID', color: { r: 0, g: 0, b: 0 } }
-const bound = figma.variables.setBoundVariableForPaint(solidPaint, "color", colorVar)
+const solidPaint = { type: "SOLID", color: { r: 0, g: 0, b: 0 } };
+const bound = figma.variables.setBoundVariableForPaint(
+  solidPaint,
+  "color",
+  colorVar,
+);
 ```
 
 ## Explicit variable modes must be set per component
 
 ```js
 // WRONG — all variants render with the default (first) mode
-const colorCollection = figma.variables.createVariableCollection("Colors")
+const colorCollection = figma.variables.createVariableCollection("Colors");
 // ... create variables and modes ...
 // Components all show the first mode's values by default!
 
 // CORRECT — set explicit mode on each component to get variant-specific values
-component.setExplicitVariableModeForCollection(colorCollection, targetModeId)
+component.setExplicitVariableModeForCollection(colorCollection, targetModeId);
 ```
-
-## `TextStyle.setBoundVariable` is not available in `use_figma`
-
-`setBoundVariable` exists on `TextStyle` in the typed API but is **not available** in `use_figma`. Calling it will throw `"not a function"`.
-
-```js
-// WRONG — throws "not a function" in use_figma
-const ts = figma.createTextStyle()
-ts.setBoundVariable("fontSize", fontSizeVar)
-
-// CORRECT — set raw values; bind variables interactively in Figma later
-const ts = figma.createTextStyle()
-ts.fontSize = 24
-```
-
-This only affects `TextStyle`. Variable binding on **nodes** (`node.setBoundVariable(...)`) and on **paint objects** (`figma.variables.setBoundVariableForPaint(...)`) still works in `use_figma` as expected.
-
-If live variable binding on text styles is required, create the styles with raw values via `use_figma`, then bind variables interactively through the Figma Styles panel or a full interactive plugin.
 
 ## `lineHeight` and `letterSpacing` must be objects, not bare numbers
 
 ```js
 // WRONG — throws or silently does nothing
-style.lineHeight = 1.5
-style.lineHeight = 24
-style.letterSpacing = 0
+style.lineHeight = 1.5;
+style.lineHeight = 24;
+style.letterSpacing = 0;
 
 // CORRECT
-style.lineHeight = { unit: "AUTO" }                    // auto/intrinsic
-style.lineHeight = { value: 24, unit: "PIXELS" }       // fixed pixel height
-style.lineHeight = { value: 150, unit: "PERCENT" }     // percentage of font size
+style.lineHeight = { unit: "AUTO" }; // auto/intrinsic
+style.lineHeight = { value: 24, unit: "PIXELS" }; // fixed pixel height
+style.lineHeight = { value: 150, unit: "PERCENT" }; // percentage of font size
 
-style.letterSpacing = { value: 0, unit: "PIXELS" }     // no tracking
-style.letterSpacing = { value: -0.5, unit: "PIXELS" }  // tight
-style.letterSpacing = { value: 5, unit: "PERCENT" }    // percent-based
+style.letterSpacing = { value: 0, unit: "PIXELS" }; // no tracking
+style.letterSpacing = { value: -0.5, unit: "PIXELS" }; // tight
+style.letterSpacing = { value: 5, unit: "PERCENT" }; // percent-based
 ```
 
 This applies to both `TextStyle` and `TextNode` properties. The same rule applies inside `use_figma`, interactive plugins, and any other plugin API context.
@@ -303,8 +302,9 @@ Use `figma.listAvailableFontsAsync()` to discover all available fonts and their 
 
 ```js
 // WRONG — guessing style names
-await figma.loadFontAsync({ family: "Inter", style: "SemiBold" }) // may throw
+await figma.loadFontAsync({ family: "Inter", style: "SemiBold" }); // may throw
 
+<<<<<<< HEAD
 // CORRECT — discover available styles, then load
 const allFonts = await figma.listAvailableFontsAsync()
 const interFonts = allFonts.filter(f => f.fontName.family === "Inter")
@@ -317,6 +317,16 @@ if (desired) {
   // Fall back to a known-safe style
   const fallback = interFonts.find(f => f.fontName.style === "Regular")
   if (fallback) await figma.loadFontAsync(fallback.fontName)
+=======
+// CORRECT — probe which style names are available
+const candidates = ["SemiBold", "Semi Bold", "Semibold"];
+for (const style of candidates) {
+  try {
+    await figma.loadFontAsync({ family: "Inter", style });
+    // capture the one that works
+    break;
+  } catch (_) {}
+>>>>>>> f71e3de (Removes references to TextStyle.setBoundVariable not working and bumps version)
 }
 ```
 
@@ -326,39 +336,40 @@ When building a type ramp script, always call `listAvailableFontsAsync()` first 
 
 ```js
 // WRONG — all variants stack at position (0, 0), resulting in a tiny ComponentSet
-const components = [comp1, comp2, comp3]
-const cs = figma.combineAsVariants(components, figma.currentPage)
+const components = [comp1, comp2, comp3];
+const cs = figma.combineAsVariants(components, figma.currentPage);
 // cs.width/height will be the size of a SINGLE variant!
 
 // CORRECT — manually layout children in a grid after combining
-const cs = figma.combineAsVariants(components, figma.currentPage)
-const colWidth = 120
-const rowHeight = 56
+const cs = figma.combineAsVariants(components, figma.currentPage);
+const colWidth = 120;
+const rowHeight = 56;
 cs.children.forEach((child, i) => {
-  const col = i % numCols
-  const row = Math.floor(i / numCols)
-  child.x = col * colWidth
-  child.y = row * rowHeight
-})
+  const col = i % numCols;
+  const row = Math.floor(i / numCols);
+  child.x = col * colWidth;
+  child.y = row * rowHeight;
+});
 // CRITICAL: resize from actual child bounds, not formula — formula errors leave variants outside the boundary
-let maxX = 0, maxY = 0
+let maxX = 0,
+  maxY = 0;
 for (const child of cs.children) {
-  maxX = Math.max(maxX, child.x + child.width)
-  maxY = Math.max(maxY, child.y + child.height)
+  maxX = Math.max(maxX, child.x + child.width);
+  maxY = Math.max(maxY, child.y + child.height);
 }
-cs.resizeWithoutConstraints(maxX + 40, maxY + 40)
+cs.resizeWithoutConstraints(maxX + 40, maxY + 40);
 ```
 
 ## COLOR variable values use {r, g, b, a} (with alpha)
 
 ```js
 // Paint colors use {r, g, b} (no alpha — opacity is a separate paint property)
-node.fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0 } }]
+node.fills = [{ type: "SOLID", color: { r: 1, g: 0, b: 0 } }];
 
 // But COLOR variable values use {r, g, b, a} — alpha maps to paint opacity
-const colorVar = figma.variables.createVariable("bg", collection, "COLOR")
-colorVar.setValueForMode(modeId, { r: 1, g: 0, b: 0, a: 1 })  // opaque red
-colorVar.setValueForMode(modeId, { r: 0, g: 0, b: 0, a: 0 })  // fully transparent
+const colorVar = figma.variables.createVariable("bg", collection, "COLOR");
+colorVar.setValueForMode(modeId, { r: 1, g: 0, b: 0, a: 1 }); // opaque red
+colorVar.setValueForMode(modeId, { r: 0, g: 0, b: 0, a: 0 }); // fully transparent
 
 // ⚠️ Don't confuse: {r, g, b} for paint colors vs {r, g, b, a} for variable values
 ```
@@ -367,14 +378,14 @@ colorVar.setValueForMode(modeId, { r: 0, g: 0, b: 0, a: 0 })  // fully transpare
 
 ```js
 // WRONG — setting FILL before the node is a child of an auto-layout frame
-const child = figma.createFrame()
-child.layoutSizingVertical = 'FILL'  // ERROR: "FILL can only be set on children of auto-layout frames"
-parent.appendChild(child)
+const child = figma.createFrame();
+child.layoutSizingVertical = "FILL"; // ERROR: "FILL can only be set on children of auto-layout frames"
+parent.appendChild(child);
 
 // CORRECT — append to auto-layout parent FIRST, then set FILL
-const child = figma.createFrame()
-parent.appendChild(child)            // parent must have layoutMode set
-child.layoutSizingVertical = 'FILL'  // Works!
+const child = figma.createFrame();
+parent.appendChild(child); // parent must have layoutMode set
+child.layoutSizingVertical = "FILL"; // Works!
 ```
 
 ## HUG parents collapse FILL children
@@ -383,21 +394,21 @@ A `HUG` parent cannot give `FILL` children meaningful size. If children have `la
 
 ```js
 // WRONG — parent hugs, so FILL children get zero extra space
-const parent = figma.createFrame()
-parent.layoutMode = 'HORIZONTAL'
-parent.layoutSizingHorizontal = 'HUG'
-const child = figma.createFrame()
-parent.appendChild(child)
-child.layoutSizingHorizontal = 'FILL'  // collapses to min size!
+const parent = figma.createFrame();
+parent.layoutMode = "HORIZONTAL";
+parent.layoutSizingHorizontal = "HUG";
+const child = figma.createFrame();
+parent.appendChild(child);
+child.layoutSizingHorizontal = "FILL"; // collapses to min size!
 
 // CORRECT — parent must be FIXED or FILL for FILL children to expand
-const parent = figma.createFrame()
-parent.layoutMode = 'HORIZONTAL'
-parent.resize(400, 50)
-parent.layoutSizingHorizontal = 'FIXED'  // or 'FILL' if inside another auto-layout
-const child = figma.createFrame()
-parent.appendChild(child)
-child.layoutSizingHorizontal = 'FILL'  // expands to fill remaining 400px
+const parent = figma.createFrame();
+parent.layoutMode = "HORIZONTAL";
+parent.resize(400, 50);
+parent.layoutSizingHorizontal = "FIXED"; // or 'FILL' if inside another auto-layout
+const child = figma.createFrame();
+parent.appendChild(child);
+child.layoutSizingHorizontal = "FILL"; // expands to fill remaining 400px
 ```
 
 ## `layoutGrow` with a hugging parent causes content compression
@@ -405,21 +416,21 @@ child.layoutSizingHorizontal = 'FILL'  // expands to fill remaining 400px
 ```js
 // WRONG — layoutGrow on a child when parent has primaryAxisSizingMode='AUTO' (hug)
 // causes the child to SHRINK below its natural size instead of expanding
-const parent = figma.createComponent()
-parent.layoutMode = 'VERTICAL'
-parent.primaryAxisSizingMode = 'AUTO'  // hug contents
-const content = figma.createFrame()
-content.layoutMode = 'VERTICAL'
-content.primaryAxisSizingMode = 'AUTO'
-parent.appendChild(content)
-content.layoutGrow = 1  // BUG: content compresses, children hidden!
+const parent = figma.createComponent();
+parent.layoutMode = "VERTICAL";
+parent.primaryAxisSizingMode = "AUTO"; // hug contents
+const content = figma.createFrame();
+content.layoutMode = "VERTICAL";
+content.primaryAxisSizingMode = "AUTO";
+parent.appendChild(content);
+content.layoutGrow = 1; // BUG: content compresses, children hidden!
 
 // CORRECT — only use layoutGrow when parent has FIXED sizing with extra space
-content.layoutGrow = 0  // let content take its natural size
+content.layoutGrow = 0; // let content take its natural size
 // OR: set parent to FIXED sizing first
-parent.primaryAxisSizingMode = 'FIXED'
-parent.resizeWithoutConstraints(300, 500)
-content.layoutGrow = 1  // NOW it correctly fills remaining space
+parent.primaryAxisSizingMode = "FIXED";
+parent.resizeWithoutConstraints(300, 500);
+content.layoutGrow = 1; // NOW it correctly fills remaining space
 ```
 
 ## `resize()` resets `primaryAxisSizingMode` and `counterAxisSizingMode` to FIXED
@@ -428,26 +439,26 @@ content.layoutGrow = 1  // NOW it correctly fills remaining space
 
 ```js
 // WRONG — resize() after setting sizing mode overwrites it back to FIXED
-const frame = figma.createComponent()
-frame.layoutMode = 'VERTICAL'
-frame.primaryAxisSizingMode = 'AUTO'  // hug height
-frame.counterAxisSizingMode = 'FIXED'
-frame.resize(300, 10)  // BUG: resets BOTH axes to 'FIXED'! Height stays at 10px forever.
+const frame = figma.createComponent();
+frame.layoutMode = "VERTICAL";
+frame.primaryAxisSizingMode = "AUTO"; // hug height
+frame.counterAxisSizingMode = "FIXED";
+frame.resize(300, 10); // BUG: resets BOTH axes to 'FIXED'! Height stays at 10px forever.
 
 // ESPECIALLY DANGEROUS — throwaway values when you only care about one axis
-const comp = figma.createComponent()
-comp.layoutMode = 'VERTICAL'
-comp.layoutSizingHorizontal = 'FIXED'
-comp.layoutSizingVertical = 'HUG'
-comp.resize(280, 1)  // BUG: "I only want width=280" but this locks height to 1px!
+const comp = figma.createComponent();
+comp.layoutMode = "VERTICAL";
+comp.layoutSizingHorizontal = "FIXED";
+comp.layoutSizingVertical = "HUG";
+comp.resize(280, 1); // BUG: "I only want width=280" but this locks height to 1px!
 // HUG was reset to FIXED by resize(), frame is now permanently 280×1
 
 // CORRECT — call resize() FIRST, then set sizing modes
-const frame = figma.createComponent()
-frame.layoutMode = 'VERTICAL'
-frame.resize(300, 40)  // use a reasonable default, never 0 or 1
-frame.counterAxisSizingMode = 'FIXED'  // keep width fixed at 300
-frame.primaryAxisSizingMode = 'AUTO'   // NOW set height to hug — this sticks!
+const frame = figma.createComponent();
+frame.layoutMode = "VERTICAL";
+frame.resize(300, 40); // use a reasonable default, never 0 or 1
+frame.counterAxisSizingMode = "FIXED"; // keep width fixed at 300
+frame.primaryAxisSizingMode = "AUTO"; // NOW set height to hug — this sticks!
 // Or use the modern shorthand (equivalent):
 // frame.layoutSizingHorizontal = 'FIXED'
 // frame.layoutSizingVertical = 'HUG'
@@ -459,14 +470,16 @@ frame.primaryAxisSizingMode = 'AUTO'   // NOW set height to hug — this sticks!
 
 ```js
 // WRONG — assuming positions reset when moving a node into a new parent
-const node = figma.createRectangle()
-node.x = 500; node.y = 500;
-figma.currentPage.appendChild(node)
-section.appendChild(node)  // node still at (500, 500) relative to section!
+const node = figma.createRectangle();
+node.x = 500;
+node.y = 500;
+figma.currentPage.appendChild(node);
+section.appendChild(node); // node still at (500, 500) relative to section!
 
 // CORRECT — explicitly set x/y after ANY reparenting operation
-section.appendChild(node)
-node.x = 80; node.y = 80;  // reset to desired position within section
+section.appendChild(node);
+node.x = 80;
+node.y = 80; // reset to desired position within section
 ```
 
 ## Grid layout with mixed-width rows causes overlaps
@@ -475,15 +488,15 @@ node.x = 80; node.y = 80;  // reset to desired position within section
 // WRONG — using a single column offset for rows with different-width items
 // e.g. vertical cards (320px) and horizontal cards (500px) in a 2-row grid
 for (let i = 0; i < allCards.length; i++) {
-  allCards[i].x = (i % 4) * 370  // 370 works for 320px cards but NOT 500px cards!
+  allCards[i].x = (i % 4) * 370; // 370 works for 320px cards but NOT 500px cards!
 }
 
 // CORRECT — compute each row's spacing independently based on actual child widths
-const gap = 50
-let x = 0
+const gap = 50;
+let x = 0;
 for (const card of horizontalCards) {
-  card.x = x
-  x += card.width + gap  // use actual width, not a fixed column size
+  card.x = x;
+  x += card.width + gap; // use actual width, not a fixed column size
 }
 ```
 
@@ -491,34 +504,34 @@ for (const card of horizontalCards) {
 
 ```js
 // WRONG — section stays at default size, content overflows
-const section = figma.createSection()
-section.name = "My Section"
-section.appendChild(someNode) // node may be outside section bounds
+const section = figma.createSection();
+section.name = "My Section";
+section.appendChild(someNode); // node may be outside section bounds
 
 // CORRECT — explicitly resize after adding content
-const section = figma.createSection()
-section.name = "My Section"
-section.appendChild(someNode)
+const section = figma.createSection();
+section.name = "My Section";
+section.appendChild(someNode);
 section.resizeWithoutConstraints(
   Math.max(someNode.width + 100, 800),
-  Math.max(someNode.height + 100, 600)
-)
+  Math.max(someNode.height + 100, 600),
+);
 ```
 
 ## `counterAxisAlignItems` does NOT support `'STRETCH'`
 
 ```js
 // WRONG — 'STRETCH' is not a valid enum value
-comp.counterAxisAlignItems = 'STRETCH'
+comp.counterAxisAlignItems = "STRETCH";
 // Error: Invalid enum value. Expected 'MIN' | 'MAX' | 'CENTER' | 'BASELINE', received 'STRETCH'
 
 // CORRECT — use 'MIN' on the parent, then set children to FILL on the cross axis
-comp.counterAxisAlignItems = 'MIN'
-comp.appendChild(child)
+comp.counterAxisAlignItems = "MIN";
+comp.appendChild(child);
 // For vertical layout, stretch width:
-child.layoutSizingHorizontal = 'FILL'
+child.layoutSizingHorizontal = "FILL";
 // For horizontal layout, stretch height:
-child.layoutSizingVertical = 'FILL'
+child.layoutSizingVertical = "FILL";
 ```
 
 ## Variable collection mode limits are plan-dependent
@@ -530,8 +543,8 @@ child.layoutSizingVertical = 'FILL'
 //   Organization/Enterprise: up to 40+ modes
 //
 // WRONG — creating 20 modes on a Professional plan will fail silently or throw
-const coll = figma.variables.createVariableCollection("Variants")
-for (let i = 0; i < 20; i++) coll.addMode("mode" + i) // May fail!
+const coll = figma.variables.createVariableCollection("Variants");
+for (let i = 0; i < 20; i++) coll.addMode("mode" + i); // May fail!
 
 // CORRECT — if you need many modes, split across multiple collections
 // E.g., instead of 1 collection with 20 modes (variant×color):
@@ -544,40 +557,56 @@ for (let i = 0; i < 20; i++) coll.addMode("mode" + i) // May fail!
 
 ```js
 // WRONG — variable appears in every property picker (fills, text, strokes, spacing, etc.)
-const bgColor = figma.variables.createVariable("Background/Default", coll, "COLOR")
+const bgColor = figma.variables.createVariable(
+  "Background/Default",
+  coll,
+  "COLOR",
+);
 // bgColor.scopes defaults to ["ALL_SCOPES"] — pollutes all dropdowns
 
 // CORRECT — restrict to relevant property pickers
-const bgColor = figma.variables.createVariable("Background/Default", coll, "COLOR")
-bgColor.scopes = ["FRAME_FILL", "SHAPE_FILL"]  // fill pickers only
+const bgColor = figma.variables.createVariable(
+  "Background/Default",
+  coll,
+  "COLOR",
+);
+bgColor.scopes = ["FRAME_FILL", "SHAPE_FILL"]; // fill pickers only
 
-const textColor = figma.variables.createVariable("Text/Default", coll, "COLOR")
-textColor.scopes = ["TEXT_FILL"]  // text color picker only
+const textColor = figma.variables.createVariable("Text/Default", coll, "COLOR");
+textColor.scopes = ["TEXT_FILL"]; // text color picker only
 
-const borderColor = figma.variables.createVariable("Border/Default", coll, "COLOR")
-borderColor.scopes = ["STROKE_COLOR"]  // stroke picker only
+const borderColor = figma.variables.createVariable(
+  "Border/Default",
+  coll,
+  "COLOR",
+);
+borderColor.scopes = ["STROKE_COLOR"]; // stroke picker only
 
-const spacing = figma.variables.createVariable("Space/400", coll, "FLOAT")
-spacing.scopes = ["GAP"]  // gap/spacing pickers only
+const spacing = figma.variables.createVariable("Space/400", coll, "FLOAT");
+spacing.scopes = ["GAP"]; // gap/spacing pickers only
 
 // Hide primitives that are only referenced via aliases
-const primitive = figma.variables.createVariable("Brand/500", coll, "COLOR")
-primitive.scopes = []  // hidden from all pickers
+const primitive = figma.variables.createVariable("Brand/500", coll, "COLOR");
+primitive.scopes = []; // hidden from all pickers
 ```
 
 ## Binding fills on nodes with empty fills
 
 ```js
 // WRONG — binding to a node with no fills does nothing
-const comp = figma.createComponent()
-comp.fills = [] // transparent
+const comp = figma.createComponent();
+comp.fills = []; // transparent
 // Can't bind a color variable to fills that don't exist
 
 // CORRECT — add a placeholder SOLID fill, then bind the variable
-const comp = figma.createComponent()
-const basePaint = { type: 'SOLID', color: { r: 0, g: 0, b: 0 } }
-const boundPaint = figma.variables.setBoundVariableForPaint(basePaint, "color", colorVar)
-comp.fills = [boundPaint]
+const comp = figma.createComponent();
+const basePaint = { type: "SOLID", color: { r: 0, g: 0, b: 0 } };
+const boundPaint = figma.variables.setBoundVariableForPaint(
+  basePaint,
+  "color",
+  colorVar,
+);
+comp.fills = [boundPaint];
 // The variable's resolved value (which may be transparent) will control the actual color
 ```
 
@@ -627,7 +656,7 @@ const parent = await figma.getNodeByIdAsync(parentId); // null! ID changed.
 // CORRECT — re-discover by traversal from a stable (non-instance) frame
 const stableFrame = await figma.getNodeByIdAsync(manualFrameId);
 nestedChild.detachInstance();
-const parent = stableFrame.findOne(n => n.name === "ParentName");
+const parent = stableFrame.findOne((n) => n.name === "ParentName");
 ```
 
 If detaching multiple nested instances across siblings, do it in a **single** `use_figma` call — discover all targets by traversal before any detachment mutates the tree.
