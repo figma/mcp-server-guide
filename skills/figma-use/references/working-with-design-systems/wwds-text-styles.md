@@ -54,7 +54,7 @@ To unbind: `style.setBoundVariable(field, null)`
 
 ```js
 const ts = figma.createTextStyle();
-ts.fontSize = 24; // set directly; cannot bind to a variable
+ts.fontSize = 24; // set directly; not bound to a variable
 
 const ts = figma.createTextStyle();
 ts.setBoundVariable("fontSize", fontSizeVariable); // preferred if the variable exists.
