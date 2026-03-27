@@ -40,6 +40,7 @@ Given: `https://www.figma.com/design/QiEF6w564ggoW8ftcLvdcu/MyDesignSystem?node-
 The user may provide a URL pointing to a frame, instance, or variant — not necessarily a component set or standalone component. Call the MCP tool `get_code_connect_suggestions` with:
 - `fileKey` — from Step 1
 - `nodeId` — from Step 1 (colons format)
+- `excludeMappingPrompt` — `true` (returns a lightweight list of unmapped components)
 
 This tool identifies published components in the selection that don't yet have Code Connect mappings.
 
@@ -339,7 +340,7 @@ Given URL: `https://figma.com/design/abc123/MyFile?node-id=42-100`
 - `fileKey` = `abc123`
 - `nodeId` = `42-100` → `42:100`
 
-**Step 2:** Call `get_code_connect_suggestions` with `fileKey: "abc123"`, `nodeId: "42:100"`.
+**Step 2:** Call `get_code_connect_suggestions` with `fileKey: "abc123"`, `nodeId: "42:100"`, `excludeMappingPrompt: true`.
 Response returns one component with `mainComponentNodeId: "42:100"`. If the response were empty, stop and inform the user. If multiple components were returned, repeat Steps 3–6 for each.
 
 **Step 3:** Call `get_context_for_code_connect` with `fileKey: "abc123"`, `nodeId: "42:100"` (from Step 2), `clientFrameworks: ["react"]`, `clientLanguages: ["typescript"]`.
