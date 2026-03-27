@@ -694,8 +694,17 @@ const textStyles = [
   { name: 'Code/Base',       family: 'Roboto Mono', style: 'Regular', size: 14, lineHeight: 20, letterSpacing: 0 },
 ];
 
-// Load all required fonts first
+// Verify fonts are available, then load them
+const allFonts = await figma.listAvailableFontsAsync();
+const availableFontNames = new Set(allFonts.map(f => JSON.stringify(f.fontName)));
 const fontSet = new Set(textStyles.map(s => JSON.stringify({ family: s.family, style: s.style })));
+for (const f of fontSet) {
+  if (!availableFontNames.has(f)) {
+    const parsed = JSON.parse(f);
+    const familyFonts = allFonts.filter(af => af.fontName.family === parsed.family);
+    throw new Error(`Font "${parsed.family} ${parsed.style}" not available. Available styles: ${familyFonts.map(af => af.fontName.style).join(', ') || 'none'}`);
+  }
+}
 await Promise.all([...fontSet].map(f => figma.loadFontAsync(JSON.parse(f))));
 
 const created = [];

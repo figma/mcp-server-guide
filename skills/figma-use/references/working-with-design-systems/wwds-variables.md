@@ -10,11 +10,11 @@ One gap is the lack of composite tokens. You can't put a box shadow behind a sin
 
 ### Collections
 
-Collections can be thought of as groups in Figma. An example Collection would be "Colors" where there might be a light and dark "Mode." Each value would have two definitions.
+Collections can be thought of a groups in Figma. An example Collection would be "Colors" where there might be a light and dark "Mode." Each value would have two definitions.
 
 ### Extended Collections
 
-Extended collections allow you to create a collection based on another collection and only override _some_ of the values. Just like inheritance and overrides in CSS. This aligns well for scenarios like branded color themes.
+Extended collections allow you to create a colleciton based on another collection and only override _some_ of the values. Just like inheritance and overrides in CSS. This aligns well for scenarios like branded color themes.
 
 ### Modes
 
@@ -28,7 +28,7 @@ Aliasing in Figma variables is simply when you point a variable to another varia
 
 ### Code Syntax
 
-Code syntax is a surface area in Figma for codebase translation context. You can set WEB, iOS, and ANDROID code syntax on any variable, and when that variable is referenced in other places (visually in Figma's dev mode, as design context via MCP), this codebase form will appear. These are best thought of as "instance" documentation, eg. `var(--the-thing)` instead of `--the-thing` in the case of CSS.
+Code syntax is a surface area in Figma for codebase translation context. You can set WEB, iOS, and ANDROID code syntax on any variable, and when that variable is referenced in other places (visually in Figma's dev mode, or as design context when reading component metadata), this codebase form will appear. These are best thought of as "instance" documentation, eg. `var(--the-thing)` instead of `--the-thing` in the case of CSS.
 
 ### Scope
 

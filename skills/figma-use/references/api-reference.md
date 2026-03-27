@@ -31,7 +31,7 @@ figma.createVector()
 figma.createPolygon()
 figma.createBooleanOperation()
 figma.createSlice()
-figma.createPage()              // Page node can be created, but child persistence is limited in headless mode
+figma.createPage()              // Page node can be created, but child persistence is limited in use_figma
 figma.createSection()
 figma.createTextPath()
 ```
@@ -186,8 +186,8 @@ node.setExplicitVariableModeForCollection(collection, modeId)  // pass collectio
 
 ```js
 figma.root                      // DocumentNode
-figma.currentPage               // Current page (read-only in use_figma; sync setter throws)
-figma.setCurrentPageAsync(page) // Switch page and load its content (MUST await)
+figma.currentPage               // Current page — READ ONLY; the sync setter (figma.currentPage = page) does NOT work and throws
+figma.setCurrentPageAsync(page) // Switch page and load its content (MUST await) — this is the ONLY way to change pages
 figma.fileKey                   // File key string
 figma.mixed                     // Mixed sentinel value
 ```
@@ -260,6 +260,20 @@ const image = figma.createImage(uint8Array)
 node.fills = [{ type: 'IMAGE', scaleMode: 'FILL', imageHash: image.hash }]
 ```
 
+## Fonts
+
+```js
+// Discover all available fonts and their exact style strings
+const allFonts = await figma.listAvailableFontsAsync()  // Font[] — each has { fontName: { family, style } }
+const interStyles = allFonts.filter(f => f.fontName.family === "Inter")
+
+// MUST load a font before any text property edit
+await figma.loadFontAsync({ family: "Inter", style: "Regular" })
+
+// Check if the file has missing fonts
+figma.hasMissingFont  // boolean
+```
+
 ## Utilities
 
 ```js
@@ -298,7 +312,6 @@ node.parent                    // Parent node
 | `figma.notify()` | **Throws "not implemented"** — most common mistake |
 | `figma.showUI()` | No-op (silently ignored) |
 | `figma.openExternal()` | No-op (silently ignored) |
-| `figma.listAvailableFontsAsync()` | Not implemented |
 | `figma.loadAllPagesAsync()` | Not implemented |
 | `figma.variables.extendLibraryCollectionByKeyAsync()` | Not implemented |
 | `figma.teamLibrary.*` | Not implemented (requires LiveGraph) |

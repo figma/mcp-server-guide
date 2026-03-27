@@ -240,7 +240,8 @@ Interpret: check if variables use `ALL_SCOPES` (bad), check naming convention (s
 ### List Component Sets with Properties
 
 ```javascript
-await figma.setCurrentPageAsync(figma.currentPage); // ensures page context
+// To inspect a specific page, switch to it first:
+// await figma.setCurrentPageAsync(targetPage);
 const componentSets = figma.currentPage.findAll(n => n.type === 'COMPONENT_SET');
 const result = componentSets.map(cs => ({
   id: cs.id,

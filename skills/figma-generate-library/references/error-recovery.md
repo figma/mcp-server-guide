@@ -398,7 +398,7 @@ These can be fixed and retried without affecting already-created entities:
 | Missing property wiring | `componentPropertyReferences` not set | Find component set by ID, re-run the property wiring step |
 | Variable binding omission | A fill was hardcoded instead of bound | Find nodes by `dsb_key`, re-bind the fill |
 | Wrong variable bound | Bound to wrong variable ID | Re-bind with correct variable ID |
-| Text not visible | Font not loaded before text write | Re-run text creation with `loadFontAsync` first |
+| Text not visible | Font not loaded before text write | Call `listAvailableFontsAsync()` to verify the font exists, then re-run text creation with `loadFontAsync` |
 | Script timeout | Script exceeded time limit before completing | Script is atomic — nothing was created. Reduce scope (fewer nodes per call) and retry |
 
 ### Structural Corruption (Requires Rollback or Restart)
@@ -427,7 +427,7 @@ These errors leave the file in a state where continuing forward is unreliable:
 | `"Cannot read properties of null"` | `getNodeByIdAsync` returned null — node was deleted | Run the resume protocol to find what exists, update state ledger |
 | `"Expected nodes to be component nodes"` | Passed a non-ComponentNode to `combineAsVariants` | Filter the array: `nodes.filter(n => n.type === 'COMPONENT')` |
 | `"in createVariable: Cannot create variable"` | Collection was deleted or ID is wrong | Verify collection exists with `getVariableCollectionByIdAsync` |
-| `"font not loaded"` | Called a text property setter without `loadFontAsync` first | Add `await figma.loadFontAsync({ family, style })` before the text operation |
+| `"font not loaded"` | Called a text property setter without `loadFontAsync` first | Call `await figma.listAvailableFontsAsync()` to discover available fonts and verify the font name, then `await figma.loadFontAsync({ family, style })` before the text operation |
 | `"Cannot set properties of a read-only array"` | Tried to mutate fills/strokes in-place | Clone first: `const fills = JSON.parse(JSON.stringify(node.fills))` |
 | `"Expected RGBA color"` | Color value out of 0–1 range | Divide RGB 0–255 values by 255: `{ r: 65/255, g: 85/255, b: 143/255 }` |
 | `"Cannot add children to a non-parent node"` | Tried to append a child to a leaf node (text, rect) | Ensure the parent is a FrameNode, ComponentNode, or GroupNode |

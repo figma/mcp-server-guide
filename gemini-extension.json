@@ -1,6 +1,6 @@
 {
   "name": "Figma",
-  "version": "2.0.2",
+  "version": "2.0.6",
   "description": "Integrate Figma into your workflow: Generate code from frames, extract design context, retrieve resources, and ensure design system consistency with your codebase",
   "mcpServers": {
     "figma": {

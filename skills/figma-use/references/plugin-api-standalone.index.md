@@ -16,7 +16,7 @@
 | `mode`                          | `'default' \| 'textreview' \| 'inspect' \| 'codegen' \| 'linkpreview' \| 'auth'` |
 | `fileKey`                       | `string \| undefined`                                                            |
 | `root`                          | `DocumentNode`                                                                   |
-| `currentPage`                   | `PageNode` — assign via `setCurrentPageAsync`                                    |
+| `currentPage`                   | `PageNode` — **read-only**; sync setter `figma.currentPage = page` does NOT work and throws; use `await figma.setCurrentPageAsync(page)` instead |
 | `currentUser`                   | `User \| null`                                                                   |
 | `mixed`                         | `unique symbol` — sentinel for mixed values in selection                         |
 | `skipInvisibleInstanceChildren` | `boolean`                                                                        |
@@ -25,7 +25,7 @@
 
 | Method                      | Returns                                                 |
 | --------------------------- | ------------------------------------------------------- |
-| `setCurrentPageAsync(page)` | `Promise<void>` — **MUST use this**; sync setter throws |
+| `setCurrentPageAsync(page)` | `Promise<void>` — **MUST use this**; sync setter `figma.currentPage = page` does NOT work |
 | `getNodeByIdAsync(id)`      | `Promise<BaseNode \| null>`                             |
 | `getNodeById(id)`           | `BaseNode \| null`                                      |
 | `getStyleByIdAsync(id)`     | `Promise<BaseStyle \| null>`                            |

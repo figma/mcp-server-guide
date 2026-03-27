@@ -709,7 +709,7 @@ Args: { nodeId: "PAGE_NODE_ID", fileKey: "FILE_KEY" }
 |-----------------|-----------|------------|
 | All variants stacked top-left | Grid layout wasn't applied after `combineAsVariants` | Re-run the grid layout script (§5) |
 | Everything black/same color | Variable bindings failed or variables don't have values for the active mode | Re-run variable binding, check mode values |
-| No text visible | Font wasn't loaded, or text fill is same color as background | Check `loadFontAsync` was called; bind text fill to `color/text/*` variable |
+| No text visible | Font wasn't loaded, or text fill is same color as background | Call `listAvailableFontsAsync()` to verify the font exists, then check `loadFontAsync` was called before text writes; bind text fill to `color/text/*` variable |
 | Variants all same size | Padding/height not bound to size variables | Re-run `bindVariablesToComponent` with size-specific tokens |
 | Component set frame tiny | `resizeWithoutConstraints` wasn't called or used wrong dimensions | Re-calculate bounds from children and resize |
 | Doc frame overlaps components | Component set positioned at same x,y as doc frame | Move component set: `cs.x = docFrame.x + docFrame.width + 60` |
