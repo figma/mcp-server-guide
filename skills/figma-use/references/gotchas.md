@@ -304,7 +304,6 @@ Use `figma.listAvailableFontsAsync()` to discover all available fonts and their 
 // WRONG — guessing style names
 await figma.loadFontAsync({ family: "Inter", style: "SemiBold" }); // may throw
 
-<<<<<<< HEAD
 // CORRECT — discover available styles, then load
 const allFonts = await figma.listAvailableFontsAsync()
 const interFonts = allFonts.filter(f => f.fontName.family === "Inter")
@@ -317,16 +316,6 @@ if (desired) {
   // Fall back to a known-safe style
   const fallback = interFonts.find(f => f.fontName.style === "Regular")
   if (fallback) await figma.loadFontAsync(fallback.fontName)
-=======
-// CORRECT — probe which style names are available
-const candidates = ["SemiBold", "Semi Bold", "Semibold"];
-for (const style of candidates) {
-  try {
-    await figma.loadFontAsync({ family: "Inter", style });
-    // capture the one that works
-    break;
-  } catch (_) {}
->>>>>>> f71e3de (Removes references to TextStyle.setBoundVariable not working and bumps version)
 }
 ```
 
