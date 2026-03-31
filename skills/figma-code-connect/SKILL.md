@@ -1,14 +1,14 @@
 ---
 name: figma-code-connect
-description: Creates and maintains Figma Code Connect template files that map Figma components to code snippets. Use when the user mentions Code Connect, Figma component mapping, design-to-code translation, or asks to create/update .figma.js files.
+description: Creates and maintains Figma Code Connect template files that map Figma components to code snippets. Use when the user mentions Code Connect, Figma component mapping, design-to-code translation, or asks to create/update .figma.ts or .figma.js files.
 disable-model-invocation: false
 ---
 
 ## Overview
 
-Create parserless Code Connect template files (`.figma.js`) that map Figma components to code snippets. Given a Figma URL, follow the steps below to create a template.
+Create parserless Code Connect template files (`.figma.ts`) that map Figma components to code snippets. Given a Figma URL, follow the steps below to create a template.
 
-> **Note:** This project may also contain parser-based `.figma.tsx` files (using `figma.connect()`, published via CLI). This skill covers **parserless templates only** — `.figma.js` files that use the MCP tools to fetch component context from Figma.
+> **Note:** This project may also contain parser-based `.figma.tsx` files (using `figma.connect()`, published via CLI). This skill covers **parserless templates only** — `.figma.ts` files that use the MCP tools to fetch component context from Figma.
 
 ## Prerequisites
 
@@ -16,6 +16,14 @@ Create parserless Code Connect template files (`.figma.js`) that map Figma compo
 - **Components must be published** — Code Connect only works with components published to a Figma team library. If a component is not published, inform the user and stop.
 - **Organization or Enterprise plan required** — Code Connect is not available on Free or Professional plans.
 - **URL must include `node-id`** — the Figma URL must contain the `node-id` query parameter.
+- **TypeScript types** — for editor autocomplete and type checking in `.figma.ts` files `@figma/code-connect/figma-types` must be added to `types` in `tsconfig.json`:
+  ```json
+  {
+    "compilerOptions": {
+      "types": ["@figma/code-connect/figma-types"]
+    }
+  }
+  ```
 
 ## Step 1: Parse the Figma URL
 
@@ -88,17 +96,17 @@ Read the code component's source to understand its props interface — this info
 
 ### File location
 
-Place the file alongside existing Code Connect templates (`.figma.tsx` or `.figma.js` files). Check `figma.config.json` `include` patterns for the correct directory. Name it `ComponentName.figma.js`.
+Place the file alongside existing Code Connect templates (`.figma.tsx` or `.figma.ts` files). Check `figma.config.json` `include` patterns for the correct directory. Name it `ComponentName.figma.ts`.
 
 ### Template structure
 
 Every parserless template follows this structure:
 
-```js
+```ts
 // url=https://www.figma.com/file/{fileKey}/{fileName}?node-id={nodeId}
 // source={path to code component from Step 4}
 // component={code component name from Step 4}
-const figma = require('figma')
+import figma from 'figma'
 const instance = figma.selectedInstance
 
 // Extract properties from the Figma component (see property mapping below)
@@ -129,12 +137,12 @@ Use the property list from Step 3 to extract values. For each Figma property typ
 | (text layer) | `instance.findText('LayerName')` → `.textContent` | Text content from named layers |
 
 **TEXT** — get the string value directly:
-```js
+```ts
 const label = instance.getString('Label')
 ```
 
 **VARIANT** — map Figma enum values to code values:
-```js
+```ts
 const variant = instance.getEnum('Variant', {
   'Primary': 'primary',
   'Secondary': 'secondary',
@@ -148,7 +156,7 @@ const size = instance.getEnum('Size', {
 ```
 
 **BOOLEAN** — simple boolean or mapped to values:
-```js
+```ts
 // Simple boolean
 const disabled = instance.getBoolean('Disabled')
 
@@ -160,7 +168,7 @@ const hasIcon = instance.getBoolean('Has Icon', {
 ```
 
 **INSTANCE_SWAP** — access swappable component instances:
-```js
+```ts
 const icon = instance.getInstanceSwap('Icon')
 let iconCode
 if (icon && icon.hasCodeConnect()) {
@@ -192,7 +200,7 @@ When you need to access children that aren't exposed as component properties:
 
 For multi-level nested components or metadata prop passing between templates, see [advanced-patterns.md](references/advanced-patterns.md).
 
-```js
+```ts
 const icon = instance.getInstanceSwap('Icon')
 let iconSnippet
 if (icon && icon.hasCodeConnect()) {
@@ -207,7 +215,7 @@ export default {
 
 ### Conditional props
 
-```js
+```ts
 const variant = instance.getEnum('Variant', { 'Primary': 'primary', 'Secondary': 'secondary' })
 const disabled = instance.getBoolean('Disabled')
 
@@ -238,7 +246,7 @@ Use the tagged template matching your target language:
 
 ## Step 6: Validate
 
-Read back the `.figma.js` file and review it against the following:
+Read back the `.figma.ts` file and review it against the following:
 
 - **Property coverage** — every Figma property from Step 3 should be accounted for in the template. Flag any that are missing and ask the user if they were intentionally omitted.
 - **Rules and Pitfalls** — check for the common mistakes listed below (string concatenation of template results, missing `hasCodeConnect()` guards, missing `type === 'INSTANCE'` checks, etc.)
@@ -287,7 +295,7 @@ If anything looks uncertain, consult [api.md](references/api.md) for API details
 
 ### Export Structure
 
-```js
+```ts
 export default {
   example: figma.tsx`...`,                      // Required: ResultSection[]
   id: 'component-name',                         // Required: string
@@ -322,7 +330,7 @@ export default {
 6. **Use the correct tagged template** for the target language (`figma.tsx` for React, `figma.html` for HTML, etc.). Avoid `figma.code` when a specific one is available.
 
 7. **Handle multiple template arrays correctly.** When iterating over children, set each result in a separate variable and interpolate them individually — do not use `.map().join()`:
-   ```js
+   ```ts
    // Wrong:
    items.map(n => n.executeTemplate().example).join('\n')
 
@@ -355,13 +363,13 @@ Response includes properties:
 
 **Step 4:** Search codebase → find `Button` component. Read its source to confirm props: `variant`, `size`, `disabled`, `icon`, `children`. Import path: `"primitives"`.
 
-**Step 5:** Create `src/figma/primitives/Button.figma.js`:
+**Step 5:** Create `src/figma/primitives/Button.figma.ts`:
 
-```js
+```ts
 // url=https://figma.com/design/abc123/MyFile?node-id=42-100
 // source=src/components/Button.tsx
 // component=Button
-const figma = require('figma')
+import figma from 'figma'
 const instance = figma.selectedInstance
 
 const label = instance.getString('Label')
