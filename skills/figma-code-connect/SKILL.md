@@ -8,7 +8,7 @@ disable-model-invocation: false
 
 Create parserless Code Connect template files (`.figma.ts`) that map Figma components to code snippets. Given a Figma URL, follow the steps below to create a template.
 
-> **Note:** This project may also contain parser-based `.figma.tsx` files (using `figma.connect()`, published via CLI). This skill covers **parserless templates only** — `.figma.ts` files that use the MCP tools to fetch component context from Figma.
+> **Note:** This project may also contain parser-based `.figma.tsx` files (using `figma.connect()`, published via CLI). This skill covers **templates files only** — `.figma.ts` files that use the MCP tools to fetch component context from Figma.
 
 ## Prerequisites
 
@@ -96,7 +96,7 @@ Read the code component's source to understand its props interface — this info
 
 ### File location
 
-Place the file alongside existing Code Connect templates (`.figma.tsx` or `.figma.ts` files). Check `figma.config.json` `include` patterns for the correct directory. Name it `ComponentName.figma.ts`.
+Place the file alongside existing Code Connect templates (`.figma.code` or `.figma.ts` files). Check `figma.config.json` `include` patterns for the correct directory. Name it `ComponentName.figma.ts`.
 
 ### Template structure
 
@@ -113,7 +113,7 @@ const instance = figma.selectedInstance
 // ...
 
 export default {
-  example: figma.tsx`<Component ... />`,       // Required: code snippet
+  example: figma.code`<Component ... />`,       // Required: code snippet
   imports: ['import { Component } from "..."'], // Optional: import statements
   id: 'component-name',                         // Required: unique identifier
   metadata: {                                    // Optional
@@ -162,7 +162,7 @@ const disabled = instance.getBoolean('Disabled')
 
 // Mapped to code values
 const hasIcon = instance.getBoolean('Has Icon', {
-  true: figma.tsx`<Icon />`,
+  true: figma.code`<Icon />`,
   false: undefined,
 })
 ```
@@ -208,7 +208,7 @@ if (icon && icon.hasCodeConnect()) {
 }
 
 export default {
-  example: figma.tsx`<Button ${iconSnippet ? figma.tsx`icon={${iconSnippet}}` : ''}>${label}</Button>`,
+  example: figma.code`<Button ${iconSnippet ? figma.code`icon={${iconSnippet}}` : ''}>${label}</Button>`,
   // ...
 }
 ```
@@ -220,7 +220,7 @@ const variant = instance.getEnum('Variant', { 'Primary': 'primary', 'Secondary':
 const disabled = instance.getBoolean('Disabled')
 
 export default {
-  example: figma.tsx`
+  example: figma.code`
     <Button
       variant="${variant}"
       ${disabled ? 'disabled' : ''}
@@ -232,18 +232,6 @@ export default {
 }
 ```
 
-### Tagged template literals
-
-Use the tagged template matching your target language:
-
-| Template | Language |
-|---|---|
-| `figma.tsx` | React / JSX / TypeScript |
-| `figma.html` | HTML / Web Components |
-| `figma.swift` | Swift |
-| `figma.kotlin` | Kotlin |
-| `figma.code` | Generic / fallback |
-
 ## Step 6: Validate
 
 Read back the `.figma.ts` file and review it against the following:
@@ -251,7 +239,6 @@ Read back the `.figma.ts` file and review it against the following:
 - **Property coverage** — every Figma property from Step 3 should be accounted for in the template. Flag any that are missing and ask the user if they were intentionally omitted.
 - **Rules and Pitfalls** — check for the common mistakes listed below (string concatenation of template results, missing `hasCodeConnect()` guards, missing `type === 'INSTANCE'` checks, etc.)
 - **Interpolation wrapping** — strings (`getString`, `getEnum`, `textContent`) wrapped in quotes, instance/section values (`executeTemplate().example`) wrapped in braces, booleans using conditionals
-- **Tagged template** — confirm it matches the project's framework (e.g. `figma.tsx` for React, not `figma.code`)
 
 If anything looks uncertain, consult [api.md](references/api.md) for API details and [advanced-patterns.md](references/advanced-patterns.md) for complex nesting.
 
@@ -297,27 +284,16 @@ If anything looks uncertain, consult [api.md](references/api.md) for API details
 
 ```ts
 export default {
-  example: figma.tsx`...`,                      // Required: ResultSection[]
+  example: figma.code`...`,                      // Required: ResultSection[]
   id: 'component-name',                         // Required: string
   imports: ['import { X } from "..."'],          // Optional: string[]
   metadata: { nestable: true, props: {} }        // Optional
 }
 ```
 
-### Tagged Template Types
-
-| Tag | Language |
-|---|---|
-| `figma.tsx` | React / JSX / TypeScript |
-| `figma.jsx` | React JavaScript |
-| `figma.html` | HTML / Web Components |
-| `figma.swift` | Swift |
-| `figma.kotlin` | Kotlin |
-| `figma.code` | Generic / fallback |
-
 ## Rules and Pitfalls
 
-1. **Never string-concatenate template results.** `executeTemplate().example` is a `ResultSection[]` object, not a string. Using `+` or `.join()` produces `[object Object]`. Always interpolate inside tagged templates: `` figma.tsx`${snippet1}${snippet2}` ``
+1. **Never string-concatenate template results.** `executeTemplate().example` is a `ResultSection[]` object, not a string. Using `+` or `.join()` produces `[object Object]`. Always interpolate inside tagged templates: `` figma.code`${snippet1}${snippet2}` ``
 
 2. **Always check `hasCodeConnect()` before `executeTemplate()`.** Calling `executeTemplate()` on an instance without Code Connect returns an error section.
 
@@ -327,9 +303,7 @@ export default {
 
 5. **Property names are case-sensitive** and must exactly match what `get_context_for_code_connect` returns.
 
-6. **Use the correct tagged template** for the target language (`figma.tsx` for React, `figma.html` for HTML, etc.). Avoid `figma.code` when a specific one is available.
-
-7. **Handle multiple template arrays correctly.** When iterating over children, set each result in a separate variable and interpolate them individually — do not use `.map().join()`:
+6. **Handle multiple template arrays correctly.** When iterating over children, set each result in a separate variable and interpolate them individually — do not use `.map().join()`:
    ```ts
    // Wrong:
    items.map(n => n.executeTemplate().example).join('\n')
@@ -337,7 +311,7 @@ export default {
    // Correct — use separate variables:
    const child1 = items[0]?.executeTemplate().example
    const child2 = items[1]?.executeTemplate().example
-   export default { example: figma.tsx`${child1}${child2}` }
+   export default { example: figma.code`${child1}${child2}` }
    ```
 
 ## Complete Worked Example
@@ -391,12 +365,12 @@ if (icon && icon.hasCodeConnect()) {
 }
 
 export default {
-  example: figma.tsx`
+  example: figma.code`
     <Button
       variant="${variant}"
       size="${size}"
       ${disabled ? 'disabled' : ''}
-      ${iconCode ? figma.tsx`icon={${iconCode}}` : ''}
+      ${iconCode ? figma.code`icon={${iconCode}}` : ''}
     >
       ${label}
     </Button>
