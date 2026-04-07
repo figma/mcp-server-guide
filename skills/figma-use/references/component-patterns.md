@@ -12,6 +12,7 @@
 - Component Properties: addComponentProperty API
 - Linking Properties to Child Nodes (Required)
 - INSTANCE_SWAP: Avoiding Variant Explosion
+- Slots: Flexible Content Areas
 - Discovering Existing Conventions in the File
 - Importing Components by Key
 - Working with Instances (finding variants, setProperties, text overrides, detachInstance)
@@ -150,6 +151,31 @@ instance.componentPropertyReferences = { mainComponent: iconSlotKey };
 ```
 
 This works for icons, avatars, badges, or any swappable nested element.
+
+## Slots: Flexible Content Areas
+
+Slots (open beta) allow component authors to define areas where instance users can place **arbitrary content** — not just swap between predefined components. Use slots when the content area is truly freeform (e.g., a card body that could contain text, images, charts, or other components in any combination).
+
+**When to use Slots vs INSTANCE_SWAP:**
+- **INSTANCE_SWAP** — the user picks from a fixed set of components (icons, avatars, badges)
+- **Slot** — the user arranges arbitrary content freely (card body, table cell, dashboard widget area)
+
+For detailed patterns including preferredValues, instance operations, and gotchas, see [slot-patterns.md](slot-patterns.md).
+
+```javascript
+const comp = figma.createComponent();
+comp.name = "Card";
+comp.layoutMode = "VERTICAL";
+
+const slot = comp.createSlot();
+slot.name = "Content";
+slot.layoutMode = "VERTICAL";
+slot.fills = [];
+slot.layoutSizingHorizontal = "FILL";
+slot.layoutSizingVertical = "HUG";
+```
+
+`createSlot()` is only available on `ComponentNode` — calling it on instances or regular frames throws. See [slot-patterns.md](slot-patterns.md) for full examples.
 
 ## Discovering Existing Conventions in the File
 

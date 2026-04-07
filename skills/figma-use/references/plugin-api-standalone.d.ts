@@ -9622,7 +9622,7 @@ interface TextPathNode
 /**
  * @see https://developers.figma.com/docs/plugins/api/ComponentPropertyType
  */
-type ComponentPropertyType = 'BOOLEAN' | 'TEXT' | 'INSTANCE_SWAP' | 'VARIANT'
+type ComponentPropertyType = 'BOOLEAN' | 'TEXT' | 'INSTANCE_SWAP' | 'VARIANT' | 'SLOT'
 /**
  * @see https://developers.figma.com/docs/plugins/api/InstanceSwapPreferredValue
  */
@@ -9702,6 +9702,24 @@ interface ComponentNode
    * @deprecated Use {@link ComponentNode.getInstancesAsync} instead. Accessing this property will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
    */
   readonly instances: InstanceNode[]
+  /**
+   * Creates a new slot node within this component.
+   * @see https://developers.figma.com/docs/plugins/api/ComponentNode/#createslot
+   */
+  createSlot(): SlotNode
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/SlotNode
+ */
+interface SlotNode extends DefaultFrameMixin {
+  /**
+   * The type of this node, represented by the string literal "SLOT"
+   */
+  readonly type: 'SLOT'
+  /**
+   * Resets a slot node to its original component slot content.
+   */
+  resetSlot(): void
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/ComponentProperties
@@ -10948,6 +10966,7 @@ type SceneNode =
   | SlideRowNode
   | SlideGridNode
   | InteractiveSlideElementNode
+  | SlotNode
 /**
  * @see https://developers.figma.com/docs/plugins/api/node-types
  */

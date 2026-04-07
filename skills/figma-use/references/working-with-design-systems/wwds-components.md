@@ -17,6 +17,9 @@ Figma has four property types, which can be inspected in the component definitio
 - Instance Swap
   - Instance swap properties are stored on the component parent, but can be mapped to Instance node descendants.
   - `node.componentPropertyReferences.mainComponent` on a descendant instance node are how you determine where the instance property is referenced. A classic example of this is an icon property.
+- Slot (open beta)
+  - Slots define freeform content areas where instance users can place arbitrary content — not just swap between predefined components. Use slots for card bodies, table cells, or dashboard widget areas. Use Instance Swap when the user picks from a fixed set of components.
+  - For code patterns, see [slot-patterns.md](../slot-patterns.md).
 
 ## Descriptions
 

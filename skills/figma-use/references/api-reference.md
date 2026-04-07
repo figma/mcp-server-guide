@@ -46,6 +46,7 @@ figma.subtract(nodes, parent?, index?)          // Boolean subtract
 figma.intersect(nodes, parent?, index?)         // Boolean intersect
 figma.exclude(nodes, parent?, index?)           // Boolean exclude
 figma.combineAsVariants(components, parent?)    // Combine ComponentNodes into ComponentSet (Design/Sites only)
+comp.createSlot()                                // Create a SlotNode in a component (open beta) — see slot-patterns.md
 ```
 
 ## Library Component Import
