@@ -17,7 +17,7 @@ Use this skill to create or update full-page screens in Figma by **reusing the p
 - Use this skill when the deliverable is a **Figma screen** (new or updated) composed of design system component instances.
 - If the user wants to generate **code from a Figma design**, switch to [figma-implement-design](../figma-implement-design/SKILL.md).
 - If the user wants to create **new reusable components or variants**, use [figma-use](../figma-use/SKILL.md) directly.
-- If the user wants to write **Code Connect mappings**, switch to [figma-code-connect-components](../figma-code-connect-components/SKILL.md).
+- If the user wants to write **Code Connect mappings**, switch to [figma-code-connect](../figma-code-connect/SKILL.md).
 
 ## Prerequisites
 
