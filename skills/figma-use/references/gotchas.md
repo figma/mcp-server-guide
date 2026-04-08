@@ -257,24 +257,6 @@ const colorCollection = figma.variables.createVariableCollection("Colors")
 component.setExplicitVariableModeForCollection(colorCollection, targetModeId)
 ```
 
-## `TextStyle.setBoundVariable` is not available in `use_figma`
-
-`setBoundVariable` exists on `TextStyle` in the typed API but is **not available** in `use_figma`. Calling it will throw `"not a function"`.
-
-```js
-// WRONG — throws "not a function" in use_figma
-const ts = figma.createTextStyle()
-ts.setBoundVariable("fontSize", fontSizeVar)
-
-// CORRECT — set raw values; bind variables interactively in Figma later
-const ts = figma.createTextStyle()
-ts.fontSize = 24
-```
-
-This only affects `TextStyle`. Variable binding on **nodes** (`node.setBoundVariable(...)`) and on **paint objects** (`figma.variables.setBoundVariableForPaint(...)`) still works in `use_figma` as expected.
-
-If live variable binding on text styles is required, create the styles with raw values via `use_figma`, then bind variables interactively through the Figma Styles panel or a full interactive plugin.
-
 ## `lineHeight` and `letterSpacing` must be objects, not bare numbers
 
 ```js

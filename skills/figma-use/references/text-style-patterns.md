@@ -127,8 +127,6 @@ async function loadFontWithFallback(family, preferredStyle, fallbackStyle = "Reg
 
 Handles font loading, deduplication, and idempotency. Each entry: `[name, fontFamily, fontStyle, fontSize_px, lineHeight, cssVar]`.
 
-**NOTE:** `setBoundVariable` on `TextStyle` is not supported in `use_figma`. This function sets raw values. To bind variables, do it interactively in Figma after creation.
-
 ```javascript
 /**
  * Creates a full type ramp from a token definition array.
