@@ -1,0 +1,21 @@
+{
+  "name": "figma",
+  "displayName": "Figma",
+  "version": "2.0.7",
+  "description": "USER LEVEL: You pull design specs, tokens, and screenshots into your editor so implementation matches the Figma file without constant tab switching. PROJECT LEVEL: Design-to-code stays in sync—variables, Code Connect mappings, and asset exports live in the same workflow as your pull requests. Official Figma MCP plus skills—inspect frames and variables, export screenshots and assets, use Code Connect, generate FigJam diagrams, and write designs back into Figma. BEST SUITED FOR: • Frontend teams implementing UI from Figma designs • Design systems that use variables, tokens, and Code Connect • Projects generating or updating FigJam diagrams programmatically",
+  "author": {
+    "name": "Figma"
+  },
+  "logo": "./Figma Icon (Full-color).svg",
+  "homepage": "https://github.com/figma/mcp-server-guide",
+  "repository": "https://github.com/figma/mcp-server-guide",
+  "keywords": [
+    "figma",
+    "design",
+    "mcp",
+    "ui",
+    "code-connect"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}
