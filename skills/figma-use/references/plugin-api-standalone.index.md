@@ -36,6 +36,7 @@
 | Method                              | Returns                     |
 | ----------------------------------- | --------------------------- |
 | `createFrame()`                     | `FrameNode`                 |
+| `createAutoLayout(direction?)`      | `FrameNode`                 |
 | `createComponent()`                 | `ComponentNode`             |
 | `createComponentFromNode(node)`     | `ComponentNode`             |
 | `createRectangle()`                 | `RectangleNode`             |

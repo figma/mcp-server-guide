@@ -161,6 +161,7 @@ Before submitting ANY `use_figma` call, verify:
 - [ ] NO usage of `figma.notify()` anywhere
 - [ ] NO usage of `console.log()` as output (use `return` instead)
 - [ ] All colors use 0–1 range (not 0–255)
+- [ ] Paint `color` objects use `{r, g, b}` only — no `a` field (opacity goes at the paint level: `{ type: 'SOLID', color: {...}, opacity: 0.5 }`)
 - [ ] Fills/strokes are reassigned as new arrays (not mutated in place)
 - [ ] Page switches use `await figma.setCurrentPageAsync(page)` (sync setter `figma.currentPage = page` does NOT work)
 - [ ] `layoutSizingVertical/Horizontal = 'FILL'` is set AFTER `parent.appendChild(child)`
