@@ -1066,6 +1066,32 @@ interface PluginAPI {
    */
   createFrame(): FrameNode
   /**
+   * Note: This API is only available via `use_figma` in the MCP server
+   *
+   * Creates a new frame with auto layout already enabled. Both axes default to hug content
+   * (`primaryAxisSizingMode = "AUTO"`, `counterAxisSizingMode = "AUTO"`), so children can
+   * immediately use `layoutSizingHorizontal/Vertical = "FILL"` after being appended.
+   *
+   * @remarks
+   *
+   * Prefer this over `createFrame()` whenever you need an auto-layout parent. Since `layoutMode` is
+   * already set, children can use `FILL` sizing immediately after being appended.
+   *
+   * The default direction is `"HORIZONTAL"`. Pass `"VERTICAL"` for a column layout.
+   *
+   * ```ts title="Create an auto-layout frame"
+   * const row = figma.createAutoLayout()
+   * const column = figma.createAutoLayout("VERTICAL")
+   *
+   * row.itemSpacing = 16
+   * row.paddingTop = 24
+   * row.paddingBottom = 24
+   * row.paddingLeft = 24
+   * row.paddingRight = 24
+   * ```
+   */
+  createAutoLayout(direction?: 'HORIZONTAL' | 'VERTICAL'): FrameNode
+  /**
    * Note: This API is only available in Figma Design
    *
    * Creates a new, empty component.

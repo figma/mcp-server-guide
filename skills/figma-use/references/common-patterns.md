@@ -87,9 +87,8 @@ for (const child of page.children) {
   maxX = Math.max(maxX, child.x + child.width)
 }
 
-const frame = figma.createFrame()
+const frame = figma.createAutoLayout('VERTICAL')
 frame.name = "Card"
-frame.layoutMode = 'VERTICAL'
 frame.primaryAxisAlignItems = 'MIN'
 frame.counterAxisAlignItems = 'MIN'
 frame.paddingLeft = 16
@@ -97,8 +96,6 @@ frame.paddingRight = 16
 frame.paddingTop = 12
 frame.paddingBottom = 12
 frame.itemSpacing = 8
-frame.layoutSizingHorizontal = 'HUG'
-frame.layoutSizingVertical = 'HUG'
 frame.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
 frame.cornerRadius = 8
 frame.x = maxX + 100

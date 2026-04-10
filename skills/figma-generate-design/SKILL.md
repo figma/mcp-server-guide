@@ -35,12 +35,14 @@ When building a screen from a **web app** that can be rendered in a browser, the
 1. **In parallel:**
    - Start building the screen using this skill's workflow (use_figma + design system components)
    - Run `generate_figma_design` to capture a pixel-perfect screenshot of the running web app
-2. **Once both complete:** Update the use_figma output to match the pixel-perfect layout from the `generate_figma_design` capture. The capture provides the exact spacing, sizing, and visual treatment to aim for, while your use_figma output has proper component instances linked to the design system.
+2. **Once both complete:** Update the use_figma output to match the pixel-perfect layout from the `generate_figma_design` capture. The capture provides the exact spacing, sizing, and visual treatment to aim for, while your use_figma output has proper component instances linked to the design system. If the capture contains images, transfer them to your use_figma output by copying `imageHash` values from the capture's image fills (see Step 5 for details).
 3. **Once confirmed looking good:** Delete the `generate_figma_design` output — it was only used as a visual reference.
 
 This combines the best of both: `generate_figma_design` gives pixel-perfect layout accuracy, while use_figma gives proper design system component instances that stay linked and updatable.
 
-**This workflow only applies to web apps** where `generate_figma_design` can capture the running page. For non-web apps (iOS, Android, etc.) or when updating existing screens, use the standard workflow below.
+**This parallel workflow is MANDATORY when the source contains images.** The `use_figma` Plugin API cannot fetch external image URLs — it can only set image fills by copying `imageHash` values from nodes already in the file. `generate_figma_design` rasterizes all visible images into Figma, providing the hashes you need. If you skip the capture when images are present, image frames will be left blank.
+
+For non-web apps (iOS, Android, etc.) or when updating existing screens, use the standard workflow below.
 
 ## Required Workflow
 
@@ -53,6 +55,7 @@ Before touching Figma, understand what you're building:
 1. If building from code, read the relevant source files to understand the page structure, sections, and which components are used.
 2. Identify the major sections of the screen (e.g., Header, Hero, Content Panels, Pricing Grid, FAQ Accordion, Footer).
 3. For each section, list the UI components involved (buttons, inputs, cards, navigation pills, accordions, etc.).
+4. **Check whether the screen contains any images** (e.g., `<img>`, `<Image>`, background images, product photos, avatars, icons loaded from URLs). If it does and this is a web app, you **must** run the parallel `generate_figma_design` capture workflow — start it immediately alongside Step 2 so the capture runs while you discover components. See "Parallel Workflow with generate_figma_design" above.
 
 ### Step 2: Discover Design System — Components, Variables, and Styles
 
@@ -177,14 +180,12 @@ for (const child of figma.currentPage.children) {
   maxX = Math.max(maxX, child.x + child.width);
 }
 
-const wrapper = figma.createFrame();
+const wrapper = figma.createAutoLayout("VERTICAL");
 wrapper.name = "Homepage";
-wrapper.layoutMode = "VERTICAL";
 wrapper.primaryAxisAlignItems = "CENTER";
 wrapper.counterAxisAlignItems = "CENTER";
 wrapper.resize(1440, 100);
 wrapper.layoutSizingHorizontal = "FIXED";
-wrapper.layoutSizingVertical = "HUG";
 wrapper.x = maxX + 200;
 wrapper.y = 0;
 
@@ -210,9 +211,8 @@ const bgColorVar = await figma.variables.importVariableByKeyAsync("BG_COLOR_VAR_
 const spacingVar = await figma.variables.importVariableByKeyAsync("SPACING_VAR_KEY");
 
 // Build section frame with variable bindings (not hardcoded values)
-const section = figma.createFrame();
+const section = figma.createAutoLayout();
 section.name = "Header";
-section.layoutMode = "HORIZONTAL";
 section.setBoundVariable("paddingLeft", spacingVar);
 section.setBoundVariable("paddingRight", spacingVar);
 const bgPaint = figma.variables.setBoundVariableForPaint(
@@ -269,7 +269,7 @@ When translating code components to Figma instances, check the component's defau
 
 **Never hardcode hex colors or pixel spacing** when a design system variable exists. Use `setBoundVariable` for spacing/radii and `setBoundVariableForPaint` for colors. Apply text styles with `node.textStyleId` and effect styles with `node.effectStyleId`.
 
-### Step 5: Validate the Full Screen
+### Step 5: Validate the Full Screen and Transfer Images
 
 After composing all sections, call `get_screenshot` on the full page frame and compare against the source. Fix any issues with targeted `use_figma` calls — don't rebuild the entire screen.
 
@@ -279,6 +279,35 @@ After composing all sections, call `get_screenshot` on the full page frame and c
 - Placeholder text still showing ("Title", "Heading", "Button")
 - Truncated content from layout sizing bugs
 - Wrong component variants (e.g., Neutral vs Primary button)
+- **Blank image placeholders** — if images are missing, you need to transfer them from the `generate_figma_design` capture (see below)
+
+#### Transfer images from the generate_figma_design capture
+
+If you ran `generate_figma_design` in parallel (mandatory when the source contains images), transfer the captured images into your design system output:
+
+1. Find all image nodes in the capture output by searching for fills with `type === "IMAGE"`:
+   ```js
+   const capture = await figma.getNodeByIdAsync("CAPTURE_NODE_ID");
+   const imageNodes = [];
+   capture.findAll(n => {
+     if (n.fills && Array.isArray(n.fills)) {
+       for (const fill of n.fills) {
+         if (fill.type === "IMAGE") {
+           imageNodes.push({ name: n.name, id: n.id, imageHash: fill.imageHash });
+           return true;
+         }
+       }
+     }
+     return false;
+   });
+   return imageNodes;
+   ```
+2. Match each captured image to the corresponding frame in your use_figma output (by position, name, or order).
+3. Apply the image hash to the target frame:
+   ```js
+   targetFrame.fills = [{ type: "IMAGE", imageHash: "hash_from_capture", scaleMode: "FILL" }];
+   ```
+4. Delete the `generate_figma_design` capture output after all images are transferred.
 
 ### Step 6: Updating an Existing Screen
 
