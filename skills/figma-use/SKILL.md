@@ -84,17 +84,177 @@ Available in design mode: Rectangle, Frame, Component, Text, Ellipse, Star, Line
 
 **Blocked** in design mode: Sticky, Connector, ShapeWithText, CodeBlock, Slide, SlideRow, Webpage.
 
-## 5. Incremental Workflow (How to Avoid Bugs)
+## 5. Efficient APIs — Prefer These Over Verbose Alternatives
+
+These APIs reduce boilerplate, eliminate ordering errors, and compress token output. **Always prefer them over the verbose alternatives.**
+
+### `node.query(selector)` — CSS-like node search
+
+Find nodes within a subtree using CSS-like selectors. Replaces verbose `findAll` + filter loops.
+
+```js
+// BEFORE — verbose traversal
+const texts = frame.findAll(n => n.type === 'TEXT' && n.name === 'Title')
+
+// AFTER — one-liner with query
+const texts = frame.query('TEXT[name=Title]')
+```
+
+**Selector syntax:**
+- Type: `FRAME`, `TEXT`, `RECTANGLE`, `ELLIPSE`, `COMPONENT`, `INSTANCE`, `SECTION` (case-insensitive)
+- Attribute exact: `[name=Card]`, `[visible=true]`, `[opacity=0.5]`
+- Attribute substring: `[name*=art]` (contains), `[name^=Header]` (starts-with), `[name$=Nav]` (ends-with)
+- Dot-path traversal: `[fills.0.type=SOLID]`, `[fills.*.type=SOLID]` (wildcard index)
+- Instance matching: `[mainComponent=nodeId]`, `[mainComponent.name=Button]`
+- Combinators: `FRAME > TEXT` (direct child), `FRAME TEXT` (any descendant), `A + B` (adjacent sibling), `A ~ B` (general sibling)
+- Pseudo-classes: `:first-child`, `:last-child`, `:nth-child(2)`, `:not(TYPE)`, `:is(FRAME, RECTANGLE)`, `:where(TEXT, ELLIPSE)`
+- Node ID: `#nodeId` or bare GUID
+- Comma: `TEXT, RECTANGLE` (union)
+- Wildcard: `*` (any type)
+
+**QueryResult methods:**
+| Method | Description |
+|---|---|
+| `.length` | Number of matched nodes |
+| `.first()` | First matched node (or `null`) |
+| `.last()` | Last matched node (or `null`) |
+| `.toArray()` | Convert to regular array |
+| `.each(fn)` | Iterate with callback, returns `this` for chaining |
+| `.map(fn)` | Map to new array |
+| `.filter(fn)` | Filter to new QueryResult |
+| `.values(keys)` | Extract property values: `.values(['name', 'x', 'y'])` → `[{name, x, y}, ...]` |
+| `.set(props)` | Set properties on all matched nodes (see `node.set()` below) |
+| `.query(selector)` | Sub-query within matched nodes |
+| `for...of` | Iterable — works in `for` loops |
+
+**Scope:** `node.query()` searches within that node's subtree. To search the whole page: `figma.currentPage.query('...')`. There is no global `figma.query()`.
+
+**Examples:**
+```js
+// Recolor all text inside cards
+figma.currentPage.query('FRAME[name^=Card] TEXT').set({
+  fills: [{type: 'SOLID', color: {r: 0.2, g: 0.2, b: 0.8}}]
+})
+
+// Get names and positions of all frames
+return figma.currentPage.query('FRAME').values(['name', 'x', 'y'])
+
+// Find the first component named "Button"
+const btn = figma.currentPage.query('COMPONENT[name=Button]').first()
+
+// Find all instances of a specific component
+figma.currentPage.query(`INSTANCE[mainComponent=${compId}]`)
+
+// Find nodes with solid fills using dot-path traversal
+figma.currentPage.query('[fills.0.type=SOLID]')
+```
+
+### `node.set(props)` — batch property updates
+
+Set multiple properties in one call. Returns `this` for chaining.
+
+```js
+// BEFORE — one line per property
+frame.opacity = 0.5
+frame.cornerRadius = 8
+frame.name = "Card"
+
+// AFTER — single call
+frame.set({ opacity: 0.5, cornerRadius: 8, name: "Card" })
+```
+
+**Priority key ordering:** `layoutMode` is always applied before other properties (like `width`/`height`) regardless of object key order. This prevents the common bug where `resize()` behaves differently depending on whether `layoutMode` is set.
+
+**Width/height handling:** `width` and `height` are routed through `node.resize()` automatically — setting `{ width: 200 }` calls `resize(200, currentHeight)`.
+
+**Chaining with query:**
+```js
+// Find all rectangles named "Divider" and update them
+figma.currentPage.query('RECTANGLE[name=Divider]').set({
+  fills: [{type: 'SOLID', color: {r: 0.9, g: 0.9, b: 0.9}}],
+  cornerRadius: 2
+})
+```
+
+### `figma.createAutoLayout(direction?, props?)` — auto-layout frames
+
+Creates a frame with auto-layout already enabled and both axes hugging content. **Prefer this over `figma.createFrame()` for any container that needs auto-layout.**
+
+```js
+// BEFORE — manual setup, easy to get ordering wrong
+const frame = figma.createFrame()
+frame.layoutMode = 'VERTICAL'
+frame.primaryAxisSizingMode = 'AUTO'
+frame.counterAxisSizingMode = 'AUTO'
+frame.layoutSizingHorizontal = 'HUG'
+frame.layoutSizingVertical = 'HUG'
+
+// AFTER — one call, layout ready
+const frame = figma.createAutoLayout('VERTICAL')
+```
+
+Children can immediately use `layoutSizingHorizontal/Vertical = 'FILL'` after being appended — no need to set sizing modes manually.
+
+Accepts an optional props object as the first or second argument:
+```js
+figma.createAutoLayout({ name: 'Card', itemSpacing: 12 })               // HORIZONTAL + props
+figma.createAutoLayout('VERTICAL', { name: 'Column', itemSpacing: 8 })  // VERTICAL + props
+```
+
+### `node.placeholder` — shimmer overlay for AI-in-progress feedback
+
+Sets a visual shimmer overlay on a node indicating work is in progress. **Always remove the shimmer when done** — leftover shimmers confuse users and indicate incomplete work.
+
+```js
+// Mark as in-progress
+frame.placeholder = true
+
+// ... build out the content ...
+
+// MUST remove when done — never leave shimmers on finished nodes
+frame.placeholder = false
+```
+
+When building complex layouts, set `placeholder = true` on sections before populating them, then set `placeholder = false` on each section as it's completed.
+
+### `await node.screenshot(opts?)` — inline screenshots
+
+Capture a node as a PNG and return it inline in the response. Eliminates the need for a separate `get_screenshot` call.
+
+```js
+// Take a screenshot of a frame (returned inline in the tool response)
+await frame.screenshot()
+
+// Custom scale (default auto-scales: 0.5x or capped so max dimension ≤ 1024px)
+await frame.screenshot({ scale: 2 })
+
+// Include overlapping content from sibling nodes
+await frame.screenshot({ contentsOnly: false })
+```
+
+**When to use:** After creating or modifying nodes, call `screenshot()` to visually verify the result within the same script. No need for a separate `get_screenshot` call.
+
+**Auto-naming:** The image caption includes node metadata — `"Card (300x150 at 0,60).png"` — giving spatial context without parsing the image.
+
+**Default scaling:** Uses 0.5x scale, but automatically caps so the largest output dimension never exceeds 1024px. Explicit `{ scale: N }` bypasses the cap.
+
+## 6. Incremental Workflow (How to Avoid Bugs)
 
 The most common cause of bugs is trying to do too much in a single `use_figma` call. **Work in small steps and validate after each one.**
+
+### Key rules
+
+- **At most 10 logical operations per `use_figma` call.** A "logical operation" is creating a node, setting its properties, and parenting it. If you need to create 20 nodes, split across 2-3 calls.
+- **Build top-down, starting with placeholders.** Create the outer structure first with `placeholder = true` on each section, then incrementally replace placeholders with real content in subsequent calls.
 
 ### The pattern
 
 1. **Inspect first.** Before creating anything, run a read-only `use_figma` to discover what already exists in the file — pages, components, variables, naming conventions. Match what's there.
-2. **Do one thing per call.** Create variables in one call, create components in the next, compose layouts in another. Don't try to build an entire screen in one script.
-3. **Return IDs from every call.** Always `return` created node IDs, variable IDs, collection IDs as objects (e.g. `return { createdNodeIds: [...] }`). You'll need these as inputs to subsequent calls.
-4. **Validate after each step.** Use `get_metadata` to verify structure (counts, names, hierarchy, positions). Use `get_screenshot` after major milestones to catch visual issues.
-5. **Fix before moving on.** If validation reveals a problem, fix it before proceeding to the next step. Don't build on a broken foundation.
+2. **Build the skeleton.** Create the top-level structure with placeholder sections. Set `placeholder = true` on each section so the user sees progress.
+3. **Fill in sections incrementally.** In each subsequent call, populate one section and set its `placeholder = false` when done. Take a `screenshot()` to verify.
+4. **Return IDs from every call.** Always `return` created node IDs, variable IDs, collection IDs as objects (e.g. `return { createdNodeIds: [...] }`). You'll need these as inputs to subsequent calls.
+5. **Validate after each step.** Use `get_metadata` to verify structure (counts, names, hierarchy, positions). Use `await node.screenshot()` inline or `get_screenshot` after major milestones to catch visual issues.
+6. **Fix before moving on.** If validation reveals a problem, fix it before proceeding to the next step. Don't build on a broken foundation.
 
 ### Suggested step order for complex tasks
 
@@ -118,7 +278,7 @@ Step 5: Final verification
 | Binding variables | Node properties reflect bindings | Colors/tokens resolved correctly |
 | Composing layouts | Instance nodes have mainComponent, hierarchy correct | No cropped/clipped text, no overlapping elements, correct spacing |
 
-## 6. Error Recovery & Self-Correction
+## 7. Error Recovery & Self-Correction
 
 **`use_figma` is atomic — failed scripts do not execute.** If a script errors, no changes are made to the file. The file remains in the same state as before the call. This means there are no partial nodes, no orphaned elements from the failed script, and retrying after a fix is safe.
 
@@ -151,7 +311,7 @@ Step 5: Final verification
 
 > For the full validation workflow, see [Validation & Error Recovery](references/validation-and-recovery.md).
 
-## 7. Pre-Flight Checklist
+## 8. Pre-Flight Checklist
 
 Before submitting ANY `use_figma` call, verify:
 
@@ -173,7 +333,7 @@ Before submitting ANY `use_figma` call, verify:
 - [ ] ALL created/mutated node IDs are collected and included in the `return` value
 - [ ] Every async call (`loadFontAsync`, `setCurrentPageAsync`, `importComponentByKeyAsync`, etc.) is `await`ed — no fire-and-forget Promises
 
-## 8. Discover Conventions Before Creating
+## 9. Discover Conventions Before Creating
 
 **Always inspect the Figma file before creating anything.** Different files use different naming conventions, variable structures, and component patterns. Your code should match what's already there, not impose new conventions.
 
@@ -212,7 +372,7 @@ const results = collections.map(c => ({
 return results;
 ```
 
-## 9. Reference Docs
+## 10. Reference Docs
 
 Load these as needed based on what your task involves:
 
@@ -230,6 +390,6 @@ Load these as needed based on what your task involves:
 | [plugin-api-standalone.index.md](references/plugin-api-standalone.index.md) | Need to understand the full API surface | Index of all types, methods, and properties in the Plugin API |
 | [plugin-api-standalone.d.ts](references/plugin-api-standalone.d.ts) | Need exact type signatures | Full typings file — grep for specific symbols, don't load all at once |
 
-## 10. Snippet examples
+## 11. Snippet examples
 
 You will see snippets throughout documentation here. These snippets contain useful plugin API code that can be repurposed. Use them as is, or as starter code as you go. If there are key concepts that are best documented as generic snippets, call them out and write to disk so you can reuse in the future.

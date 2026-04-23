@@ -11315,5 +11315,104 @@ interface RadialRepeatModifier extends RepeatModifier {
   repeatType: 'RADIAL'
 }
 
+// ============================================================
+// Additional APIs (available via use_figma)
+// ============================================================
+
+/**
+ * Result returned by node.query(). Iterable with for...of.
+ */
+interface QueryResult {
+  /** Number of matched nodes */
+  readonly length: number
+  /** First matched node, or null */
+  first(): SceneNode | null
+  /** Last matched node, or null */
+  last(): SceneNode | null
+  /** Convert to regular array */
+  toArray(): SceneNode[]
+  /** Iterate with callback. Returns this for chaining. */
+  each(callback: (node: SceneNode, index: number) => void): QueryResult
+  /** Map to new array */
+  map<T>(callback: (node: SceneNode, index: number) => T): T[]
+  /** Filter to new QueryResult */
+  filter(callback: (node: SceneNode, index: number) => boolean): QueryResult
+  /** Extract property values from all matched nodes */
+  values(keys: string[]): Record<string, unknown>[]
+  /** Set properties on all matched nodes */
+  set(props: Record<string, unknown>): QueryResult
+  /** Sub-query within matched nodes */
+  query(selector: string): QueryResult
+  [Symbol.iterator](): Iterator<SceneNode>
+}
+
+/**
+ * Options for node.screenshot()
+ */
+interface ScreenshotOptions {
+  /** Export scale. Default: 0.5 (auto-capped so max output dimension ≤ 1024px). */
+  scale?: number
+  /** When false, includes overlapping content from sibling nodes. Default: true. */
+  contentsOnly?: boolean
+}
+
+// Additional node methods
+interface BaseNodeMixin {
+  /**
+   * Set multiple properties at once. Returns this for chaining.
+   * Priority keys (e.g. layoutMode) are applied first regardless of object key order.
+   * width/height are routed through resize() automatically.
+   *
+   * @example
+   * node.set({ opacity: 0.5, cornerRadius: 8, name: "Card" })
+   */
+  set(props: Record<string, unknown>): this
+
+  /**
+   * CSS-like selector query within this node's subtree.
+   * Selector syntax: type (FRAME, TEXT), [attr=val], >, :first-child, :nth-child(n), comma unions.
+   *
+   * @example
+   * frame.query('TEXT[name=Title]')
+   * figma.currentPage.query('FRAME[name^=Card] > TEXT')
+   */
+  query(selector: string): QueryResult
+
+  /**
+   * Test if this node matches a CSS-like selector.
+   */
+  matches(selector: string): boolean
+
+  /**
+   * Capture a PNG screenshot of this node and return it inline in the response.
+   *
+   * @example
+   * await frame.screenshot()                          // default scale
+   * await frame.screenshot({ scale: 2 })              // hi-res
+   * await frame.screenshot({ contentsOnly: false })   // include overlapping content
+   */
+  screenshot(options?: ScreenshotOptions): Promise<void>
+
+  /**
+   * Show/hide a shimmer overlay on this node indicating work in progress.
+   */
+  placeholder: boolean
+}
+
+// Additional figma.* APIs
+interface PluginAPI {
+  /** File I/O namespace for writing images and data. */
+  readonly io: {
+    /**
+     * Write a file (.png, .json, .csv). For images, data should be a Uint8Array from exportAsync().
+     *
+     * @example
+     * const bytes = await node.exportAsync({ format: 'PNG' })
+     * figma.io.write('screenshot.png', bytes)
+     */
+    write(path: string, data: Uint8Array | string): void
+  }
+}
+
 // prettier-ignore
 export { ArgFreeEventType, PluginAPI, VersionHistoryResult, VariablesAPI, LibraryVariableCollection, LibraryVariable, AnnotationsAPI, BuzzAPI, BuzzTextField, BuzzMediaField, BuzzAssetType, TeamLibraryAPI, PaymentStatus, PaymentsAPI, ClientStorageAPI, NotificationOptions, NotifyDequeueReason, NotificationHandler, ShowUIOptions, UIPostMessageOptions, OnMessageProperties, MessageEventHandler, UIAPI, UtilAPI, ColorPalette, ColorPalettes, ConstantsAPI, CodegenEvent, CodegenPreferences, CodegenPreferencesEvent, CodegenResult, CodegenAPI, DevResource, DevResourceWithNodeId, LinkPreviewEvent, PlainTextElement, LinkPreviewResult, AuthEvent, DevResourceOpenEvent, AuthResult, VSCodeAPI, DevResourcesAPI, TimerAPI, ViewportAPI, TextReviewAPI, ParameterValues, SuggestionResults, ParameterInputEvent, ParametersAPI, RunParametersEvent, OpenDevResourcesEvent, RunEvent, SlidesViewChangeEvent, CanvasViewChangeEvent, DropEvent, DropItem, DropFile, DocumentChangeEvent, StyleChangeEvent, StyleChange, BaseDocumentChange, BaseNodeChange, RemovedNode, CreateChange, DeleteChange, PropertyChange, BaseStyleChange, StyleCreateChange, StyleDeleteChange, StylePropertyChange, DocumentChange, NodeChangeProperty, NodeChangeEvent, NodeChange, StyleChangeProperty, TextReviewEvent, TextReviewRange, Transform, Vector, Rect, RGB, RGBA, FontName, TextCase, TextDecoration, TextDecorationStyle, FontStyle, TextDecorationOffset, TextDecorationThickness, TextDecorationColor, OpenTypeFeature, ArcData, DropShadowEffect, InnerShadowEffect, BlurEffectBase, BlurEffectNormal, BlurEffectProgressive, BlurEffect, NoiseEffectBase, NoiseEffectMonotone, NoiseEffectDuotone, NoiseEffectMultitone, NoiseEffect, TextureEffect, GlassEffect, Effect, ConstraintType, Constraints, ColorStop, ImageFilters, SolidPaint, GradientPaint, ImagePaint, VideoPaint, PatternPaint, Paint, Guide, RowsColsLayoutGrid, GridLayoutGrid, LayoutGrid, ExportSettingsConstraints, ExportSettingsImage, ExportSettingsSVGBase, ExportSettingsSVG, ExportSettingsSVGString, ExportSettingsPDF, ExportSettingsREST, ExportSettings, WindingRule, VectorVertex, VectorSegment, VectorRegion, VectorNetwork, VectorPath, VectorPaths, LetterSpacing, LineHeight, LeadingTrim, HyperlinkTarget, TextListOptions, BlendMode, MaskType, Font, TextStyleOverrideType, StyledTextSegment, TextPathStartData, Reaction, VariableDataType, ExpressionFunction, Expression, VariableValueWithExpression, VariableData, ConditionalBlock, DevStatus, Action, SimpleTransition, DirectionalTransition, Transition, Trigger, Navigation, Easing, EasingFunctionBezier, EasingFunctionSpring, OverflowDirection, OverlayPositionType, OverlayBackground, OverlayBackgroundInteraction, PublishStatus, ConnectorEndpointPosition, ConnectorEndpointPositionAndEndpointNodeId, ConnectorEndpointEndpointNodeIdAndMagnet, ConnectorEndpoint, ConnectorStrokeCap, BaseNodeMixin, PluginDataMixin, DevResourcesMixin, DevStatusMixin, SceneNodeMixin, VariableBindableNodeField, VariableBindableTextField, VariableBindablePaintField, VariableBindablePaintStyleField, VariableBindableColorStopField, VariableBindableEffectField, VariableBindableEffectStyleField, VariableBindableLayoutGridField, VariableBindableGridStyleField, VariableBindableComponentPropertyField, VariableBindableComponentPropertyDefinitionField, StickableMixin, ChildrenMixin, ConstraintMixin, DimensionAndPositionMixin, LayoutMixin, AspectRatioLockMixin, BlendMixin, ContainerMixin, DeprecatedBackgroundMixin, StrokeCap, StrokeJoin, HandleMirroring, AutoLayoutMixin, GridTrackSize, GridLayoutMixin, AutoLayoutChildrenMixin, GridChildrenMixin, InferredAutoLayoutResult, DetachedInfo, MinimalStrokesMixin, IndividualStrokesMixin, MinimalFillsMixin, VariableWidthPoint, PresetVariableWidthStrokeProperties, CustomVariableWidthStrokeProperties, VariableWidthStrokeProperties, ComplexStrokeProperties, ScatterBrushProperties, StretchBrushProperties, BrushStrokeProperties, DynamicStrokeProperties, GeometryMixin, ComplexStrokesMixin, CornerMixin, RectangleCornerMixin, ExportMixin, FramePrototypingMixin, VectorLikeMixin, ReactionMixin, DocumentationLink, PublishableMixin, DefaultShapeMixin, BaseFrameMixin, DefaultFrameMixin, OpaqueNodeMixin, MinimalBlendMixin, Annotation, AnnotationProperty, AnnotationPropertyType, AnnotationsMixin, Measurement, MeasurementSide, MeasurementOffset, MeasurementsMixin, VariantMixin, ComponentPropertiesMixin, BaseNonResizableTextMixin, NonResizableTextMixin, NonResizableTextPathMixin, TextSublayerNode, DocumentNode, ExplicitVariableModesMixin, PageNode, FrameNode, GroupNode, TransformGroupNode, SliceNode, RectangleNode, LineNode, EllipseNode, PolygonNode, StarNode, VectorNode, TextNode, TextPathNode, ComponentPropertyType, InstanceSwapPreferredValue, ComponentPropertyOptions, ComponentPropertyDefinitions, ComponentSetNode, ComponentNode, ComponentProperties, InstanceNode, BooleanOperationNode, StickyNode, StampNode, TableNode, TableCellNode, HighlightNode, WashiTapeNode, ShapeWithTextNode, CodeBlockNode, LabelSublayerNode, ConnectorNode, VariableResolvedDataType, VariableAlias, VariableValue, VariableScope, CodeSyntaxPlatform, Variable, VariableCollection, ExtendedVariableCollection, AnnotationCategoryColor, AnnotationCategory, WidgetNode, EmbedData, EmbedNode, LinkUnfurlData, LinkUnfurlNode, MediaData, MediaNode, SectionNode, SlideNode, SlideRowNode, SlideGridNode, InteractiveSlideElementNode, SlideTransition, BaseNode, SceneNode, NodeType, StyleType, InheritedStyleField, StyleConsumers, BaseStyleMixin, PaintStyle, TextStyle, EffectStyle, GridStyle, BaseStyle, Image, Video, BaseUser, User, ActiveUser, FindAllCriteria, TransformModifier, RepeatModifier, LinearRepeatModifier, RadialRepeatModifier }

@@ -162,18 +162,57 @@ const size = instance.getEnum('Size', {
 // Simple boolean
 const disabled = instance.getBoolean('Disabled')
 
-// Mapped to code values
-const hasIcon = instance.getBoolean('Has Icon', {
-  true: figma.code`<Icon />`,
-  false: undefined,
+// Mapped to code values (e.g. when the code prop is an enum, not a boolean)
+const size = instance.getBoolean('Show Label', { true: 'large', false: 'small' })
+```
+
+**Map Figma properties to code props where there's a valid correspondence.** Figma properties and code props don't always line up 1:1 — some Figma properties map directly (by name, or via the API methods above), others have no code equivalent. Where a mapping exists, use it; where none fits, omit the Figma property rather than invent a code prop. Never emit an attribute whose name doesn't appear in the code component's `Props` interface.
+
+### Exhaustive variant handling
+
+When a VARIANT property has multiple possible values, the `getEnum` mapping **must list every value** returned by `get_context_for_code_connect`. Don't omit values — an unmapped value silently returns `undefined`, producing broken output.
+
+```ts
+// WRONG — omits 'Warning', which will render as undefined
+const status = instance.getEnum('Status', {
+  'Success': 'success',
+  'Error': 'error',
+})
+
+// CORRECT — every value is mapped
+const status = instance.getEnum('Status', {
+  'Success': 'success',
+  'Error': 'error',
+  'Warning': 'warning',
+  'Info': 'info',
 })
 ```
+
+When **two or more VARIANT properties combine** to produce different code output, generate exhaustive conditional branches. For example, 2 variants × 2 values = 4 branches:
+
+```ts
+const type = instance.getEnum('Type', { 'Filled': 'filled', 'Outlined': 'outlined' })
+const status = instance.getEnum('Status', { 'Success': 'success', 'Error': 'error' })
+
+let colorClass
+if (type === 'filled' && status === 'success') {
+  colorClass = 'bg-green-500 text-white'
+} else if (type === 'filled' && status === 'error') {
+  colorClass = 'bg-red-500 text-white'
+} else if (type === 'outlined' && status === 'success') {
+  colorClass = 'bg-transparent border-green-500'
+} else if (type === 'outlined' && status === 'error') {
+  colorClass = 'bg-transparent border-red-500'
+}
+```
+
+If the combinations produce **repetitive** output (e.g., `Size` doesn't change the snippet structure — it's just passed through as a prop), a single `getEnum` mapping per variant is sufficient — no need for cross-product branches.
 
 **INSTANCE_SWAP** — access swappable component instances:
 ```ts
 const icon = instance.getInstanceSwap('Icon')
 let iconCode
-if (icon && icon.hasCodeConnect()) {
+if (icon && icon.type === 'INSTANCE') {
   iconCode = icon.executeTemplate().example
 }
 ```
@@ -198,6 +237,30 @@ When you need to access children that aren't exposed as component properties:
 | `instance.findConnectedInstances(fn)` | You need multiple connected children matching a filter |
 | `instance.findLayers(fn)` | You need any layers (text + instances) matching a filter |
 
+### Nested configurable instances
+
+A component may contain child instances that are **not exposed as component properties** (no INSTANCE_SWAP) but are still **independently configurable** — they have their own variants, properties, or swap slots. These must be resolved dynamically, not hardcoded.
+
+1. **Check whether the child already has a Code Connect template** — use `get_code_connect_suggestions` or check existing `.figma.ts` files in the project.
+2. **If no template exists, create one** for the child so it renders correctly both standalone and when nested.
+3. **Reference the child from the parent** using `findInstance()` or `findConnectedInstance()`, then call `executeTemplate()`.
+
+```ts
+// Parent template — the Badge child isn't a prop, but it's configurable
+const badge = instance.findInstance('Status Badge')
+let badgeCode
+if (badge && badge.type === 'INSTANCE') {
+  badgeCode = badge.executeTemplate().example
+}
+
+export default {
+  example: figma.code`<Card>${badgeCode}</Card>`,
+  // ...
+}
+```
+
+This applies to icons, badges, labels, and any other nested instance that is configurable by itself — always connect them and render dynamically, never hardcode their content.
+
 ### Nested component example
 
 For multi-level nested components or metadata prop passing between templates, see [advanced-patterns.md](references/advanced-patterns.md).
@@ -205,7 +268,7 @@ For multi-level nested components or metadata prop passing between templates, se
 ```ts
 const icon = instance.getInstanceSwap('Icon')
 let iconSnippet
-if (icon && icon.hasCodeConnect()) {
+if (icon && icon.type === 'INSTANCE') {
   iconSnippet = icon.executeTemplate().example
 }
 
@@ -239,7 +302,9 @@ export default {
 Read back the `.figma.ts` file and review it against the following:
 
 - **Property coverage** — every Figma property from Step 3 should be accounted for in the template. Flag any that are missing and ask the user if they were intentionally omitted.
-- **Rules and Pitfalls** — check for the common mistakes listed below (string concatenation of template results, missing `hasCodeConnect()` guards, missing `type === 'INSTANCE'` checks, etc.)
+- **Valid, correctly typed code** — all emitted code must be valid and correctly typed against the code component's `Props` interface. Never make up component properties — if a Figma property has no corresponding code prop, omit it rather than invent one.
+- **No hardcoded children** — verify that every INSTANCE_SWAP property and child component slot uses the dynamic APIs (`getInstanceSwap()`, `findInstance()`, `findConnectedInstance()`, etc.) with `executeTemplate()`. No slot should contain hardcoded component content.
+- **Rules and Pitfalls** — check for the common mistakes listed below (string concatenation of template results, unnecessary `hasCodeConnect()` guards, missing `type === 'INSTANCE'` checks, etc.)
 - **Interpolation wrapping** — strings (`getString`, `getEnum`, `textContent`) wrapped in quotes, instance/section values (`executeTemplate().example`) wrapped in braces, booleans using conditionals
 
 If anything looks uncertain, consult [api.md](references/api.md) for API details and [advanced-patterns.md](references/advanced-patterns.md) for complex nesting.
@@ -282,6 +347,26 @@ If anything looks uncertain, consult [api.md](references/api.md) for API details
 { path?: string[], traverseInstances?: boolean }
 ```
 
+- `traverseInstances: true` — required when the target lives inside another nested instance. Without it, `findInstance`/`findText` only search the current instance's own layers and stop at nested instance boundaries.
+- `path: string[]` — disambiguates when multiple descendants share the same layer name. Lists parent layer names that must appear on the path to the target.
+
+**Examples:**
+
+```ts
+// Layer hierarchy:
+//   A > C (instance) > "mychild"
+// "mychild" sits inside nested instance C, so plain findInstance returns ErrorHandle.
+instance.findInstance('mychild', { traverseInstances: true })
+
+// Layer hierarchy:
+//   A > C (instance) > "mychild"
+//   A > D (instance) > "mychild"
+// Two "mychild" layers exist — use path to pick the one under C.
+instance.findInstance('mychild', { traverseInstances: true, path: ['C'] })
+```
+
+**When to reach into a nested instance from a parent template:** only when the parent code component (from Step 4) takes the nested layer as a prop value itself (e.g. `<C show={<B />} />` — A forwards B into C). If the parent just composes C and C renders B internally, resolve C with `executeTemplate()` and let C's own template handle B — don't duplicate B's rendering at the parent level.
+
 ### Export Structure
 
 ```ts
@@ -297,9 +382,21 @@ export default {
 
 1. **Never string-concatenate template results.** `executeTemplate().example` is a `ResultSection[]` object, not a string. Using `+` or `.join()` produces `[object Object]`. Always interpolate inside tagged templates: `` figma.code`${snippet1}${snippet2}` ``
 
-2. **Always check `hasCodeConnect()` before `executeTemplate()`.** Calling `executeTemplate()` on an instance without Code Connect returns an error section.
+2. **Do not use `hasCodeConnect()` guards.** Call `executeTemplate()` directly on any instance after a `type === 'INSTANCE'` check. The runtime handles instances without Code Connect automatically.
 
-3. **Check `type === 'INSTANCE'` before calling `hasCodeConnect()`.** `findInstance()`, `findConnectedInstance()`, and `findText()` return an `ErrorHandle` (truthy, but lacking `hasCodeConnect()`) on failure — not `null`. Add a type check to avoid crashes: `if (child && child.type === 'INSTANCE' && child.hasCodeConnect()) { ... }`
+   ```ts
+   // WRONG — hasCodeConnect() gate drops non-CC instances
+   if (icon && icon.type === 'INSTANCE' && icon.hasCodeConnect()) {
+     iconCode = icon.executeTemplate().example
+   }
+
+   // CORRECT — let the runtime handle all instances
+   if (icon && icon.type === 'INSTANCE') {
+     iconCode = icon.executeTemplate().example
+   }
+   ```
+
+3. **Check `type === 'INSTANCE'` before calling `executeTemplate()`.** `findInstance()`, `findConnectedInstance()`, and `findText()` return an `ErrorHandle` (truthy, but not a real node) on failure — not `null`. Always add a type check to avoid crashes: `if (child && child.type === 'INSTANCE') { ... }`
 
 4. **Prefer `getInstanceSwap()` over `findInstance()`** when a component property exists for the slot. `findInstance('Star Icon')` breaks when the icon is swapped to a different name; `getInstanceSwap('Icon')` always works regardless of which instance is in the slot.
 
@@ -315,6 +412,23 @@ export default {
    const child2 = items[1]?.executeTemplate().example
    export default { example: figma.code`${child1}${child2}` }
    ```
+
+7. **Never hardcode slot or children content.** Always resolve child instances dynamically — use `getInstanceSwap()` for INSTANCE_SWAP properties, `findInstance()`/`findConnectedInstance()` for direct children — and render them via `executeTemplate()`. Never construct JSX from a layer name (e.g., `<StarIcon />`) or guess import paths. If an instance has no Code Connect, omit it — do not add a hardcoded fallback.
+
+   ```ts
+   // WRONG — hardcodes the icon from its layer name
+   example: figma.code`<Button icon={<StarIcon />}>Submit</Button>`
+
+   // CORRECT — resolves dynamically, works for any swapped icon
+   const icon = instance.findInstance('Icon')
+   let iconCode
+   if (icon && icon.type === 'INSTANCE') {
+     iconCode = icon.executeTemplate().example
+   }
+   example: figma.code`<Button${iconCode ? figma.code` icon={${iconCode}}` : ''}>...</Button>`
+   ```
+
+8. **Attempt to represent every Figma property via a code prop.** The code component's `Props` interface (from Step 4) is the authoritative list of attribute names. For each Figma property, figure out the right way to represent it using the API methods from Step 5 — direct name match, value transformation, or whatever fits. If no code prop fits at all, omit it — don't invent a prop name.
 
 ## Complete Worked Example
 
@@ -362,7 +476,7 @@ const disabled = instance.getBoolean('Disabled')
 const hasIcon = instance.getBoolean('Has Icon')
 const icon = hasIcon ? instance.getInstanceSwap('Icon') : null
 let iconCode
-if (icon && icon.hasCodeConnect()) {
+if (icon && icon.type === 'INSTANCE') {
   iconCode = icon.executeTemplate().example
 }
 

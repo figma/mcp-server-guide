@@ -1,7 +1,7 @@
 {
   "name": "figma",
   "description": "Plugin that includes the Figma MCP server and Skills for common workflows.",
-  "version": "2.1.7",
+  "version": "2.1.15",
   "author": {
     "name": "Figma",
     "url": "https://www.figma.com"
