@@ -74,7 +74,8 @@ The response contains the Figma component's **property definitions** — note ea
 - **TEXT** — text content (labels, titles, placeholders)
 - **BOOLEAN** — toggles (show/hide icon, disabled state)
 - **VARIANT** — enum options (size, variant, state)
-- **INSTANCE_SWAP** — swappable component slots (icon, avatar)
+- **INSTANCE_SWAP** — swappable nested instances tied to a specific component (icon, avatar)
+- **SLOT** — flexible content regions (freeform layout, mixed children); use `getSlot()` in templates (not the same as INSTANCE_SWAP)
 
 Save this property list — you will use it in Step 5 to write the template.
 
@@ -134,7 +135,8 @@ Use the property list from Step 3 to extract values. For each Figma property typ
 | TEXT | `instance.getString('Name')` | Labels, titles, placeholder text |
 | BOOLEAN | `instance.getBoolean('Name', { true: ..., false: ... })` | Toggle visibility, conditional props |
 | VARIANT | `instance.getEnum('Name', { 'FigmaVal': 'codeVal' })` | Size, variant, state enums |
-| INSTANCE_SWAP | `instance.getInstanceSwap('Name')` | Icon slots, swappable children |
+| INSTANCE_SWAP | `instance.getInstanceSwap('Name')` | Swapped instance for a fixed component slot (then `hasCodeConnect()` / `executeTemplate()`) - do not confuse with the SLOT property below |
+| SLOT | `instance.getSlot('Name')` | Freeform slot content only when the Figma property type is **SLOT** 
 | (child layer) | `instance.findInstance('LayerName')` | Named child instances without a property |
 | (text layer) | `instance.findText('LayerName')` → `.textContent` | Text content from named layers |
 
@@ -217,11 +219,25 @@ if (icon && icon.type === 'INSTANCE') {
 }
 ```
 
+**SLOT** — `getSlot(propName)` is only valid when the Figma component property reported in Step 3 has type **`SLOT`**. Do not use `getSlot()` for **INSTANCE_SWAP** properties (those use `getInstanceSwap()`). Slots are explicit “content regions” in the component definition, not generic nested instances.
+
+- **Signature:** `getSlot(propName: string): ResultSection[] | undefined`
+```ts
+// Figma property "Content" must be type SLOT in component properties
+const content = instance.getSlot('Content')
+
+export default {
+  example: figma.code`<Card>${content}</Card>`,
+  // ...
+}
+```
+
 ### Interpolation in tagged templates
 
 When interpolating values in tagged templates, use the correct wrapping:
 - **String values** (`getString`, `getEnum`, `textContent`): wrap in quotes → `variant="${variant}"`
 - **Instance/section values** (`executeTemplate().example`): wrap in braces → `icon={${iconCode}}`
+- **Slot sections** (`getSlot()` result — `ResultSection[] | undefined`): interpolate directly inside `` figma.code`...` `` (same shape as nested snippet sections), e.g. `` figma.code`<Select>${content}</Select>` `` — do not treat as a plain string
 - **Boolean bare props**: use conditional → `${disabled ? 'disabled' : ''}`
 
 ### Finding descendant layers
@@ -230,7 +246,8 @@ When you need to access children that aren't exposed as component properties:
 
 | Method | Use when |
 |---|---|
-| `instance.getInstanceSwap('PropName')` | A component property exists for this slot |
+| `instance.getInstanceSwap('PropName')` | Figma property type is **INSTANCE_SWAP** (fixed swapped instance) |
+| `instance.getSlot('PropName')` | Figma property type is **SLOT** (freeform content region) |
 | `instance.findInstance('LayerName')` | You know the child layer name (no component property) |
 | `instance.findText('LayerName')` → `.textContent` | You need text content from a named text layer |
 | `instance.findConnectedInstance('id')` | You know the child's Code Connect `id` |
@@ -305,7 +322,7 @@ Read back the `.figma.ts` file and review it against the following:
 - **Valid, correctly typed code** — all emitted code must be valid and correctly typed against the code component's `Props` interface. Never make up component properties — if a Figma property has no corresponding code prop, omit it rather than invent one.
 - **No hardcoded children** — verify that every INSTANCE_SWAP property and child component slot uses the dynamic APIs (`getInstanceSwap()`, `findInstance()`, `findConnectedInstance()`, etc.) with `executeTemplate()`. No slot should contain hardcoded component content.
 - **Rules and Pitfalls** — check for the common mistakes listed below (string concatenation of template results, unnecessary `hasCodeConnect()` guards, missing `type === 'INSTANCE'` checks, etc.)
-- **Interpolation wrapping** — strings (`getString`, `getEnum`, `textContent`) wrapped in quotes, instance/section values (`executeTemplate().example`) wrapped in braces, booleans using conditionals
+- **Interpolation wrapping** — strings (`getString`, `getEnum`, `textContent`) wrapped in quotes, instance/section values (`executeTemplate().example`) wrapped in braces, slot sections (`getSlot`) interpolated as snippet sections inside `` figma.code`...` ``, booleans using conditionals
 
 If anything looks uncertain, consult [api.md](references/api.md) for API details and [advanced-patterns.md](references/advanced-patterns.md) for complex nesting.
 
@@ -319,6 +336,7 @@ If anything looks uncertain, consult [api.md](references/api.md) for API details
 | `getBoolean` | `(propName: string, mapping?: { true: any, false: any })` | `boolean \| any` |
 | `getEnum` | `(propName: string, mapping: { [figmaVal]: codeVal })` | `any` |
 | `getInstanceSwap` | `(propName: string)` | `InstanceHandle \| null` |
+| `getSlot` | `(propName: string)` | `ResultSection[] \| undefined` |
 | `getPropertyValue` | `(propName: string)` | `string \| boolean` |
 | `findInstance` | `(layerName: string, opts?: SelectorOptions)` | `InstanceHandle \| ErrorHandle` |
 | `findText` | `(layerName: string, opts?: SelectorOptions)` | `TextHandle \| ErrorHandle` |
@@ -400,9 +418,11 @@ export default {
 
 4. **Prefer `getInstanceSwap()` over `findInstance()`** when a component property exists for the slot. `findInstance('Star Icon')` breaks when the icon is swapped to a different name; `getInstanceSwap('Icon')` always works regardless of which instance is in the slot.
 
-5. **Property names are case-sensitive** and must exactly match what `get_context_for_code_connect` returns.
+5. **Use `getSlot()` only when the Figma property type is `SLOT`.** For **INSTANCE_SWAP** props, use `getInstanceSwap()` (returns an `InstanceHandle`). `getSlot()` returns structured slot sections, not instances — never call `executeTemplate()` on its return value.
 
-6. **Handle multiple template arrays correctly.** When iterating over children, set each result in a separate variable and interpolate them individually — do not use `.map().join()`:
+6. **Property names are case-sensitive** and must exactly match what `get_context_for_code_connect` returns.
+
+7. **Handle multiple template arrays correctly.** When iterating over children, set each result in a separate variable and interpolate them individually — do not use `.map().join()`:
    ```ts
    // Wrong:
    items.map(n => n.executeTemplate().example).join('\n')

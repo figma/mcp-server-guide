@@ -349,7 +349,7 @@ group.name = "Grouped Elements";
 ```javascript
 const section = figma.createSection();
 section.name = "My Section";
-section.resizeWithoutConstraints(800, 600);
+section.resize(800, 600); // `resize` and `resizeWithoutConstraints` are equivalent on sections
 section.x = 0;
 section.y = 0;
 // IMPORTANT: Sections don't auto-resize — always resize after adding content

@@ -10803,6 +10803,16 @@ interface SectionNode
    *
    */
   resizeWithoutConstraints(width: number, height: number): void
+  /**
+   * Resizes the section node. Sections do not propagate constraints to their
+   * children, so this behaves equivalently to {@link SectionNode.resizeWithoutConstraints}
+   * and is provided to match the resize ergonomics of other resizable nodes.
+   *
+   * @param width - New width of the node. Must be >= 0.01
+   * @param height - New height of the node. Must be >= 0.01
+   *
+   */
+  resize(width: number, height: number): void
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/SlideNode

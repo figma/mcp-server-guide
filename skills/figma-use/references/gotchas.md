@@ -9,6 +9,7 @@
 - Page context and plugin lifecycle pitfalls
 - Auto Layout and sizing order pitfalls (including HUG/FILL interactions)
 - Variant layout and geometry pitfalls
+- Font loading and text/typography pitfalls
 - Variable scopes and mode pitfalls
 - Node cleanup and empty-fill pitfalls
 - Type-specific method calls without node type guards
@@ -281,30 +282,7 @@ This applies to both `TextStyle` and `TextNode` properties. The same rule applie
 
 ## Font style names are file-dependent — use `listAvailableFontsAsync` to discover them
 
-Font style names vary per provider and per Figma file. `"SemiBold"` and `"Semi Bold"` are different strings. Loading a font with the wrong style string **throws** — never guess style names.
-
-Use `figma.listAvailableFontsAsync()` to discover all available fonts and their exact style strings before loading:
-
-```js
-// WRONG — guessing style names
-await figma.loadFontAsync({ family: "Inter", style: "SemiBold" }) // may throw
-
-// CORRECT — discover available styles, then load
-const allFonts = await figma.listAvailableFontsAsync()
-const interFonts = allFonts.filter(f => f.fontName.family === "Inter")
-// interFonts[i].fontName → { family: "Inter", style: "Semi Bold" } (exact string)
-
-const desired = interFonts.find(f => f.fontName.style === "Semi Bold")
-if (desired) {
-  await figma.loadFontAsync(desired.fontName)
-} else {
-  // Fall back to a known-safe style
-  const fallback = interFonts.find(f => f.fontName.style === "Regular")
-  if (fallback) await figma.loadFontAsync(fallback.fontName)
-}
-```
-
-When building a type ramp script, always call `listAvailableFontsAsync()` first to verify font styles against the target file before hardcoding them. If a `loadFontAsync` call fails, use `listAvailableFontsAsync()` to inspect what fonts are actually available and pick the closest match.
+Font style names vary per provider and per Figma file. Always call `figma.listAvailableFontsAsync()` to discover exact style strings before loading — never guess or probe with try/catch. See [text-style-patterns.md](text-style-patterns.md#discovering-available-font-styles) for the discovery + load pattern.
 
 ## combineAsVariants does NOT auto-layout in `use_figma`
 
@@ -523,7 +501,7 @@ section.appendChild(someNode) // node may be outside section bounds
 const section = figma.createSection()
 section.name = "My Section"
 section.appendChild(someNode)
-section.resizeWithoutConstraints(
+section.resize(
   Math.max(someNode.width + 100, 800),
   Math.max(someNode.height + 100, 600)
 )

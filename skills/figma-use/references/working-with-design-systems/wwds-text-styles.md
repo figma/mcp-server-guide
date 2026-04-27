@@ -67,7 +67,7 @@ Once you have a `TextStyle`, apply it to a `TextNode` by assigning its `id` to t
 ## Common gotchas
 
 - **Font must be loaded before setting `fontName`**: Call `await figma.loadFontAsync({ family, style })` before creating or modifying a text style's font.
-- **Font style names are file-dependent**: Font style names like `"SemiBold"` vs `"Semi Bold"` vary by font provider and Figma file. Always call `await figma.listAvailableFontsAsync()` to discover exact style strings before loading — never guess or probe with try/catch.
+- **Font style names are file-dependent**: Font style names vary by font provider and Figma file. Always call `await figma.listAvailableFontsAsync()` to discover exact style strings before loading — never guess or probe with try/catch.
 - **Styles are not automatically applied**: Creating a `TextStyle` has no effect on any node until you assign its ID to a text node.
 - **`getLocalTextStyles()` is deprecated**: Always use `getLocalTextStylesAsync()`.
 - **Names are not unique**: Two text styles can share the same name. Match by ID or `key` when looking up a known style, not by name alone.

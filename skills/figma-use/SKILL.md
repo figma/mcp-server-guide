@@ -26,7 +26,7 @@ IMPORTANT: Whenever you work with design systems, start with [working-with-desig
 5.  **Work incrementally in small steps.** Break large operations into multiple `use_figma` calls. Validate after each step. This is the single most important practice for avoiding bugs.
 6.  Colors are **0–1 range** (not 0–255): `{r: 1, g: 0, b: 0}` = red
 7.  Fills/strokes are **read-only arrays** — clone, modify, reassign
-8.  Font **MUST** be loaded before any text operation: `await figma.loadFontAsync({family, style})`. Use `await figma.listAvailableFontsAsync()` to discover all available fonts and their exact style strings — if a `loadFontAsync` call fails, call `listAvailableFontsAsync()` to find the correct style name or pick a fallback.
+8.  **Font loading is required before ANY operation on nodes that contain unloaded fonts** — not just text-setting operations. This includes `appendChild`, `insertChild`, `setBoundVariable`, `setExplicitVariableModeForCollection`, `setValueForMode`, and even `findAll` callbacks. If the document has existing text nodes, preload all their fonts at the start of the script. Use `await figma.listAvailableFontsAsync()` to discover available fonts and styles, then `await figma.loadFontAsync({family, style})` to load each one. See [Gotchas](references/gotchas.md) for the full preload pattern.
 9.  **Pages load incrementally** — use `await figma.setCurrentPageAsync(page)` to switch pages and load their content. The sync setter `figma.currentPage = page` does **NOT** work and will throw (see Page Rules below)
 10. `setBoundVariableForPaint` returns a **NEW** paint — must capture and reassign
 11. `createVariable` accepts collection **object or ID string** (object preferred)
@@ -325,7 +325,9 @@ Before submitting ANY `use_figma` call, verify:
 - [ ] Fills/strokes are reassigned as new arrays (not mutated in place)
 - [ ] Page switches use `await figma.setCurrentPageAsync(page)` (sync setter `figma.currentPage = page` does NOT work)
 - [ ] `layoutSizingVertical/Horizontal = 'FILL'` is set AFTER `parent.appendChild(child)`
-- [ ] `loadFontAsync()` called BEFORE any text property changes (use `listAvailableFontsAsync()` to verify font availability if unsure)
+- [ ] `loadFontAsync()` called before any text property changes (use `listAvailableFontsAsync()` to verify font availability if unsure)
+- [ ] Style names have already been verified via `listAvailableFontsAsync()` — NOT guessed from memory (`"SemiBold"` vs `"Semi Bold"` is a common footgun)
+- [ ] For `FONT_FAMILY`-scoped variables: every value across every relevant mode is loaded before `setBoundVariable("fontFamily", …)`, `setValueForMode`, or `setExplicitVariableModeForCollection`
 - [ ] `lineHeight`/`letterSpacing` use `{unit, value}` format (not bare numbers)
 - [ ] `resize()` is called BEFORE setting sizing modes (resize resets them to FIXED)
 - [ ] For multi-step workflows: IDs from previous calls are passed as string literals (not variables)

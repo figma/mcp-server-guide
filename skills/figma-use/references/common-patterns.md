@@ -417,7 +417,7 @@ cs.resizeWithoutConstraints(maxX + 40, maxY + 40);
 const section = figma.createSection();
 section.name = "MyComponent Section";
 section.appendChild(cs);
-section.resizeWithoutConstraints(cs.width + 200, cs.height + 200);
+section.resize(cs.width + 200, cs.height + 200);
 
 return { csId: cs.id, count: components.length };
 ```
