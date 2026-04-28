@@ -19,6 +19,7 @@ For generic flowcharts (decision trees, process flows, dependency graphs), use [
 9. Never connect edges to subgraph IDs — only individual node IDs.
 10. Never create two edges between the same pair of nodes. Combine into one edge with a merged label.
 11. **Never connect datastore or async nodes to each other directly.** A service always mediates. WRONG: `kafka -.-> sqs`. RIGHT: `worker -.->|"Consumes"| kafka` then `worker -.->|"Produces"| sqs`.
+12. **Never connect gateway nodes directly to external nodes.** A service must mediate. WRONG: `alb -.-> stripe`. RIGHT: `alb --> orders` then `orders -.->|"Stripe: Charges"| stripe`.
 
 ## Subgraph Categories
 
