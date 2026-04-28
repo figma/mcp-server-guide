@@ -10,11 +10,11 @@ Turn a PRD (plus optional codebase grounding) into a FigJam project plan board. 
 
 ## Mandatory prerequisites
 
-**Foundation skills** (in this repo's `skills/` directory):
+**Foundation skills** (load by name; available in `figma/mcp-server-guide`):
 
-- [`figma-use`](../../skills/figma-use/SKILL.md) — **Load once per session.** Stays in context for all `use_figma` calls.
-- [`figma-use-figjam`](../../skills/figma-use-figjam/SKILL.md) — **Re-load before every `use_figma` call.**
-- [`figma-generate-diagram`](../../skills/figma-generate-diagram/SKILL.md) — **Re-load before every `generate_diagram` call.**
+- `figma-use` — **Load once per session.** Stays in context for all `use_figma` calls.
+- `figma-use-figjam` — **Re-load before every `use_figma` call.**
+- `figma-generate-diagram` — **Re-load before every `generate_diagram` call.**
 
 **Foundation references** (in this plugin):
 

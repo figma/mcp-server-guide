@@ -17,7 +17,7 @@ A vertical stack of stickies, one statement per sticky. Used for success metrics
 - `sticky.text` is a text sublayer — load its font before setting `characters`.
 - `sticky.fills` is NOT how you color stickies. Use `sticky.background = STICKY.<color>` — wait, actually check the API. The create-sticky.md reference uses a color preset map.
 
-Actually stickies have a `fills` array that sets the color like any shape. See [figma-use-figjam/references/create-sticky.md](../../../../skills/figma-use-figjam/references/create-sticky.md) for the exact property name at runtime — the v1 skill used `sticky.fills`.
+Actually stickies have a `fills` array that sets the color like any shape. See the `figma-use-figjam` skill's `create-sticky` reference for the exact property name at runtime — the v1 skill used `sticky.fills`.
 
 ## Two-pass layout
 
