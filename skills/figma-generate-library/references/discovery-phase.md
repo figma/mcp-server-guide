@@ -305,27 +305,64 @@ return {
 
 ---
 
-## 3. Using search_design_system
+## 3. Library Discovery and search_design_system
 
-### What It Searches
+### Step 1: Discover available libraries with `get_libraries`
 
-`search_design_system` runs three parallel searches against **subscribed design libraries** for the given file:
+Before searching, call `get_libraries` to see what libraries the file has access to:
+
+```
+get_libraries({ fileKey: "abc123" })
+// offset is optional; omit (or pass 0) for the first page
+```
+
+Returns:
+- **`libraries_added_to_file`** — libraries currently subscribed (team libraries, community UI kits already enabled)
+- **`libraries_available_to_add`** — community UI kits and org libraries not yet subscribed
+- **`libraries_available_to_add_next_offset`** — non-null when more org libraries are available; pass it back as `offset` to fetch the next page
+
+Each library entry includes `name`, `libraryKey`, `description`, and `source` ("team", "community", or "organization"). Use the `libraryKey` values to scope searches in the next step.
+
+**Pagination.** Org libraries paginate in batches of 20. Community UI kits are only returned on the first page (`offset=0`), so subsequent pages contain only org libraries. If the user is looking for a specific library by name and it isn't in the current page, page further (call `get_libraries` again with `offset: libraries_available_to_add_next_offset`) or ask them to subscribe it to the file.
+
+```
+// Page 1
+get_libraries({ fileKey: "abc123" })
+// → { ..., libraries_available_to_add_next_offset: 20 }
+
+// Page 2
+get_libraries({ fileKey: "abc123", offset: 20 })
+// → { ..., libraries_available_to_add_next_offset: 40 | null }
+```
+
+### Step 2: Search with `search_design_system`
+
+`search_design_system` runs three parallel searches against design libraries for the given file:
 
 1. **Components** — published library components, searched by name/description via a recommendation engine (relevance-ranked, not exact match)
 2. **Variables** — design tokens (colors, spacing, etc.) across subscribed libraries
 3. **Styles** — paint styles, text styles, and effect styles
 
-Only libraries the file has subscribed to are searched. If results are empty, the file may not be subscribed to any design system libraries.
+By default it searches all accessible libraries. Pass `includeLibraryKeys` to search within specific libraries only. This is useful when you have many libraries and want targeted results.
 
 ### Input
 
 ```
+// Search all libraries
 search_design_system({
   query: "button",              // required — text query
   fileKey: "abc123",            // required — your file key
   includeComponents: true,      // default true
   includeVariables: true,       // default true
   includeStyles: true           // default true
+})
+
+// Search a specific library only (use libraryKey from get_libraries)
+search_design_system({
+  query: "button",
+  fileKey: "abc123",
+  includeLibraryKeys: ["lk-abc123..."],
+  includeComponents: true
 })
 ```
 

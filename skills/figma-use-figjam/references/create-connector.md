@@ -138,7 +138,7 @@ figma.closePlugin()
 
 ## Color Presets
 
-Connectors use the same FigJam color palette as shapes. The line color is set via `strokes`. The connector's text label has its own background and its color does **not** change when the line color changes — only set the stroke.
+Connectors use a 13-color stroke palette — the same hue family used by `createShapeWithText`. The line color is set via `strokes`. The connector's text label has its own background and its color does **not** change when the line color changes — only set the stroke. For the canonical palette across all FigJam node types, see [figjam-colors](figjam-colors.md).
 
 **CRITICAL**: Use `hex/255` notation (e.g. `0x66/255`) for exact palette matching — rounded decimals cause FigJam to treat the color as "custom".
 

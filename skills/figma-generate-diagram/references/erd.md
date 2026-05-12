@@ -6,6 +6,22 @@ Typical subjects: database schemas, domain models, API resource graphs, data-lak
 
 If the subject is a static architecture of services (not data) → architecture flowchart. If it's a state machine → state diagram.
 
+## Contents
+
+1. [When to use an ER diagram](#1-when-to-use-an-er-diagram)
+2. [Required skeleton](#2-required-skeleton)
+3. [Entities](#3-entities)
+4. [Attributes](#4-attributes)
+5. [Relationships](#5-relationships)
+6. [Direction](#6-direction)
+7. [What's NOT supported](#7-whats-not-supported)
+8. [Layout (same ELK as flowcharts)](#8-layout-same-elk-as-flowcharts)
+9. [Hybrid workflow: `generate_diagram` first, then `use_figma`](#9-hybrid-workflow-generate_diagram-first-then-use_figma)
+10. [Best practices](#10-best-practices)
+11. [Validation checklist](#11-validation-checklist)
+12. [Complete example](#12-complete-example)
+13. [Calling generate_diagram](#13-calling-generate_diagram)
+
 ---
 
 ## 1. When to use an ER diagram

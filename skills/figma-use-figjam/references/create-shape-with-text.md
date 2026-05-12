@@ -82,7 +82,7 @@ figma.closePlugin()
 
 ## Color Presets
 
-FigJam shapes have **coordinated fill, stroke, and text colors**. When applying a color, you must set all three to match the FigJam palette — otherwise the shape will look wrong (e.g., dark text on a dark fill, or missing stroke). Strongly prefer colors from this list instead of custom colors.
+FigJam shapes have **coordinated fill, stroke, and text colors**. When applying a color, you must set all three to match the FigJam palette — otherwise the shape will look wrong (e.g., dark text on a dark fill, or missing stroke). Strongly prefer colors from this list instead of custom colors. For the canonical palette across all FigJam node types, see [figjam-colors](figjam-colors.md).
 
 Each color preset defines:
 

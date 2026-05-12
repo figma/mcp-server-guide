@@ -6,7 +6,7 @@
 
 ## Creating a Section
 
-Create sections and resize them carefully according to the guidance in the [figma-plan-figjam-board-content](../../figma-plan-figjam-board-content/SKILL.md) skill's layout reference.
+Create sections and resize them carefully according to the layout guidance in [plan-board-content](plan-board-content.md).
 
 ```javascript
 const section = figma.createSection()
@@ -25,7 +25,7 @@ Stickies and text play different roles. Before adding section child content, mak
 
 ## Naming
 
-Section names should be **short, navigational identifiers** (e.g. "Brainstorm", "Action Items", "Went Well") — they are used for browsing and quick identification in FigJam's UI. The section name is NOT the user-facing header. Create a separate **H2 text node** inside the section for the visible, descriptive header (see [figma-plan-figjam-board-content](../../figma-plan-figjam-board-content/SKILL.md) for the section name vs header distinction).
+Section names should be **short, navigational identifiers** (e.g. "Brainstorm", "Action Items", "Went Well") — they are used for browsing and quick identification in FigJam's UI. The section name is NOT the user-facing header. Create a separate **H2 text node** inside the section for the visible, descriptive header. See [plan-board-content](plan-board-content.md) for guidance on clearing section names when the section already has an internal title text node.
 
 ```javascript
 const section = figma.createSection()
@@ -64,7 +64,7 @@ figma.closePlugin()
 
 Often when creating a section and adding content, the content will exceed the bounds of the section. To solve that, find the maximum extents of the section's children using their section-local coordinates, then resize the section to fit. Consider adding padding of at least 32px on all sides of the content within the section to prevent the content from appearing cramped.
 
-Do not resize the section to hug its contents if it is meant to be an INTERACTIVE section as described by the [figma-plan-figjam-board-content](../../figma-plan-figjam-board-content/SKILL.md) skill. Also do not resize sections to hug content when they are part of a **grid layout** — sections in a grid must maintain uniform dimensions to preserve the rectangular appearance (see [layout-figjam-board-content](../../figma-plan-figjam-board-content/references/layout-figjam-board-content.md)).
+Do not resize the section to hug its contents if it is meant to be a **participatory zone** (workshop, brainstorm, retro lane, feedback area — see [plan-board-content](plan-board-content.md) for the participatory-zone pattern); those should be sized to expected activity, not pre-filled content. Also do not resize sections to hug content when they are part of a **grid layout** — sections in a grid must maintain uniform dimensions to preserve the rectangular appearance.
 
 ```javascript
 const section = await figma.getNodeByIdAsync('123:456')
@@ -94,7 +94,7 @@ figma.closePlugin()
 
 ## Color Palette
 
-FigJam sections share the shape/connector color palette. Set via the `fills` property. Sections typically use lighter colors as background fills.
+FigJam sections use a fixed palette of light tints. Set via the `fills` property. For the canonical palette across all FigJam node types, see [figjam-colors](figjam-colors.md).
 
 When creating multiple sections, **vary the colors** across the palette to visually distinguish them — don't use the same color for every section. Only apply default color variety when the user hasn't specified colors.
 

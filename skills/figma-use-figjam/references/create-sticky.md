@@ -52,7 +52,7 @@ figma.closePlugin()
 
 ## Color Palette
 
-FigJam sticky notes use a fixed palette of 10 colors. Set via the `fills` property.
+FigJam sticky notes use a fixed palette of 10 colors. Set via the `fills` property. For the canonical palette across all FigJam node types, see [figjam-colors](figjam-colors.md).
 
 **CRITICAL**: Use `hex/255` notation (e.g. `0xA8/255`) for exact palette matching — rounded decimals cause FigJam to treat the color as "custom" instead of a palette color.
 

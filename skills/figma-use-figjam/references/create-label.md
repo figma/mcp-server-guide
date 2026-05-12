@@ -44,7 +44,7 @@ Both width and height must always be equal (square bounding box) so the ellipse 
 
 ## Color Presets
 
-Labels use the same coordinated fill/stroke/text color system as other FigJam shapes. Always set all three together. Use `hex/255` notation for exact palette matching — rounded decimals cause FigJam to treat the color as "custom".
+Labels use the same coordinated fill/stroke/text color system as other FigJam shapes. Always set all three together. Use `hex/255` notation for exact palette matching — rounded decimals cause FigJam to treat the color as "custom". For the canonical palette across all FigJam node types, see [figjam-colors](figjam-colors.md).
 
 ```javascript
 const h = (r, g, b) => ({ r: r / 255, g: g / 255, b: b / 255 })

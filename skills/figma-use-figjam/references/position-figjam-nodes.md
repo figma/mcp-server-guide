@@ -30,9 +30,9 @@ When creating or placing a node relative to an existing node:
 Example helper function:
 
 ```javascript
-// existingNodeId: string :: the node id you are positioning relative to
+// existingNodeId (string): the node id you are positioning relative to
 // nodeToPosition: the node you are trying to position relative to the existing node
-async function placeNodeRelativeToOtherNode(existingNodeId: string, nodeToPosition) {
+async function placeNodeRelativeToOtherNode(existingNodeId, nodeToPosition) {
 
   // 1: find the parent of existing node
   const existingNode = await figma.getNodeByIdAsync(existingNodeId);
