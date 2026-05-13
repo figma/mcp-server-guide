@@ -184,15 +184,14 @@ await figma.setCurrentPageAsync(targetPage)
 const page = figma.currentPage  // works
 ```
 
-## `get_metadata` only sees one page — use `use_figma` to discover all pages
+## `get_metadata` operates on one subtree — discover pages explicitly
 
-A Figma file can have multiple pages (canvas nodes). `get_metadata` operates on a single node/page — it cannot scan the entire document. To discover all pages and their top-level contents, use `use_figma`:
+A Figma file can have multiple pages (canvas nodes). `get_metadata` only returns the subtree of whichever node you pass it. To get a usable index of every page:
+
+- Call `get_metadata` with **no nodeId** — it returns the document's top-level pages as `{guid, name}` entries (no XML dump). This is the cheapest way to discover pages.
+- For more detail per page (e.g. child counts, top-level node types), fall back to `use_figma`:
 
 ```js
-// WRONG — calling get_metadata with the file root or expecting it to list all pages
-// get_metadata only returns the subtree of the node you pass it
-
-// CORRECT — use use_figma to list pages, then inspect each one
 const pages = figma.root.children.map(p => `${p.name} id=${p.id} children=${p.children.length}`);
 return pages.join('\n');
 ```
