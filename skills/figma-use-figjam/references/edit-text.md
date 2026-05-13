@@ -61,7 +61,7 @@ textNode.fills = [{ type: 'SOLID', color: { r: 0x1e / 255, g: 0x1e / 255, b: 0x1
 
 ### Text Color in FigJam
 
-**CRITICAL**: When editing text in FigJam board content (templates, brainstorms, retros, or any generated content), always use **Charcoal (#1E1E1E)** as the text color unless the user has specifically requested different colors. Use `hex/255` notation for exact palette matching:
+**CRITICAL**: When editing text in FigJam board content (templates, brainstorms, retros, or any generated content), always use **Charcoal (#1E1E1E)** as the text color unless the user has specifically requested different colors. Use `hex/255` notation for exact palette matching. For non-text node colors and the canonical palette across all FigJam node types, see [figjam-colors](figjam-colors.md).
 
 ```javascript
 // Charcoal — default for all FigJam text

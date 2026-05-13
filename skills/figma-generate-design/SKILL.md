@@ -15,7 +15,6 @@ Use this skill to create or update **screens, views, and multi-section UI contai
 ## Skill Boundaries
 
 - Use this skill when the deliverable is a **composed Figma view** (new or updated) — full-page screens, modals, dialogs, drawers, sidebars, panels, or any multi-section container — built from design system component instances.
-- If the user wants to generate **code from a Figma design**, switch to [figma-implement-design](../figma-implement-design/SKILL.md).
 - If the user wants to create **new reusable components or variants**, use [figma-use](../figma-use/SKILL.md) directly.
 - If the user wants to write **Code Connect mappings**, switch to [figma-code-connect](../figma-code-connect/SKILL.md).
 
@@ -111,7 +110,28 @@ return [...uniqueSets.values()];
 
 Match results against your unresolved components. Mark any newly resolved. If all components are resolved, skip 2a-iii.
 
-**2a-iii — LAST RESORT: `search_design_system`.** Only if components remain unresolved after completing both 2a-i and 2a-ii. **Search broadly** — try multiple terms and synonyms (e.g., "button", "input", "nav", "card", "accordion", "header", "footer", "tag", "avatar", "toggle", "icon", etc.). Use `includeComponents: true` to focus on components.
+**2a-iii — LAST RESORT: `search_design_system`.** Only if components remain unresolved after completing both 2a-i and 2a-ii.
+
+Before searching, call `get_libraries` to discover which libraries are available for the file. This returns two lists: libraries already added to the file and libraries available to add (community UI kits and org libraries). Each entry includes a `libraryKey` you can pass to `search_design_system` via the `includeLibraryKeys` param to scope your search to specific libraries instead of searching across everything.
+
+```
+// Step 1: Discover available libraries
+get_libraries({ fileKey })
+// Returns: {
+//   libraries_added_to_file: [...],
+//   libraries_available_to_add: [...],
+//   libraries_available_to_add_next_offset: number | null
+// }
+
+// Step 2: Search within a specific library using its libraryKey
+search_design_system({ query: "button", fileKey, includeLibraryKeys: ["lk-abc123..."] })
+```
+
+Org libraries in `libraries_available_to_add` are paginated (20 per page). When `libraries_available_to_add_next_offset` is non-null, more org libraries are available — call `get_libraries` again with `offset` set to that value to fetch the next page. Community UI kits only appear on the first page. If the user names a specific library you don't see in the current page, page further before giving up.
+
+This is especially useful when the file has many libraries and you want targeted results (e.g. searching only within "iOS 26" or "Material 3" instead of getting matches from every library).
+
+**Search broadly** — try multiple terms and synonyms (e.g., "button", "input", "nav", "card", "accordion", "header", "footer", "tag", "avatar", "toggle", "icon", etc.). Use `includeComponents: true` to focus on components.
 
 **Include component properties** in your map — you need to know which TEXT properties each component exposes for text overrides. Create a temporary instance, read its `componentProperties` (and those of nested instances), then remove the temp instance.
 

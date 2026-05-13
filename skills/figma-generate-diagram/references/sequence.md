@@ -4,6 +4,19 @@ Use this reference for **sequence diagrams** — interactions over time between 
 
 The renderer is a **narrow subset** of full Mermaid sequence — read §5 carefully, because several features people commonly reach for (notes, loops, alt/else, activation boxes, colored blocks, autonumber) are silently dropped by our handler. The good news: most of those can be added back on top of the generated diagram with `use_figma` — see §7 for the hybrid workflow.
 
+## Contents
+
+1. [When to use a sequence diagram](#1-when-to-use-a-sequence-diagram)
+2. [Required skeleton](#2-required-skeleton)
+3. [Participants](#3-participants)
+4. [Messages](#4-messages)
+5. [What's NOT supported](#5-whats-not-supported)
+6. [Best practices](#6-best-practices)
+7. [Hybrid workflow: `generate_diagram` first, then `use_figma` for everything else](#7-hybrid-workflow-generate_diagram-first-then-use_figma-for-everything-else)
+8. [Validation checklist](#8-validation-checklist)
+9. [Complete example](#9-complete-example)
+10. [Calling generate_diagram](#10-calling-generate_diagram)
+
 ---
 
 ## 1. When to use a sequence diagram

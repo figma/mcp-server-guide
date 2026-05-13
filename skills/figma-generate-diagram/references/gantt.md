@@ -4,6 +4,24 @@ Use this reference for **gantt charts** — project timelines, roadmaps, phased 
 
 If the user wants an abstract dependency graph (A depends on B) without specific dates, use a **flowchart** instead. Gantt is for time-on-an-axis.
 
+## Contents
+
+1. [When to use a gantt chart](#1-when-to-use-a-gantt-chart)
+2. [Required skeleton](#2-required-skeleton)
+3. [dateFormat](#3-dateformat)
+4. [Sections](#4-sections)
+5. [Task syntax](#5-task-syntax)
+6. [Task tags (states)](#6-task-tags-states)
+7. [Milestones](#7-milestones)
+8. [Intra-day charts (time-of-day)](#8-intra-day-charts-time-of-day)
+9. [What's NOT supported](#9-whats-not-supported)
+10. [Limitations and gotchas](#10-limitations-and-gotchas)
+11. [When gantt syntax isn't enough: build a custom timeline instead](#11-when-gantt-syntax-isnt-enough-build-a-custom-timeline-instead)
+12. [Best practices](#12-best-practices)
+13. [Validation checklist](#13-validation-checklist)
+14. [Complete example](#14-complete-example)
+15. [Calling generate_diagram](#15-calling-generate_diagram)
+
 ---
 
 ## 1. When to use a gantt chart
@@ -159,7 +177,7 @@ Our renderer is a subset of full Mermaid gantt. The following are **silently ign
 - **Overlapping tasks stack vertically** within a section, not horizontally. ELK-style intelligent packing does not apply here.
 - **Task names: keep them short**. Long names stretch the left gutter; 2–5 words is the sweet spot.
 
-## 11. When gantt syntax isn't enough — build a custom timeline instead
+## 11. When gantt syntax isn't enough: build a custom timeline instead
 
 Gantt is a great fit for the 80% case: phases, sequenced tasks, milestones, a clean time axis. But the renderer is intentionally narrow, and there's a class of timeline request it can't satisfy — for example:
 

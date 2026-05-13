@@ -4,6 +4,21 @@ Use this reference for **generic flowcharts** — decision trees, process flows,
 
 These diagrams render via ELK (Eclipse Layout Kernel) with an orthogonal, layered layout. The rules below are tuned to produce diagrams that read well, use FigJam's shape vocabulary, and avoid the layout traps ELK struggles with.
 
+## Contents
+
+1. [Direction: pick once, up front](#1-direction-pick-once-up-front)
+2. [Shapes: use the vocabulary, don't over-decorate](#2-shapes-use-the-vocabulary-dont-over-decorate)
+3. [Edges: strokes, end caps, labels](#3-edges-strokes-end-caps-labels)
+4. [Subgraphs: group related nodes](#4-subgraphs-group-related-nodes)
+5. [ELK survival guide](#5-elk-survival-guide)
+6. [Colors: use sparingly, semantically](#6-colors-use-sparingly-semantically)
+7. [Text quality](#7-text-quality)
+8. [Density and when to split](#8-density-and-when-to-split)
+9. [Validation checklist (before calling the tool)](#9-validation-checklist-before-calling-the-tool)
+10. [Complete example](#10-complete-example)
+11. [When a flowchart is NOT the right choice](#11-when-a-flowchart-is-not-the-right-choice)
+12. [Calling generate_diagram](#12-calling-generate_diagram)
+
 ---
 
 ## 1. Direction: pick once, up front

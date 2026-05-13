@@ -197,10 +197,12 @@ If you need a non-auto-layout frame, use `figma.createFrame()` and set the prope
 ```javascript
 const frame = figma.createFrame();
 frame.layoutMode = "VERTICAL";              // or "HORIZONTAL"
+frame.resize(360, 1);                        // Width fixed, height auto
 frame.primaryAxisSizingMode = "AUTO";       // Hug main axis
 frame.counterAxisSizingMode = "FIXED";      // Fixed cross axis
-frame.resize(360, 1);                        // Width fixed, height auto
 ```
+
+**CRITICAL ORDERING:** Always call `resize()` BEFORE setting sizing modes. The `resize()` method silently resets both sizing modes to FIXED, so calling it after setting `primaryAxisSizingMode = "AUTO"` will override your HUG settings and lock the frame to the exact pixel dimensions you passed (even throwaway values like `1`). This causes the common "1px dimension" bug.
 
 ### Alignment
 

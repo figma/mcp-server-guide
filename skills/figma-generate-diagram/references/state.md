@@ -4,6 +4,23 @@ Use this reference for **state diagrams** — the states of a single entity or s
 
 If the subject is **interactions between multiple parties over time**, use a sequence diagram instead. If it's a **decision tree with branches but no real state concept**, use a flowchart.
 
+## Contents
+
+1. [When to use a state diagram](#1-when-to-use-a-state-diagram)
+2. [Required skeleton](#2-required-skeleton)
+3. [States](#3-states)
+4. [Start and end: `[*]`](#4-start-and-end-)
+5. [Transitions](#5-transitions)
+6. [Composite (nested) states](#6-composite-nested-states)
+7. [Special states: choice, fork, join](#7-special-states-choice-fork-join)
+8. [What's NOT supported](#8-whats-not-supported)
+9. [Layout (same ELK as flowcharts)](#9-layout-same-elk-as-flowcharts)
+10. [Hybrid workflow: `generate_diagram` first, then `use_figma`](#10-hybrid-workflow-generate_diagram-first-then-use_figma)
+11. [Best practices](#11-best-practices)
+12. [Validation checklist](#12-validation-checklist)
+13. [Complete example](#13-complete-example)
+14. [Calling generate_diagram](#14-calling-generate_diagram)
+
 ---
 
 ## 1. When to use a state diagram

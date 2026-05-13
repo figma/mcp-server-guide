@@ -2,9 +2,9 @@
 
 **When NOT to use this skill:** Do NOT read this skill for analysis, summarization, or investigation of existing board content (e.g. "summarize this board", "what themes are here?", "analyze the feedback"). This skill is exclusively for planning NEW content to be created on the board.
 
-Do NOT use this skill for flowcharts, architecture diagrams, sequence diagrams, state diagrams, or entity relationship diagrams (ERDs). For those, use the `figma-plugin:generate-diagram` skill and the `generate_diagram` tool.
+Do NOT use this skill for flowcharts, architecture diagrams, sequence diagrams, state diagrams, or entity relationship diagrams (ERDs). For those, use the `figma-plugin:figma-generate-diagram` skill and the `generate_diagram` tool.
 
-Use this skill when determining **what content to include** for generated FigJam board content. Given a user’s request (e.g. "make a brainstorm template", "retro board", "ice breaker", "scaffold"), produce a **sequential outline** that downstream skills can use to create sections, text, stickies, and layout.
+Use this skill when determining **what content to include** for generated FigJam board content. Given a user's request (e.g. "make a brainstorm template", "retro board", "ice breaker", "scaffold"), produce a **sequential outline** that downstream skills can use to create sections, text, stickies, and layout.
 
 **Must be loaded alongside the `figma-use-figjam` skill**, which provides the FigJam Plugin API references (create-section, create-sticky, create-text, position-figjam-nodes) needed to render the planned content.
 
@@ -36,7 +36,7 @@ Use **Inter** exclusively. Subtitles should be 40-50% the size of their parent h
 
 | Signal                      | Color                             | Use                                    |
 | --------------------------- | --------------------------------- | -------------------------------------- |
-| Attention (“look here”)     | Gold `{r:0.85, g:0.65, b:0.1}`    | Neutral urgency. Not negative.         |
+| Attention ("look here")     | Gold `{r:0.85, g:0.65, b:0.1}`    | Neutral urgency. Not negative.         |
 | Problem / regression        | Orange `{r:0.72, g:0.38, b:0.08}` | Something trending wrong               |
 | Critical / blocked          | Red `{r:0.75, g:0.18, b:0.18}`    | Something actually broken              |
 | Healthy / shipped           | Green `{r:0.12, g:0.5, b:0.3}`    | Small indicators only, not backgrounds |
@@ -44,7 +44,7 @@ Use **Inter** exclusively. Subtitles should be 40-50% the size of their parent h
 | Decision needed             | Pink `{r:0.7, g:0.2, b:0.45}`     | Action required                        |
 | Exploration                 | Purple `{r:0.45, g:0.3, b:0.65}`  | Ideation                               |
 
-**Key rule:** Gold = “look here.” Red = “this is bad.” Don’t use red for attention.
+**Key rule:** Gold = "look here." Red = "this is bad." Don't use red for attention.
 
 ### Proportion and alignment
 
@@ -68,13 +68,13 @@ Board title (60-96px) at top-left, clearly visible at overview zoom. For templat
 
 ```js
 const board = figma.createSection();
-board.name = ‘’;
+board.name = '';
 board.resizeWithoutConstraints(estimatedW, estimatedH);
-board.fills = [{ type: ‘SOLID’, color: {r:1, g:1, b:1} }];
+board.fills = [{ type: 'SOLID', color: {r:1, g:1, b:1} }];
 // All content goes inside: board.appendChild(...)
 ```
 
-**Size from content outward.** Choose card width based on the text inside it (body text reads well at 400-1000px depending on density). Derive section width from card count and card width. Derive board width from sections. Never divide a container’s width to get card width. Never stretch a card to fill its parent. Sections and cards don’t need to be the same width as each other unless they share a content pattern.
+**Size from content outward.** Choose card width based on the text inside it (body text reads well at 400-1000px depending on density). Derive section width from card count and card width. Derive board width from sections. Never divide a container's width to get card width. Never stretch a card to fill its parent. Sections and cards don't need to be the same width as each other unless they share a content pattern.
 
 **For participatory zones, size to the expected activity, not the current content.** Workshop sections, feedback areas, brainstorm columns, and retro lanes exist for other people to fill. Size them to fit the expected number of contributors. Pre-seed with a few example stickies to signal the interaction pattern.
 
@@ -98,6 +98,8 @@ const spacing = {
 **Lay out inside the inset, not from one edge.** Compute usable area first (container size minus padding on all sides), then fit items within it.
 
 ### Color palette
+
+For the canonical FigJam palettes (sticky / section / connector / shape / label), see [figjam-colors](figjam-colors.md). The palette below is a derived set of accent colors and section tints used specifically for board-content layouts (templates, retros, brainstorms) — they're not exact FigJam palette swatches.
 
 ```js
 const black = { r: 0.07, g: 0.07, b: 0.07 }
@@ -150,10 +152,10 @@ Cards are nested sections. They give you native FigJam grouping (zoom-to behavio
 
 ```js
 const card = figma.createSection();
-card.name = ‘’;
+card.name = '';
 card.resizeWithoutConstraints(width, height);
-card.fills = [{ type: ‘SOLID’, color: white }];
-// Sections don’t support auto-layout — position children with absolute x/y
+card.fills = [{ type: 'SOLID', color: white }];
+// Sections don't support auto-layout — position children with absolute x/y
 // inside the card, accounting for your own padding.
 ```
 
@@ -162,19 +164,19 @@ Sections nest. A board is a section that contains zone sections, which contain c
 ### Text
 
 ```js
-await figma.loadFontAsync({ family: ‘Inter’, style: ‘Bold’ });
-await figma.loadFontAsync({ family: ‘Inter’, style: ‘Regular’ });
-await figma.loadFontAsync({ family: ‘Inter’, style: ‘Semi Bold’ });
-await figma.loadFontAsync({ family: ‘Inter’, style: ‘Medium’ });
+await figma.loadFontAsync({ family: 'Inter', style: 'Bold' });
+await figma.loadFontAsync({ family: 'Inter', style: 'Regular' });
+await figma.loadFontAsync({ family: 'Inter', style: 'Semi Bold' });
+await figma.loadFontAsync({ family: 'Inter', style: 'Medium' });
 
 const t = figma.createText();
-t.fontName = { family: ‘Inter’, style: ‘Bold’ };
+t.fontName = { family: 'Inter', style: 'Bold' };
 t.fontSize = 32;
-t.fills = [{ type: ‘SOLID’, color: black }];
-t.characters = ‘Title’;
+t.fills = [{ type: 'SOLID', color: black }];
+t.characters = 'Title';
 // For body text, constrain width:
 t.resize(440, 10);
-t.textAutoResize = ‘HEIGHT’;
+t.textAutoResize = 'HEIGHT';
 ```
 
 Body text max width: 440-520px. Rich text via `setRangeFontName` and `setRangeHyperlink`.
@@ -185,14 +187,14 @@ Use sparingly. One or two per section max. They work by breaking the visual patt
 
 **Card-level:**
 
-- Gold border + warm tint = “pay attention” (neutral)
-- Red border + red tint = “off-track” (negative status only)
+- Gold border + warm tint = "pay attention" (neutral)
+- Red border + red tint = "off-track" (negative status only)
 - Warning triangle (`createPolygon({ pointCount: 3 })`) pinned to top-right corner
 - Notification dot (`createEllipse`) with count inside
 
 **Section-level:**
 
-- Starburst (`createStar({ pointCount: 8, innerRadius: 0.65 })`) with gold fill and text (“NEW”, “UPDATED”)
+- Starburst (`createStar({ pointCount: 8, innerRadius: 0.65 })`) with gold fill and text ("NEW", "UPDATED")
 - Bullseye (concentric rings with decreasing opacity)
 
 **Centering text over shapes:** Always use a frame container. Never position text with manual x/y math.
@@ -202,7 +204,7 @@ const container = figma.createFrame();
 container.resize(56, 56); container.fills = []; container.clipsContent = false;
 const shape = figma.createStar(); shape.resize(56, 56);
 container.appendChild(shape); shape.x = 0; shape.y = 0;
-const text = figma.createText(); text.characters = ‘NEW’;
+const text = figma.createText(); text.characters = 'NEW';
 container.appendChild(text);
 text.x = (56 - text.width) / 2; text.y = (56 - text.height) / 2;
 ```
@@ -211,7 +213,7 @@ text.x = (56 - text.width) / 2; text.y = (56 - text.height) / 2;
 
 ### Tables
 
-Style header rows with Bold weight and tinted fill. Size table width to match section width minus padding. Don’t leave tables floating in whitespace.
+Style header rows with Bold weight and tinted fill. Size table width to match section width minus padding. Don't leave tables floating in whitespace.
 
 ### Stickies
 
@@ -225,7 +227,7 @@ For discussion, not editorial content. Color semantics: blue=discussion, yellow=
 
 ### 0. Understand the ask
 
-What’s the purpose? Who’s the audience? Once or recurring? Match to an archetype if possible.
+What's the purpose? Who's the audience? Once or recurring? Match to an archetype if possible.
 
 ### 1. Plan the narrative
 
@@ -233,7 +235,7 @@ Outline beats/sections in plain text before writing code.
 
 ### 2. Build incrementally
 
-**First call:** Create the white wrapper section at a rough estimated size (you’ll resize it in the reflow pass).
+**First call:** Create the white wrapper section at a rough estimated size (you'll resize it in the reflow pass).
 
 Then for each sub-section:
 
@@ -243,7 +245,7 @@ Then for each sub-section:
 
 ### 3. Reflow pass
 
-- `textAutoResize = ‘HEIGHT’` on all text
+- `textAutoResize = 'HEIGHT'` on all text
 - Resize cards to fit content
 - Equalize card heights within rows where cards share a content pattern
 - Resize each section to hug its children (measure rightmost/bottommost content edge + padding)
@@ -286,7 +288,7 @@ Freeform spatial map. Screenshot-dominant. Column sub-sections. Data tables for 
 
 ### Workshop / Brainstorm
 
-Two zones: pre-filled analysis + live brainstorm stickies. Meta section with instructions at top-left. Participatory zones should be sized for the expected activity (how many people, how many stickies per person), not the pre-filled content. Pre-seed each zone with a few example stickies to set the tone and show participants what’s expected.
+Two zones: pre-filled analysis + live brainstorm stickies. Meta section with instructions at top-left. Participatory zones should be sized for the expected activity (how many people, how many stickies per person), not the pre-filled content. Pre-seed each zone with a few example stickies to set the tone and show participants what's expected.
 
 ### Status Card Grid
 
@@ -308,23 +310,23 @@ Vertical flowchart. Green Yes / Red No pills on connector paths. Distinct fills 
 
 ## Anti-patterns
 
-- Don’t use stickies for editorial content. Text for narrative, stickies for discussion.
-- Don’t use shapes as decoration. Every shape communicates: flowchart node, data viz, or emphasis.
-- Don’t over-emphasize. One or two markers per section max.
-- Don’t use red for attention. Gold draws the eye without implying failure.
-- Don’t use em dashes. Periods, commas, or restructure.
-- Don’t build the entire board in one `use_figma` call. Work incrementally.
-- Don’t guess text height. Always `textAutoResize = ‘HEIGHT’` and reflow.
-- Don’t use body text below 20px or metadata below 16px.
-- Don’t skip the wrapper section. Every board is one movable unit.
-- Don’t skip the entry point. Every board needs a visible title.
-- Don’t leave section names on. Clear them unless there’s no title text inside.
-- Don’t make text-only boards. Mix text with visual evidence (screenshots, diagrams, stickies).
-- Don’t left-align vertical cards. Center hero numbers and text.
-- Don’t use green for large backgrounds. Reserve for small status indicators.
-- Don’t let text overlap. Reflow after setting content. This is a critical bug.
-- Don’t manually position text over shapes. Use a frame container for centering.
-- Don’t stretch cards to fill their parent. Width should serve readability.
-- Don’t size participatory zones to their pre-filled content. Size for expected activity.
-- Don’t scatter or stagger stickies. Always a grid with consistent gap.
-- Don’t split a bulleted list across multiple text nodes — one node per bullet. Put the whole list in a single multi-line text node (`\n`-separated) so line spacing, alignment, and reflow are handled by the text engine. Separate nodes drift, mis-space, and force you to position each one manually.
+- Don't use stickies for editorial content. Text for narrative, stickies for discussion.
+- Don't use shapes as decoration. Every shape communicates: flowchart node, data viz, or emphasis.
+- Don't over-emphasize. One or two markers per section max.
+- Don't use red for attention. Gold draws the eye without implying failure.
+- Don't use em dashes. Periods, commas, or restructure.
+- Don't build the entire board in one `use_figma` call. Work incrementally.
+- Don't guess text height. Always `textAutoResize = 'HEIGHT'` and reflow.
+- Don't use body text below 20px or metadata below 16px.
+- Don't skip the wrapper section. Every board is one movable unit.
+- Don't skip the entry point. Every board needs a visible title.
+- Don't leave section names on. Clear them unless there's no title text inside.
+- Don't make text-only boards. Mix text with visual evidence (screenshots, diagrams, stickies).
+- Don't left-align vertical cards. Center hero numbers and text.
+- Don't use green for large backgrounds. Reserve for small status indicators.
+- Don't let text overlap. Reflow after setting content. This is a critical bug.
+- Don't manually position text over shapes. Use a frame container for centering.
+- Don't stretch cards to fill their parent. Width should serve readability.
+- Don't size participatory zones to their pre-filled content. Size for expected activity.
+- Don't scatter or stagger stickies. Always a grid with consistent gap.
+- Don't split a bulleted list across multiple text nodes — one node per bullet. Put the whole list in a single multi-line text node (`\n`-separated) so line spacing, alignment, and reflow are handled by the text engine. Separate nodes drift, mis-space, and force you to position each one manually.
