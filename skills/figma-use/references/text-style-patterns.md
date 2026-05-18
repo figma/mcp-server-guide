@@ -2,6 +2,8 @@
 
 > Part of the [use_figma skill](../SKILL.md). How to create, apply, and inspect text styles using the Plugin API.
 >
+> Every example here assumes the [canonical text-edit recipe](gotchas.md#canonical-text-edit-recipe-font-load--await--mutate--return-ids): load font → `await` → mutate → return affected IDs. Examples use `Inter` because it's available everywhere, but the rule applies identically to any font family/style.
+>
 > For design system context (when to create text styles, how they relate to tokens, `use_figma` limitations), see [wwds-text-styles](working-with-design-systems/wwds-text-styles.md).
 
 ## Contents
@@ -178,14 +180,12 @@ await textNode.setTextStyleIdAsync(headingStyle.id);
  */
 async function applyTextStyleToMatchingNodes(styleId, nodeNamePattern) {
   const textNodes = figma.currentPage.findAllWithCriteria({ types: ['TEXT'] });
-  let applied = 0;
-  for (const node of textNodes) {
-    if (node.name.includes(nodeNamePattern)) {
-      await node.setTextStyleIdAsync(styleId);
-      applied++;
-    }
-  }
-  return applied;
+  const matching = textNodes.filter(n => n.name.includes(nodeNamePattern));
+  // Batch the style applications with Promise.all — each setTextStyleIdAsync
+  // call is independent, so awaiting them serially in a for-loop multiplies
+  // the IPC latency by the number of matches.
+  await Promise.all(matching.map(n => n.setTextStyleIdAsync(styleId)));
+  return matching.length;
 }
 ```
 

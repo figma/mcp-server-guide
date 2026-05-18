@@ -42,11 +42,15 @@ Available shape types:
 
 ```javascript
 const types = ['SQUARE', 'DIAMOND', 'ELLIPSE', 'ROUNDED_RECTANGLE']
+// All shapes share the same default font — load once before the loop instead
+// of awaiting per-iteration.
+const probe = figma.createShapeWithText()
+await figma.loadFontAsync(probe.text.fontName)
+probe.remove()
 const shapes = []
 for (const type of types) {
   const s = figma.createShapeWithText()
   s.shapeType = type
-  await figma.loadFontAsync(s.text.fontName)
   s.text.characters = type
   shapes.push(s)
 }
@@ -311,11 +315,15 @@ const sizes = items.map((item) => fitShapeToText(item.label, item.type))
 const totalWidth = sizes.reduce((sum, s) => sum + s.w, 0) + (items.length - 1) * spacing
 let curX = 0
 
+// All shapes share the same default font — load once before the loop
+// instead of awaiting per-iteration.
+const probe = figma.createShapeWithText()
+await figma.loadFontAsync(probe.text.fontName)
+probe.remove()
 for (let i = 0; i < items.length; i++) {
   const size = sizes[i]
   const shape = figma.createShapeWithText()
   shape.shapeType = items[i].type
-  await figma.loadFontAsync(shape.text.fontName)
   shape.text.characters = items[i].label
   shape.resize(size.w, size.h)
   const preset = items[i].color
@@ -346,7 +354,7 @@ figma.closePlugin()
 
 - **Always wrap code in an async IIFE:** `(async () => { ... })();`
 - **Always call `figma.closePlugin()`** at the end of every code path.
-- **Load fonts** before setting `shape.text.characters`. ShapeWithText uses **"Inter Medium"** by default — always use `await figma.loadFontAsync(shape.text.fontName)`, never hardcode `{ family: 'Inter', style: 'Regular' }`.
+- **Follow the [canonical text-edit recipe](../../figma-use/references/gotchas.md#canonical-text-edit-recipe-font-load--await--mutate--return-ids)** for `shape.text.characters` — always load `shape.text.fontName` (ShapeWithText defaults to `Inter Medium`, not Regular); never hardcode the family/style.
 - **Connector text needs explicit font setup.** Unlike shapes, a ConnectorNode's `text.fontName` is invalid by default. To label a connector, first set `connector.text.fontName = { family: 'Inter', style: 'Medium' }` (font must already be loaded), then set `connector.text.characters`. Never call `figma.loadFontAsync(connector.text.fontName)` — it will fail.
 - **Put ALL text content in `shape.text.characters`** — do not split into a short label and a separate description/metadata field. The shape should display the full text the user expects to see, and `fitShapeToText` will size it accordingly.
 - **Never hardcode shape sizes. Always use `fitShapeToText`** to dynamically size shapes based on their text content. Create a measurer TextNode with `textAutoResize: 'HEIGHT'`, use it to measure text, scale shapes until text fits, then call `measurer.remove()`. This prevents text clipping.
