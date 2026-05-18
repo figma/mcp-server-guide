@@ -442,7 +442,11 @@ const data = nodes.map(n => ({
   name: n.name,
   width: n.width,
   height: n.height,
-  childCount: n.children?.length || 0
+  // `n.children` is safe here because the findAll predicate restricts to FRAME.
+  // Do NOT use `n.children?.length` defensively on an unfiltered node — the
+  // property access itself throws `no such property 'children'` on leaf types
+  // like TEXT/RECTANGLE, and optional chaining does not catch that.
+  childCount: n.children.length
 }))
 return { frames: data }
 ```

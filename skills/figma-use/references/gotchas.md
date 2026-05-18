@@ -16,7 +16,7 @@
 - Set `figma.skipInvisibleInstanceChildren = true` for read-only traversal that doesn't need the interior of component instances
 - Variable scopes and mode pitfalls
 - Node cleanup and empty-fill pitfalls
-- Type-specific method calls without node type guards
+- "no such property" errors — reading or calling members not defined on the node type
 - Non-existent property writes and "object is not extensible"
 - width/height are read-only — use resize()
 - detachInstance() and node ID invalidation
@@ -596,28 +596,56 @@ colorVar.setValueForMode(modeId, { r: 1, g: 0, b: 0, a: 1 })  // opaque red
 colorVar.setValueForMode(modeId, { r: 0, g: 0, b: 0, a: 0 })  // fully transparent
 ```
 
-## `layoutSizingVertical`/`layoutSizingHorizontal` = `'FILL'` requires auto-layout parent FIRST
+## `layoutSizingHorizontal`/`layoutSizingVertical` value rules: `FIXED`, `HUG`, `FILL`
+
+The property exists on every `SceneNode`, but the **value** you can assign depends on the node's relationship to auto-layout. The scenegraph validates the assignment (`fullscreen/lib/scenegraph/FGStackLayoutSizeHelper.cpp::checkStackLayoutSize`) and rejects non-`FIXED` values that don't satisfy a structural rule:
+
+| Value | Allowed when | Rejected with |
+| --- | --- | --- |
+| `'FIXED'` | always | (never throws) |
+| `'HUG'` | the node IS an auto-layout frame, OR is a **TEXT** child of an auto-layout frame | `"HUG can only be set on auto-layout frames or text children of auto-layout frames"` |
+| `'FILL'` | the node is a child of an auto-layout frame, AND not absolute-positioned, AND not inside an immutable frame, AND not a canvas-grid child | `"FILL can only be set on children of auto-layout frames"`, `"FILL cannot be set on absolute positioned auto-layout children"`, `"FILL cannot be set on this node"`, `"FILL cannot be set on canvas grid children"` |
+| any non-`FIXED` value on a node that is neither auto-layout nor inside auto-layout | (none — always rejected) | `"node must be an auto-layout frame or a child of an auto-layout frame"` |
+
+Practical consequences:
+
+1. **Append first, then set.** A freshly-created node has no parent, so `child.layoutSizingHorizontal = 'FILL'` immediately after `figma.createFrame()` always throws. `appendChild` to an auto-layout parent first.
+2. **The parent must actually be auto-layout.** A plain `figma.createFrame()` defaults to `layoutMode = 'NONE'` — its children cannot use `'FILL'` or `'HUG'`. Prefer `figma.createAutoLayout()` (or set the parent's `layoutMode` to `'HORIZONTAL'`/`'VERTICAL'` before appending).
+3. **`'HUG'` on a non-text child of auto-layout still throws.** A `FRAME` or `RECTANGLE` child of auto-layout can be `'FILL'` or `'FIXED'` — only the auto-layout frame itself and **TEXT** children may be `'HUG'`. To make a non-text child shrink to content, set its `primaryAxisSizingMode`/`counterAxisSizingMode` to `'AUTO'` instead.
+4. **`'FILL'` is incompatible with absolute positioning and canvas grids.** If you set `child.layoutPositioning = 'ABSOLUTE'`, the child no longer participates in flow and cannot be `'FILL'` — size it explicitly with `resize()` instead.
 
 ```js
-// WRONG — setting FILL before the node is a child of an auto-layout frame
+// WRONG — node has no parent yet
 const child = figma.createFrame()
-child.layoutSizingVertical = 'FILL'  // ERROR: "FILL can only be set on children of auto-layout frames"
-parent.appendChild(child)
+child.layoutSizingHorizontal = 'FILL'  // "FILL can only be set on children of auto-layout frames"
 
-// CORRECT — append to auto-layout parent FIRST, then set FILL
-const child = figma.createFrame()
-parent.appendChild(child)            // parent must have layoutMode set
-child.layoutSizingVertical = 'FILL'  // Works!
+// WRONG — parent is a plain frame (layoutMode === 'NONE'), not auto-layout
+const parent = figma.createFrame()
+parent.appendChild(child)
+child.layoutSizingHorizontal = 'FILL'  // "node must be an auto-layout frame or a child of an auto-layout frame"
+
+// WRONG — HUG on a non-text auto-layout child
+const al = figma.createAutoLayout()
+const rect = figma.createRectangle()
+al.appendChild(rect)
+rect.layoutSizingHorizontal = 'HUG'  // "HUG can only be set on auto-layout frames or text children…"
+
+// CORRECT — auto-layout parent, appended first, then sizing
+const al2 = figma.createAutoLayout()
+const c = figma.createFrame()
+al2.appendChild(c)
+c.layoutSizingHorizontal = 'FILL'    // ok
+
+// CORRECT — HUG on the auto-layout frame itself, or on a TEXT child
+al2.layoutSizingHorizontal = 'HUG'   // ok — auto-layout frame
+const t = figma.createText()
+al2.appendChild(t)
+t.layoutSizingHorizontal = 'HUG'     // ok — TEXT child of auto-layout
 ```
 
-**Tip:** use `figma.createAutoLayout()` (or `figma.createAutoLayout('VERTICAL')`) instead of `figma.createFrame()` when you want a parent that supports `FILL` children. It returns a frame with `layoutMode` already set and both axes hugging content, so you don't have to remember the property dance.
+`figma.createAutoLayout()` returns a frame with `layoutMode` already set and both axes hugging content, so its children can immediately use `'FILL'`/`'HUG'` after being appended — preferred over `figma.createFrame()` whenever the container holds related children. See Rule 12a in [SKILL.md](../SKILL.md).
 
-```js
-const parent = figma.createAutoLayout()  // layoutMode = 'HORIZONTAL', sizing = AUTO
-const child = figma.createFrame()
-parent.appendChild(child)
-child.layoutSizingHorizontal = 'FILL'    // Works immediately
-```
+The next gotcha (`## HUG parents collapse FILL children`) layers on top of the rules above: even when assignment succeeds, a `HUG` parent gives `FILL` children no room to expand. The validation rule above is about whether the assignment is _allowed_; the next gotcha is about whether it produces useful layout.
 
 ## HUG parents collapse FILL children
 
@@ -875,30 +903,33 @@ When constructing a `var(--name)` string from a Figma variable name, replace BOT
     // Preferred — use the source CSS name directly
     v.setVariableCodeSyntax('WEB', `var(${token.cssVar})`)  // e.g. '--color-bg-brand-secondary-hover'
 
-## Calling type-specific methods without checking node type
+## "no such property" errors — reading or calling members not defined on the node type
 
-Some methods only exist on specific node types. Calling them on the wrong type throws "TypeError: not a function". Always guard with a type check before calling type-specific methods.
+Every Figma node implements a specific set of mixins. Reading or calling a property/method that isn't on the target throws `TypeError: node.X: no such property 'X' on Y node` (where `Y` is the runtime type — `TEXT`, `RECTANGLE`, `GROUP`, `PAGE`, `VECTOR`, …). The same error fires for hallucinated API names that don't exist anywhere (e.g. `getRangeAllFontNames` — the real APIs are `getStyledTextSegments(['fontName'])` and `getRangeFontName(start, end)`). This is the read-side counterpart to the write-side "object is not extensible" error below; both stem from the same cause.
 
-```js
-// WRONG — node might not be a TextNode
-const node = await figma.getNodeByIdAsync('952:1253');
-const segments = node.getStyledTextSegments(['hyperlink']); // TypeError if node isn't TEXT
+Common shapes the bug takes — what you tried vs. where the member actually lives:
 
-// CORRECT — check type first
-const node = await figma.getNodeByIdAsync('952:1253');
-if (!node || node.type !== 'TEXT') return { error: `Expected TextNode, got ${node?.type ?? 'null'}` };
-const segments = node.getStyledTextSegments(['hyperlink']);
-```
+| Member | Defined on | Notably absent from |
+| --- | --- | --- |
+| `children`, `appendChild`, `insertChild`, `findAll`, `findOne`, `findChildren`, `findChild`, `findAllWithCriteria` | `ChildrenMixin` — container nodes (`Document`, `Page`, `Frame`, `Group`, `Component`, `ComponentSet`, `Instance`, `Section`, `BooleanOperation`) | `TEXT`, `RECTANGLE`, `VECTOR`, `ELLIPSE`, `LINE`, `STAR`, `POLYGON`, `SLICE` |
+| `layoutMode`, `itemSpacing`, padding/axis-alignment (`primaryAxisAlignItems`, `counterAxisAlignItems`, `counterAxisSpacing`, `counterAxisAlignContent`, `layoutWrap`, `primaryAxisSizingMode`) | `BaseFrameMixin` / `AutoLayoutMixin` — `FRAME`, `COMPONENT`, `COMPONENT_SET`, `INSTANCE` only | `TEXT`, shapes, vectors, `GROUP`, `SECTION` |
+| `fills`, `strokes`, `strokeWeight` | `GeometryMixin`/`MinimalFillsMixin` — shapes, frames, components, text, sections | `GROUP` (groups are pass-through), `PAGE`, `DOCUMENT` |
+| `x`, `y`, `width`, `height`, `rotation`, `resize()` | `LayoutMixin` — every `SceneNode` | `PAGE`, `DOCUMENT` |
+| `characters`, `fontName`, `fontSize`, `getStyledTextSegments`, `getRangeFontName`, `setRangeFontName`, `setRangeFontSize` | `TextNode` only | every non-text node |
+| `createInstance` | `COMPONENT` only | every other type |
+| `addComponentProperty`, `componentPropertyDefinitions` | `COMPONENT_SET`, or a non-variant `COMPONENT` (one whose parent is NOT a `COMPONENT_SET`) | every other type, **including variant `COMPONENT`s** — invoking on a variant throws `"Can only get/set component property definitions of a component set or non-variant component"`. Add properties on the variant before `combineAsVariants`, or on the parent `COMPONENT_SET` after. |
+| `defaultVariant`, `variantGroupProperties` | `COMPONENT_SET` only | every other type |
+| `figma.createPage` | Design files only (`figma.com/design/...`) | FigJam (`/board/`) and Slides (`/slides/`) — see Page Rules |
 
-Common type-specific methods and the types that have them:
+Verify any member you're unsure about against [plugin-api-standalone.d.ts](plugin-api-standalone.d.ts) before using it. Names that "sound plausible" but aren't in the typings will always throw — the typings are the source of truth.
 
-| Method | Node type required |
-|--------|-------------------|
-| `getStyledTextSegments()` | `TEXT` |
-| `setRangeFontName()`, `setRangeFontSize()` | `TEXT` |
-| `createInstance()` | `COMPONENT` |
-| `addComponentProperty()` | `COMPONENT`, `COMPONENT_SET` |
-| `createVariant()` | `COMPONENT_SET` |
+**Optional chaining (`?.`) does NOT defend against this.** The property access happens before `?.` is evaluated, so `node.children?.length` still throws on a `TEXT` node. The same applies to `try { node.fills }` — the access throws inside the try, which works for catching, but you should narrow up front instead.
+
+**How to avoid:**
+
+1. **Narrow by `node.type` before accessing type-specific surface.** `if (node.type === 'TEXT') node.getStyledTextSegments(...)`. This is the most explicit form and gives correctly-typed access in editors/typecheckers.
+2. **For mixin-shaped traversal, use the `in` operator.** `if ("children" in node) for (const c of node.children) ...` — the right pattern for polymorphic helpers and generic recursion where the specific node type doesn't matter.
+3. **Prefilter when possible.** `findAllWithCriteria({ types: ['TEXT'] })` returns an already-narrowed array, eliminating the need for per-iteration guards.
 
 ## Setting a non-existent property throws "object is not extensible"
 
