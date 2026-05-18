@@ -1,5 +1,7 @@
 # Figma MCP Server Guide
 
+## Testing  1 2 3
+
 The Figma MCP server brings Figma directly into your workflow by providing important design information and context to AI agents generating code from Figma design files.
 
 > [!NOTE]
@@ -198,7 +200,7 @@ To provide Figma design context to your AI client:
 
 ## Tools and skills
 
-Figma maintains a list of tools provided by the Figma MCP server in the [developer documentation](https://developers.figma.com/docs/figma-mcp-server/tools-and-prompts/). 
+Figma maintains a list of tools provided by the Figma MCP server in the [developer documentation](https://developers.figma.com/docs/figma-mcp-server/tools-and-prompts/).
 
 You can also learn more about the skills included with the Figma plugin for [supported agents](https://help.figma.com/hc/en-us/articles/32132100833559#h_01K25F7RBRZKCATVJHNXCS6KXW) in the [Figma Help Center](https://help.figma.com/hc/en-us/articles/39166810751895). Depending on the agent, you may also see the terms `connector`, `extension`, or `power`; these include the same set of skills.
 
