@@ -224,15 +224,19 @@ return {
 `importComponentByKeyAsync` and `importComponentSetByKeyAsync` import components from **team libraries** (not the same file you're working in). For components in the current file, use `figma.getNodeByIdAsync()` or `findOne()`/`findAll()` to locate them directly.
 
 ```js
-// Import a single published component by key
-const comp = await figma.importComponentByKeyAsync("COMPONENT_KEY")
+// Batch independent imports with Promise.all — these are independent IPC
+// calls; awaiting them one after another doubles the round-trip latency.
+const [comp, compSet] = await Promise.all([
+  figma.importComponentByKeyAsync("COMPONENT_KEY"),
+  figma.importComponentSetByKeyAsync("COMPONENT_SET_KEY"),
+])
+
 const instance = comp.createInstance()
 instance.x = 40
 instance.y = 40
 figma.currentPage.appendChild(instance)
 
-// Import a published component set by key and select a variant
-const compSet = await figma.importComponentSetByKeyAsync("COMPONENT_SET_KEY")
+// Select a variant from the imported component set
 const variant =
   compSet.children.find((c) =>
     c.type === "COMPONENT" && c.name.includes("size=md")
@@ -429,7 +433,10 @@ return { csId: cs.id, count: components.length };
 
 ```js
 const page = figma.currentPage
-const nodes = page.findAll(n => n.type === 'FRAME')
+// findAllWithCriteria is hundreds of times faster than findAll for a pure
+// type filter — the engine uses an internal type index instead of running
+// a JS predicate on every node.
+const nodes = page.findAllWithCriteria({ types: ['FRAME'] })
 const data = nodes.map(n => ({
   id: n.id,
   name: n.name,
