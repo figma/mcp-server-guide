@@ -10,7 +10,7 @@ Use this skill to create or update **screens, views, and multi-section UI contai
 
 **MANDATORY**: You MUST also load [figma-use](../figma-use/SKILL.md) before any `use_figma` call. That skill contains critical rules (color ranges, font loading, etc.) that apply to every script you write.
 
-**Always pass `skillNames: "figma-generate-design"` when calling `use_figma` as part of this skill.** This is a logging parameter — it does not affect execution.
+**Always include `figma-generate-design` in the comma-separated `skillNames` parameter when calling `use_figma` as part of this skill. If this skill was loaded via an MCP resource, you MUST prefix the name with `resource:` (e.g. `resource:figma-generate-design`).** This is a logging parameter — it does not affect execution.
 
 ## Skill Boundaries
 
@@ -22,9 +22,7 @@ Use this skill to create or update **screens, views, and multi-section UI contai
 
 - Figma MCP server must be connected
 - The target Figma file must have a published design system with components (or access to a team library)
-- User should provide either:
-  - A Figma file URL / file key to work in
-  - Or context about which file to target (the agent can discover pages)
+- User must provide a target Figma file (URL or `fileKey`). If they don't have one yet, invoke `/figma-create-new-file` (or call `create_new_file`) first and reuse the returned file_key. Both `use_figma` and `generate_figma_design` require an existing `fileKey`.
 - Source code or description of the screen/view to build/update
 
 ## Parallel Workflow with generate_figma_design (Web Apps Only)
@@ -32,8 +30,8 @@ Use this skill to create or update **screens, views, and multi-section UI contai
 When building a screen from a **web app** that can be rendered in a browser, the best results come from running both approaches in parallel:
 
 1. **In parallel:**
-   - Start building the screen using this skill's workflow (use_figma + design system components)
-   - Run `generate_figma_design` to capture a pixel-perfect screenshot of the running web app
+   - Start building the screen using this skill's workflow (use_figma + design system components) against the target Figma file (`fileKey`).
+   - Run `generate_figma_design` against the **same `fileKey`** to capture a pixel-perfect screenshot of the running web app into that file. `generate_figma_design` always requires `fileKey` — if the user does not yet have a Figma file, first invoke `/figma-create-new-file` (or call the `create_new_file` MCP tool) to get one, and reuse that file_key for both this skill and the capture.
 2. **Once both complete:** Update the use_figma output to match the pixel-perfect layout from the `generate_figma_design` capture. The capture provides the exact spacing, sizing, and visual treatment to aim for, while your use_figma output has proper component instances linked to the design system. If the capture contains images, transfer them to your use_figma output by copying `imageHash` values from the capture's image fills (see Step 5 for details).
 3. **Once confirmed looking good:** Delete the `generate_figma_design` output — it was only used as a visual reference.
 
@@ -350,6 +348,28 @@ When translating code components to Figma instances, check the component's defau
 | | **Effect styles**: shadows, blurs, etc. |
 
 **Never hardcode hex colors or pixel spacing** when a design system variable exists. Use `setBoundVariable` for spacing/radii and `setBoundVariableForPaint` for colors. Apply text styles with `node.textStyleId` and effect styles with `node.effectStyleId`.
+
+#### Icons: import the SVG, never reconstruct from rotated primitives
+
+Icons are the **main exception to the build-manually-vs-import split above.** If the design system exposes an icon as a component, instance it (a single INSTANCE_SWAP property, not a variant per icon). Otherwise — most commonly when **grabbing an icon from the codebase to place or replace it in Figma** — import the icon's **SVG source directly** as a vector node. This is the primary, default path for icons; do not redraw them.
+
+1. **Get the SVG from the codebase.** Read the icon's source — inline `<svg>`, the imported `.svg` asset, or the icon-library entry — and pass that exact SVG string. Prefer the codebase's own SVG over hand-authoring one.
+2. **Import with `figma.createNodeFromSvg(svgString)`**, which returns a `FrameNode` of editable vector paths. The SVG string **must** include a `viewBox` plus explicit `width`/`height` (e.g. `<svg width="24" height="24" viewBox="0 0 24 24" ...>`). Without `width`/`height` it falls back to the `viewBox` size, which is often smaller than the slot — the usual cause of "the icon didn't size properly."
+3. **Size it to the slot.** `createNodeFromSvg` frames scale their contents on resize, so `icon.resize(size, size)` fits the whole icon (stroke weight included) to the target box. Equivalently author `width`/`height` equal to the target. Match the source's icon size — commonly 16/20/24px.
+4. **Never reconstruct an icon from rotated line/rect/ellipse primitives.** Figma's line rotation is unreliable in the `use_figma` context and produces broken, mis-rotated icons (a chevron collapses into a blob, an arrowhead detaches from its shaft). Importing the SVG is both more reliable and more editable.
+
+```js
+// Place / replace an icon from a codebase SVG into a 24px slot
+const icon = figma.createNodeFromSvg(
+  '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+  '<path d="m9 18 6-6-6-6" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+);
+icon.name = "icon/chevron-right";
+icon.resize(24, 24);          // scales the whole icon to the slot
+slotFrame.appendChild(icon);
+```
+
+**Codebase SVGs usually use `currentColor`** (e.g. `stroke="currentColor"` / `fill="currentColor"`), which `createNodeFromSvg` imports as **black** — it does not inherit the parent's color. Set the intended color after import: substitute the literal color into the SVG string before importing, or bind the imported vector fills/strokes to a design-system color variable with `setBoundVariableForPaint` (same as any paint). To turn an imported SVG into a reusable icon component (for INSTANCE_SWAP), see [figma-generate-library → Creating Icon Components](../figma-generate-library/references/component-creation.md) and the [INSTANCE_SWAP pattern](../figma-use/references/component-patterns.md#instance_swap-avoiding-variant-explosion).
 
 ### Step 5: Validate the Full View and Transfer Images
 
