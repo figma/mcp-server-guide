@@ -2,7 +2,31 @@
   "mcpServers": {
     "figma": {
       "type": "http",
-      "url": "https://mcp.figma.com/mcp"
+      "url": "https://mcp.figma.com/mcp",
+      "_meta": {
+        "ideToolIconPath": "./Figma Icon (Mono-line black, tight).svg",
+        "ideToolIconRendersAsTemplate": true,
+        "ideToolTitles": {
+          "add_code_connect_map": "Add Code Connect Mapping",
+          "create_new_file": "Create New File",
+          "generate_diagram": "Generate Diagram",
+          "generate_figma_design": "Generate Figma Design",
+          "get_code_connect_map": "Get Code Connect Mapping",
+          "get_code_connect_suggestions": "Get Code Connect Suggestions",
+          "get_context_for_code_connect": "Get Code Connect Context",
+          "get_design_context": "Get Design Context",
+          "get_figjam": "Get FigJam Content",
+          "get_libraries": "Get Libraries",
+          "get_metadata": "Get Metadata",
+          "get_screenshot": "Get Screenshot",
+          "get_variable_defs": "Get Variable Definitions",
+          "search_design_system": "Search Design System",
+          "send_code_connect_mappings": "Send Code Connect Mappings",
+          "upload_assets": "Upload Assets",
+          "use_figma": "Use Figma",
+          "whoami": "Who Am I"
+        }
+      }
     }
   }
 }
