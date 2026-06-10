@@ -608,6 +608,13 @@ The property exists on every `SceneNode`, but the **value** you can assign depen
 | `'FILL'` | the node is a child of an auto-layout frame, AND not absolute-positioned, AND not inside an immutable frame, AND not a canvas-grid child | `"FILL can only be set on children of auto-layout frames"`, `"FILL cannot be set on absolute positioned auto-layout children"`, `"FILL cannot be set on this node"`, `"FILL cannot be set on canvas grid children"` |
 | any non-`FIXED` value on a node that is neither auto-layout nor inside auto-layout | (none — always rejected) | `"node must be an auto-layout frame or a child of an auto-layout frame"` |
 
+**Common errors thrown** (the runtime prefixes the message with the property setter that rejected the value):
+
+- `Error: in set_layoutSizingHorizontal: node must be an auto-layout frame or a child of an auto-layout frame`
+- `Error: in set_layoutSizingHorizontal: FILL can only be set on children of auto-layout frames`
+
+The same messages surface under `set_layoutSizingVertical` when the vertical axis is the one being set.
+
 Practical consequences:
 
 1. **Append first, then set.** A freshly-created node has no parent, so `child.layoutSizingHorizontal = 'FILL'` immediately after `figma.createFrame()` always throws. `appendChild` to an auto-layout parent first.
@@ -647,6 +654,37 @@ t.layoutSizingHorizontal = 'HUG'     // ok — TEXT child of auto-layout
 `figma.createAutoLayout()` returns a frame with `layoutMode` already set and both axes hugging content, so its children can immediately use `'FILL'`/`'HUG'` after being appended — preferred over `figma.createFrame()` whenever the container holds related children. See Rule 12a in [SKILL.md](../SKILL.md).
 
 The next gotcha (`## HUG parents collapse FILL children`) layers on top of the rules above: even when assignment succeeds, a `HUG` parent gives `FILL` children no room to expand. The validation rule above is about whether the assignment is _allowed_; the next gotcha is about whether it produces useful layout.
+
+## layoutSizing vs AxisSizingMode: two different sizing enums
+
+`layoutSizingHorizontal`/`layoutSizingVertical` and `primaryAxisSizingMode`/`counterAxisSizingMode` look interchangeable but accept **different enums** and are set on **different nodes**. Crossing them throws a value-rejection error.
+
+| Property family | Valid values | Set on |
+| --- | --- | --- |
+| `layoutSizingHorizontal` / `layoutSizingVertical` | `'FIXED'` \| `'HUG'` \| `'FILL'` | a **child** node (or the auto-layout frame itself) |
+| `primaryAxisSizingMode` / `counterAxisSizingMode` | `'FIXED'` \| `'AUTO'` | the **frame** itself |
+
+`'AUTO'` is not a valid `layoutSizing*` value — the equivalent is `'HUG'`:
+
+```js
+// WRONG
+node.layoutSizingVertical = 'AUTO'   // 'AUTO' is not a layoutSizing value
+
+// CORRECT
+node.layoutSizingVertical = 'HUG'
+```
+
+`'FILL'` is not a valid `*AxisSizingMode` value — use `'FIXED'` or `'AUTO'`:
+
+```js
+// WRONG
+frame.counterAxisSizingMode = 'FILL'  // throws: Expected 'FIXED' | 'AUTO', received 'FILL'
+
+// CORRECT
+frame.counterAxisSizingMode = 'FIXED'
+```
+
+`layoutSizingHorizontal/Vertical` is a shorthand that also drives `primaryAxisSizingMode`/`counterAxisSizingMode` under the hood — but the two surfaces accept different value sets, so keep their enums straight. For the structural rules on _when_ `HUG`/`FILL` are legal at all, see the section above.
 
 ## HUG parents collapse FILL children
 
