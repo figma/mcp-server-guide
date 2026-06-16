@@ -25,6 +25,13 @@ adds native annotations plus visual target markers for the interactions.
   - `upload_assets`
   - `get_screenshot`
 
+## Scripts
+
+The files in `scripts/` are executable helper scripts used by the skill workflow.
+They are intended to be run as-is for repeatable local processing steps such as
+frame extraction, upload asset preparation, Figma script generation, and run
+manifest updates. They are not reference docs.
+
 ## Use
 
 Install this folder as an agent skill, then ask the agent to map a UI recording

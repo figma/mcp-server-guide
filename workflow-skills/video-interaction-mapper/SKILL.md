@@ -30,6 +30,10 @@ Start with:
 - Figma MCP tools available: `create_new_file`, `use_figma`, `upload_assets`, and
   `get_screenshot` or `get_design_context`.
 
+Run the bundled files in `scripts/` as executable workflow helpers. They are part
+of the skill's implementation, not reference material. Read or modify them only
+when debugging, adapting to an unusual environment, or changing the skill itself.
+
 Use a Figma Design file (`figma.com/design/...`) as the target. The generated
 Plugin API code creates pages and image-fill frames, which are Design-file
 operations. If the user provides a FigJam or Slides URL, ask for a Design file or
