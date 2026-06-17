@@ -45,7 +45,3 @@ Figma file.
 The skill first analyzes the video locally, then creates or updates the Figma
 file only after the key moments and upload assets are ready. This avoids leaving
 partial pages behind when frame selection changes.
-
-## License
-
-MIT. See [LICENSE](LICENSE).

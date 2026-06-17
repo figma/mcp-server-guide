@@ -202,7 +202,9 @@ Figma maintains a list of tools provided by the Figma MCP server in the [develop
 
 You can also learn more about the skills included with the Figma plugin for [supported agents](https://help.figma.com/hc/en-us/articles/32132100833559#h_01K25F7RBRZKCATVJHNXCS6KXW) in the [Figma Help Center](https://help.figma.com/hc/en-us/articles/39166810751895). Depending on the agent, you may also see the terms `connector`, `extension`, or `power`; these include the same set of skills.
 
-This repo also contains standalone workflow skills that are not bundled with the Figma plugin. See [`workflow-skills/video-interaction-mapper`](workflow-skills/video-interaction-mapper) for a community skill that turns UI recordings into annotated Figma storyboards.
+This repo also contains standalone workflow skills that are not bundled with the Figma plugin:
+- [`workflow-skills/video-interaction-mapper`](workflow-skills/video-interaction-mapper): Turns UI recordings into annotated Figma storyboards
+- [`workflow-skills/generate-project-plan`](workflow-skills/generate-project-plan): Turn a PRD (plus optional codebase grounding) into a FigJam project plan board
 
 # MCP best practices
 
