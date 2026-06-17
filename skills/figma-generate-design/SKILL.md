@@ -57,7 +57,8 @@ Before touching Figma, understand what you're building:
 1. If building from code, read the relevant source files to understand the structure, sections, and which components are used.
 2. Identify the major sections of the view (e.g., for a page: Header, Hero, Content Panels, Footer; for a modal: Title Bar, Form Sections, Action Bar; for a sidebar: Navigation, Content Area, Footer Actions).
 3. For each section, list the UI components involved (buttons, inputs, cards, navigation pills, accordions, etc.).
-4. **Check whether the view contains any images** (e.g., `<img>`, `<Image>`, background images, product photos, avatars, icons loaded from URLs). If it does and this is a web app, you **must** run the parallel `generate_figma_design` capture workflow — start it immediately alongside Step 2 so the capture runs while you discover components. See "Parallel Workflow with generate_figma_design" above.
+4. **Identify the product's font family from the source. Do not default to Inter.** Find *which* typeface the product uses before writing any script. See [references/discover-product-font.md](references/discover-product-font.md) for where to look (CSS variables, component files) and how to resolve messy Figma font names.
+5. **Check whether the view contains any images** (e.g., `<img>`, `<Image>`, background images, product photos, avatars, icons loaded from URLs). If it does and this is a web app, you **must** run the parallel `generate_figma_design` capture workflow — start it immediately alongside Step 2 so the capture runs while you discover components. See "Parallel Workflow with generate_figma_design" above.
 
 ### Step 2: Collect Component Keys, Variables, and Styles
 
@@ -349,6 +350,15 @@ When translating code components to Figma instances, check the component's defau
 
 **Never hardcode hex colors or pixel spacing** when a design system variable exists. Use `setBoundVariable` for spacing/radii and `setBoundVariableForPaint` for colors. Apply text styles with `node.textStyleId` and effect styles with `node.effectStyleId`.
 
+#### Componentize repeated and reusable elements (required)
+
+Componentization is part of the **default** workflow, not an optional follow-up. Produce a componentized structure on the first pass; do not emit a flat tree of one-off frames and wait for a second "now make it componentized" prompt.
+
+- **Design-system instances are already componentized** (Step 2). Prefer them.
+- **For anything the design system does not cover that repeats or maps to a reusable source component, create a local component once with `figma.createComponent()` and place instances**, instead of hand-building N near-identical frames. One source component maps to one Figma main component.
+
+See [references/componentization.md](references/componentization.md) for the build-once-place-instances pattern and code.
+
 #### Icons: import the SVG, never reconstruct from rotated primitives
 
 Icons are the **main exception to the build-manually-vs-import split above.** If the design system exposes an icon as a component, instance it (a single INSTANCE_SWAP property, not a variant per icon). Otherwise — most commonly when **grabbing an icon from the codebase to place or replace it in Figma** — import the icon's **SVG source directly** as a vector node. This is the primary, default path for icons; do not redraw them.
@@ -381,7 +391,14 @@ After composing all sections, call `get_screenshot` on the wrapper frame and com
 - Placeholder text still showing ("Title", "Heading", "Button")
 - Truncated content from layout sizing bugs
 - Wrong component variants (e.g., Neutral vs Primary button)
+- **Wrong font family** — text rendered in a different typeface than the product uses (e.g. Inter where the product is SF Pro). The script ran without error, so this is invisible at a glance; assert it explicitly (see "Assert the font family is correct" below)
 - **Blank image placeholders** — if images are missing, you need to transfer them from the `generate_figma_design` capture (see below)
+
+#### Assert the font family is correct
+
+**You MUST explicitly assert that rendered text uses the product font(s) identified in Step 1**, and treat any mismatch as a failed validation. Do not assume a successfully loaded font is the correct font: loading Inter when the product uses SF Pro is a failure even if no errors occur. **If you have a source reference (the running web app, a design mock, or the `generate_figma_design` capture), you MUST also compare rendered screenshots** — a near-miss style within the right family can pass a family check but still look wrong.
+
+See [references/discover-product-font.md](references/discover-product-font.md#verify-the-font-after-building) for the read-back script (which separates free-standing text you fix from design-system-governed text you flag) and the screenshot-comparison steps.
 
 #### Transfer images from the generate_figma_design capture
 
@@ -466,7 +483,9 @@ Because this skill works incrementally (one section per call), errors are natura
 - **Search broadly.** Try synonyms and partial terms. A "NavigationPill" might be found under "pill", "nav", "tab", or "chip". For variables, search "color", "spacing", "radius", etc.
 - **Prefer design system tokens over hardcoded values.** Use variable bindings for colors, spacing, and radii. Use text styles for typography. Use effect styles for shadows. This keeps the screen linked to the design system.
 - **Prefer component instances over manual builds.** Instances stay linked to the source component and update automatically when the design system evolves.
+- **Componentize by default.** Build repeated or reusable elements as a component once, then place instances. Do not ship a flat tree of one-off frames that needs a second "make it componentized" pass.
 - **Work section by section.** Never build more than one major section per `use_figma` call.
 - **Return node IDs from every call.** You'll need them to compose sections and for error recovery.
 - **Validate visually after each section.** Use `get_screenshot` to catch issues early.
+- **Assert the font family, not just a successful load.** A script can load the wrong font without error. After building, verify rendered text uses the product font identified in Step 1 (see Step 5).
 - **Match existing conventions.** If the file already has screens, match their naming, sizing, and layout patterns.
