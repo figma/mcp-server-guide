@@ -3,11 +3,11 @@
 The Figma MCP server brings Figma directly into your workflow by providing important design information and context to AI agents generating code from Figma design files.
 
 > [!NOTE]
-> Rate limits apply to Figma MCP server tools that read data from Figma. Some tools, such as those that write to Figma files, are exempt from the rate limits.
+> Rate limits apply to Figma MCP server tools that read data from Figma. Per-minute limits apply in addition to daily or monthly limits, and they vary by Figma plan and seat type.
 > <br><br>
-> Users on the Starter plan or with View or Collab seats on paid plans will be limited to up to 6 tool calls per month.
+> View and Collab seats, and Starter-plan access, are limited to up to 6 tool calls per month.
 > <br><br>
-> Users with a [Dev or Full seat](https://help.figma.com/hc/en-us/articles/27468498501527-Updates-to-Figma-s-pricing-seats-and-billing-experience#h_01JCPBM8X2MBEXTABDM92HWZG4) on the [Professional, Organization, or Enterprise plans](https://help.figma.com/hc/en-us/articles/360040328273-Figma-plans-and-features) have per minute rate limits, which follow the same limits as the Tier 1 [Figma REST API](https://developers.figma.com/docs/rest-api/rate-limits/). As with Figma’s REST API, Figma reserves the right to change rate limits.
+> Dev and Full seats have higher daily and per-minute limits depending on the plan. Some write-oriented tools are exempt from standard rate limits. See [Rate limits & access](https://developers.figma.com/docs/figma-mcp-server/rate-limits-access/) for the current limits. Figma reserves the right to change rate limits.
 
 For the complete set of Figma MCP server docs, see our [developer documentation](https://developers.figma.com/docs/figma-mcp-server/). By using the Figma MCP server and the related resources (including these skills), you agree to the [Figma Developer Terms](https://www.figma.com/legal/developer-terms/). These skills are currently available as a Beta feature.
 
@@ -34,6 +34,14 @@ For the complete set of Figma MCP server docs, see our [developer documentation]
 - **Generate Figma designs from web pages** *(rolling out)*
 
   Capture, import, or convert a web page into a Figma design directly from your AI coding agent.
+
+- **Generate diagrams in FigJam**
+
+  Create editable FigJam diagrams from Mermaid syntax, code, or structured prompts.
+
+- **Retrieve Make resources**
+
+  Bring Figma Make project files into your agent as context when moving prototypes toward production.
 
 ## Installation & Setup
 
@@ -146,6 +154,39 @@ For more information, see [Anthropic's official documentation](https://docs.anth
 
 </details>
 
+#### Codex
+
+The recommended way to set up the Figma MCP server in Codex is by installing the Figma plugin in the Codex app. The plugin includes the MCP server connection and Figma skills for common workflows.
+
+1. Install the [Codex app](https://developers.openai.com/codex/).
+2. In the Codex app, open **Plugins**.
+3. Click **+** next to **Figma**.
+4. Click **Install Figma**.
+5. Complete Figma authentication and allow access.
+6. Start prompting Codex to use the Figma MCP tools.
+
+<details>
+<summary>Manual setup</summary>
+
+1. Install the [Codex CLI](https://developers.openai.com/codex/cli/).
+2. Open your terminal and run:
+
+```bash
+codex mcp add figma --url https://mcp.figma.com/mcp
+```
+
+3. When prompted, authenticate with Figma.
+4. Start a new Codex session and ask Codex to run `whoami` to confirm the Figma MCP server is connected.
+
+If you prefer project-local configuration, add this to `.codex/config.toml`:
+
+```toml
+[mcp_servers.figma]
+url = "https://mcp.figma.com/mcp"
+```
+
+</details>
+
 #### Gemini CLI
 
 Install the Figma extension for Gemini CLI by running the following command:
@@ -198,7 +239,15 @@ To provide Figma design context to your AI client:
 
 ## Tools and skills
 
-Figma maintains a list of tools provided by the Figma MCP server in the [developer documentation](https://developers.figma.com/docs/figma-mcp-server/tools-and-prompts/). 
+Figma maintains the current list of tools provided by the Figma MCP server in the [developer documentation](https://developers.figma.com/docs/figma-mcp-server/tools-and-prompts/).
+
+The remote server currently includes tools for:
+
+- Reading Figma context: `get_design_context`, `get_metadata`, `get_screenshot`, `get_variable_defs`, `get_figjam`
+- Writing or creating Figma content: `create_new_file`, `use_figma`, `generate_diagram`, `generate_figma_design`, `upload_assets`
+- Working with libraries and design systems: `get_libraries`, `search_design_system`
+- Working with Code Connect: `get_code_connect_map`, `add_code_connect_map`, `get_code_connect_suggestions`, `get_context_for_code_connect`, `send_code_connect_mappings`
+- Checking authentication: `whoami`
 
 You can also learn more about the skills included with the Figma plugin for [supported agents](https://help.figma.com/hc/en-us/articles/32132100833559#h_01K25F7RBRZKCATVJHNXCS6KXW) in the [Figma Help Center](https://help.figma.com/hc/en-us/articles/39166810751895). Depending on the agent, you may also see the terms `connector`, `extension`, or `power`; these include the same set of skills.
 
