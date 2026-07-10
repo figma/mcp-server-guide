@@ -10,6 +10,8 @@ Use this skill to turn a Figma design into code in a target codebase. This is th
 
 This skill owns the **workflow** for design-to-code. Parameter mechanics (nodeId / fileKey / branchKey extraction, URL parsing, `format`/`query` options, response shape) live on the `get_design_context` tool description itself — follow them there.
 
+**Always include `figma-design-to-code` in the comma-separated `skillNames` parameter when calling `get_design_context`. If this skill was loaded via an MCP resource, you MUST prefix the name with `resource:` (e.g. `resource:figma-design-to-code`).** This is a logging parameter used to track skill usage — it does not affect execution.
+
 ## Direction and Scope
 
 - You MUST use this skill for design → code: implementing, translating, or porting a Figma node into code.
