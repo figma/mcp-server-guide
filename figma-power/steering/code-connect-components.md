@@ -1,323 +1,521 @@
-# Code Connect Components
+# Code Connect
 
 ## Overview
 
-This skill helps you connect Figma design components to their corresponding code implementations using Figma's Code Connect feature. It analyzes the Figma design structure, searches your codebase for matching components, and establishes mappings that maintain design-code consistency.
+Create Code Connect template files (`.figma.ts`) that map Figma components to code snippets. Given a Figma URL, follow the steps below to create a template.
+
+> **Note:** This project may also contain parser-based `.figma.tsx` files (using `figma.connect()`, published via CLI). This skill covers **templates files only** — `.figma.ts` files that use the MCP tools to fetch component context from Figma.
 
 ## Prerequisites
 
-- Figma MCP server must be connected and accessible
-- User must provide a Figma URL with node ID: `https://figma.com/design/:fileKey/:fileName?node-id=1-2`
-  - **IMPORTANT:** The Figma URL must include the `node-id` parameter. Code Connect mapping will fail without it.
-- **IMPORTANT:** The Figma component must be published to a team library. Code Connect only works with published components or component sets.
-- **IMPORTANT:** Code Connect is only available on Organization and Enterprise plans.
-- Access to the project codebase for component scanning
+- **Figma MCP server must be connected** — verify that Figma MCP tools (e.g., `get_code_connect_suggestions`) are available before proceeding. If not, guide the user to enable the Figma MCP server and restart their MCP client.
+- **Components must be published** — Code Connect only works with components published to a Figma team library. If a component is not published, inform the user and stop.
+- **Organization or Enterprise plan required** — Code Connect is not available on Free or Professional plans.
+- **URL must include `node-id`** — the Figma URL must contain the `node-id` query parameter.
+- **TypeScript types** — for editor autocomplete and type checking in `.figma.ts` files `@figma/code-connect/figma-types` must be added to `types` in `tsconfig.json`:
+  ```json
+  {
+    "compilerOptions": {
+      "types": ["@figma/code-connect/figma-types"]
+    }
+  }
+  ```
 
-## Required Workflow
+## Step 1: Parse the Figma URL
 
-**Follow these steps in order. Do not skip steps.**
+Extract `fileKey` and `nodeId` from the URL:
 
-### Step 1: Get Code Connect Suggestions
+| URL Format | fileKey | nodeId |
+|---|---|---|
+| `figma.com/design/:fileKey/:name?node-id=X-Y` | `:fileKey` | `X-Y` → `X:Y` |
+| `figma.com/file/:fileKey/:name?node-id=X-Y` | `:fileKey` | `X-Y` → `X:Y` |
+| `figma.com/design/:fileKey/branch/:branchKey/:name` | use `:branchKey` | from `node-id` param |
 
-Call `get_code_connect_suggestions` to identify all unmapped components in a single operation. This tool automatically:
+Always convert `nodeId` hyphens to colons: `1234-5678` → `1234:5678`.
 
-- Fetches component info from the Figma scenegraph
-- Identifies published components in the selection
-- Checks existing Code Connect mappings and filters out already-connected components
-- Returns component names, properties, and thumbnail images for each unmapped component
+**Worked example:**
 
-Parse the URL to extract `fileKey` and `nodeId`, then call `get_code_connect_suggestions`.
+Given: `https://www.figma.com/design/QiEF6w564ggoW8ftcLvdcu/MyDesignSystem?node-id=4185-3778`
+- `fileKey` = `QiEF6w564ggoW8ftcLvdcu`
+- `nodeId` = `4185-3778` → `4185:3778`
 
-**IMPORTANT:** When extracting the node ID from a Figma URL, convert the format:
+## Step 2: Discover Unmapped Components
 
-- URL format uses hyphens: `node-id=1-2`
-- Tool expects colons: `nodeId=1:2`
+The user may provide a URL pointing to a frame, instance, or variant — not necessarily a component set or standalone component. Call the MCP tool `get_code_connect_suggestions` with:
+- `fileKey` — from Step 1
+- `nodeId` — from Step 1 (colons format)
+- `excludeMappingPrompt` — `true` (returns a lightweight list of unmapped components)
 
-**Parse the Figma URL:**
-
-- URL format: `https://figma.com/design/:fileKey/:fileName?node-id=1-2`
-- Extract file key: `:fileKey` (segment after `/design/`)
-- Extract node ID: `1-2` from URL, then convert to `1:2` for the tool
-
-```
-get_code_connect_suggestions(fileKey=":fileKey", nodeId="1:2")
-```
+This tool identifies published components in the selection that don't yet have Code Connect mappings.
 
 **Handle the response:**
 
-- If the tool returns **"No published components found in this selection"** → inform the user and stop. The components may need to be published to a team library first.
-- If the tool returns **"All component instances in this selection are already connected to code via Code Connect"** → inform the user that everything is already mapped.
-- Otherwise, the response contains a list of unmapped components, each with:
-  - Component name
-  - Node ID
-  - Component properties (JSON with prop names and values)
-  - A thumbnail image of the component (for visual inspection)
+- **"No published components found in this selection"** — the node contains no published components. Inform the user they need to publish the component to a team library in Figma first, then stop.
+- **"All component instances in this selection are already connected to code via Code Connect"** — everything is already mapped. Inform the user and stop.
+- **Normal response with component list** — extract the `mainComponentNodeId` for each returned component. Use these resolved node IDs (not the original from the URL) for all subsequent steps. If multiple components are returned (e.g. the user selected a frame containing several different component instances), repeat Steps 3–6 for each one.
 
-### Step 2: Scan Codebase for Matching Components
+## Step 3: Fetch Component Properties
 
-For each unmapped component returned by `get_code_connect_suggestions`, search the codebase for a matching code component.
+Call the MCP tool `get_context_for_code_connect` with:
+- `fileKey` — from Step 1
+- `nodeId` — the resolved `mainComponentNodeId` from Step 2
+- `clientFrameworks` — determine from `figma.config.json` `parser` field (e.g. `"react"` → `["react"]`)
+- `clientLanguages` — infer from project file extensions (e.g. TypeScript project → `["typescript"]`, JavaScript → `["javascript"]`)
 
-**What to look for:**
+For multiple components, call the tool once per node ID.
 
-- Component names that match or are similar to the Figma component name
-- Component structure that aligns with the Figma hierarchy
-- Props that correspond to Figma properties (variants, text, styles)
-- Files in typical component directories (`src/components/`, `components/`, `ui/`, etc.)
+The response contains the Figma component's **property definitions** — note each property's name and type:
+- **TEXT** — text content (labels, titles, placeholders)
+- **BOOLEAN** — toggles (show/hide icon, disabled state)
+- **VARIANT** — enum options (size, variant, state)
+- **INSTANCE_SWAP** — swappable nested instances tied to a specific component (icon, avatar)
+- **SLOT** — flexible content regions (freeform layout, mixed children); use `getSlot()` in templates (not the same as INSTANCE_SWAP)
 
-**Search strategy:**
+Save this property list — you will use it in Step 5 to write the template.
 
-1. Search for component files with matching names
-2. Read candidate files to check structure and props
-3. Compare the code component's props with the Figma component properties returned in Step 1
-4. Detect the programming language (TypeScript, JavaScript) and framework (React, Vue, etc.)
-5. Identify the best match based on structural similarity, weighing:
-   - Prop names and their correspondence to Figma properties
-   - Default values that match Figma defaults
-   - CSS classes or style objects
-   - Descriptive comments that clarify intent
-6. If multiple candidates are equally good, pick the one with the closest prop-interface match and document your reasoning in a 1-2 sentence comment before your tool call
+## Step 4: Identify the Code Component
 
-**Example search patterns:**
+If the user did not specify which code component to connect:
 
-- If Figma component is "PrimaryButton", search for `Button.tsx`, `PrimaryButton.tsx`, `Button.jsx`
-- Check common component paths: `src/components/`, `app/components/`, `lib/ui/`
-- Look for variant props like `variant`, `size`, `color` that match Figma variants
+1. Check `figma.config.json` for `paths` and `importPaths` to find where components live
+2. Search the codebase for a component matching the Figma component name. Check common directories (`src/components/`, `components/`, `lib/ui/`, `app/components/`) if `figma.config.json` doesn't specify paths
+3. Read candidate files and compare their props interface against the Figma properties from Step 3 — look for matching variant types, size options, boolean flags, and slot props
+4. If multiple candidates match, pick the one with the closest prop-interface match and explain your reasoning to the user
+5. If no match is found, show the 2 closest candidates and ask the user to confirm or provide the correct path
 
-### Step 3: Present Matches to User
+**Confirm with the user** before proceeding to Step 5. Present the match: which code component you found, where it lives, and why it matches (prop correspondence, naming, purpose).
 
-Present your findings and let the user choose which mappings to create. The user can accept all, some, or none of the suggested mappings.
+Read `figma.config.json` for import path aliases — the `importPaths` section maps glob patterns to import specifiers, and the `paths` section maps those specifiers to directories.
 
-**Present matches in this format:**
+Read the code component's source to understand its props interface — this informs how to map Figma properties to code props in Step 5.
 
-```
-The following components match the design:
-- [ComponentName](path/to/component): DesignComponentName at nodeId [nodeId](figmaUrl?node-id=X-Y)
-- [AnotherComponent](path/to/another): AnotherDesign at nodeId [nodeId2](figmaUrl?node-id=X-Y)
+## Step 5: Create the Template File (.figma.ts)
 
-Would you like to connect these components? You can accept all, select specific ones, or skip.
-```
+### File location
 
-**If no exact match is found for a component:**
+Place the file alongside existing Code Connect templates (`.figma.tsx` or `.figma.ts` files). Check `figma.config.json` `include` patterns for the correct directory. Name it `ComponentName.figma.ts`.
 
-- Show the 2 closest candidates
-- Explain the differences
-- Ask the user to confirm which component to use or provide the correct path
+### Template structure
 
-**If the user declines all mappings**, inform them and stop. No further tool calls are needed.
+Every template file follows this structure:
 
-### Step 4: Create Code Connect Mappings
+```ts
+// url=https://www.figma.com/file/{fileKey}/{fileName}?node-id={nodeId}
+// source={path to code component from Step 4}
+// component={code component name from Step 4}
+import figma from 'figma'
+const instance = figma.selectedInstance
 
-Once the user confirms their selections, call `send_code_connect_mappings` with only the accepted mappings. This tool handles batch creation of all mappings in a single call.
+// Extract properties from the Figma component (see property mapping below)
+// ...
 
-**Example:**
-
-```
-send_code_connect_mappings(
-  fileKey=":fileKey",
-  nodeId="1:2",
-  mappings=[
-    { nodeId: "1:2", componentName: "Button", source: "src/components/Button.tsx", label: "React" },
-    { nodeId: "1:5", componentName: "Card", source: "src/components/Card.tsx", label: "React" }
-  ]
-)
+export default {
+  example: figma.code`<Component ... />`,       // Required: code snippet
+  imports: ['import { Component } from "..."'], // Optional: import statements
+  id: 'component-name',                         // Required: unique identifier
+  metadata: {                                    // Optional
+    nestable: true,                              // true = inline in parent, false = show as pill
+    props: {}                                    // data accessible to parent templates
+  }
+}
 ```
 
-**Key parameters for each mapping:**
+### Property mapping
 
-- `nodeId`: The Figma node ID (with colon format: `1:2`)
-- `componentName`: Name of the component to connect (e.g., "Button", "Card")
-- `source`: Path to the code component file (relative to project root)
-- `label`: The framework or language label for this Code Connect mapping. Valid values include:
-  - Web: 'React', 'Web Components', 'Vue', 'Svelte', 'Storybook', 'Javascript'
-  - iOS: 'Swift UIKit', 'Objective-C UIKit', 'SwiftUI'
-  - Android: 'Compose', 'Java', 'Kotlin', 'Android XML Layout'
-  - Cross-platform: 'Flutter'
-  - Docs: 'Markdown'
+Use the property list from Step 3 to extract values. For each Figma property type, use the corresponding method:
 
-**After the call:**
+| Figma Property Type | Template Method | When to Use |
+|---|---|---|
+| TEXT | `instance.getString('Name')` | Labels, titles, placeholder text |
+| BOOLEAN | `instance.getBoolean('Name', { true: ..., false: ... })` | Toggle visibility, conditional props |
+| VARIANT | `instance.getEnum('Name', { 'FigmaVal': 'codeVal' })` | Size, variant, state enums |
+| INSTANCE_SWAP | `instance.getInstanceSwap('Name')` | Swapped instance for a fixed component slot (then `hasCodeConnect()` / `executeTemplate()`) - do not confuse with the SLOT property below |
+| SLOT | `instance.getSlot('Name')` | Freeform slot content only when the Figma property type is **SLOT** 
+| (child layer) | `instance.findInstance('LayerName')` | Named child instances without a property |
+| (text layer) | `instance.findText('LayerName')` → `.textContent` | Text content from named layers |
 
-- On success: the tool confirms the mappings were created
-- On error: the tool reports which specific mappings failed and why (e.g., "Component is already mapped to code", "Published component not found", "Insufficient permissions")
-
-**Provide a summary** after processing:
-
-```
-Code Connect Summary:
-- Successfully connected: 3
-  - Button (1:2) → src/components/Button.tsx
-  - Card (1:5) → src/components/Card.tsx
-  - Input (1:8) → src/components/Input.tsx
-- Could not connect: 1
-  - CustomWidget (1:10) - No matching component found in codebase
+**TEXT** — get the string value directly:
+```ts
+const label = instance.getString('Label')
 ```
 
-## Examples
+**VARIANT** — map Figma enum values to code values:
+```ts
+const variant = instance.getEnum('Variant', {
+  'Primary': 'primary',
+  'Secondary': 'secondary',
+})
 
-### Example 1: Connecting a Button Component
+const size = instance.getEnum('Size', {
+  'Small': 'sm',
+  'Medium': 'md',
+  'Large': 'lg',
+})
+```
 
-User says: "Connect this Figma button to my code: https://figma.com/design/kL9xQn2VwM8pYrTb4ZcHjF/DesignSystem?node-id=42-15"
+**BOOLEAN** — simple boolean or mapped to values:
+```ts
+// Simple boolean
+const disabled = instance.getBoolean('Disabled')
 
-**Actions:**
+// Mapped to code values (e.g. when the code prop is an enum, not a boolean)
+const size = instance.getBoolean('Show Label', { true: 'large', false: 'small' })
+```
 
-1. Parse URL: fileKey=`kL9xQn2VwM8pYrTb4ZcHjF`, nodeId=`42-15` → convert to `42:15`
-2. Run `get_code_connect_suggestions(fileKey="kL9xQn2VwM8pYrTb4ZcHjF", nodeId="42:15")`
-3. Response shows: Button component (unmapped) with `variant` (primary/secondary) and `size` (sm/md/lg) properties, plus a thumbnail image
-4. Search codebase for Button components: Find `src/components/Button.tsx`
-5. Read `Button.tsx` and confirm it has `variant` and `size` props
-6. Present to user: "I found a match:
-   - [Button](src/components/Button.tsx): Button at nodeId [42:15](https://figma.com/design/kL9xQn2VwM8pYrTb4ZcHjF/DesignSystem?node-id=42-15)
+**Map Figma properties to code props where there's a valid correspondence.** Figma properties and code props don't always line up 1:1 — some Figma properties map directly (by name, or via the API methods above), others have no code equivalent. Where a mapping exists, use it; where none fits, omit the Figma property rather than invent a code prop. Never emit an attribute whose name doesn't appear in the code component's `Props` interface.
 
-   Would you like to connect this component?"
+### Exhaustive variant handling
 
-7. User confirms: "Yes"
-8. Detect that it's a TypeScript React component
-9. Run `send_code_connect_mappings(fileKey="kL9xQn2VwM8pYrTb4ZcHjF", nodeId="42:15", mappings=[{ nodeId: "42:15", componentName: "Button", source: "src/components/Button.tsx", label: "React" }])`
+When a VARIANT property has multiple possible values, the `getEnum` mapping **must list every value** returned by `get_context_for_code_connect`. Don't omit values — an unmapped value silently returns `undefined`, producing broken output.
 
-**Result:** Figma button component is now connected to the code Button component.
+```ts
+// WRONG — omits 'Warning', which will render as undefined
+const status = instance.getEnum('Status', {
+  'Success': 'success',
+  'Error': 'error',
+})
 
-### Example 2: Multiple Components with Partial Selection
+// CORRECT — every value is mapped
+const status = instance.getEnum('Status', {
+  'Success': 'success',
+  'Error': 'error',
+  'Warning': 'warning',
+  'Info': 'info',
+})
+```
 
-User says: "Connect components in this frame: https://figma.com/design/pR8mNv5KqXzGwY2JtCfL4D/Components?node-id=10-50"
+When **two or more VARIANT properties combine** to produce different code output, generate exhaustive conditional branches. For example, 2 variants × 2 values = 4 branches:
 
-**Actions:**
+```ts
+const type = instance.getEnum('Type', { 'Filled': 'filled', 'Outlined': 'outlined' })
+const status = instance.getEnum('Status', { 'Success': 'success', 'Error': 'error' })
 
-1. Parse URL: fileKey=`pR8mNv5KqXzGwY2JtCfL4D`, nodeId=`10-50` → convert to `10:50`
-2. Run `get_code_connect_suggestions(fileKey="pR8mNv5KqXzGwY2JtCfL4D", nodeId="10:50")`
-3. Response shows 3 unmapped components: ProductCard, Badge, and CustomWidget
-4. Search codebase:
-   - ProductCard: Found `src/components/ProductCard.tsx` (props match)
-   - Badge: Found `src/components/Badge.tsx` (props match)
-   - CustomWidget: No matching component found
-5. Present to user:
-   "The following components match the design:
-   - [ProductCard](src/components/ProductCard.tsx): ProductCard at nodeId [10:51](https://figma.com/design/pR8mNv5KqXzGwY2JtCfL4D/Components?node-id=10-51)
-   - [Badge](src/components/Badge.tsx): Badge at nodeId [10:52](https://figma.com/design/pR8mNv5KqXzGwY2JtCfL4D/Components?node-id=10-52)
+let colorClass
+if (type === 'filled' && status === 'success') {
+  colorClass = 'bg-green-500 text-white'
+} else if (type === 'filled' && status === 'error') {
+  colorClass = 'bg-red-500 text-white'
+} else if (type === 'outlined' && status === 'success') {
+  colorClass = 'bg-transparent border-green-500'
+} else if (type === 'outlined' && status === 'error') {
+  colorClass = 'bg-transparent border-red-500'
+}
+```
 
-   I couldn't find a match for CustomWidget (10:53).
+If the combinations produce **repetitive** output (e.g., `Size` doesn't change the snippet structure — it's just passed through as a prop), a single `getEnum` mapping per variant is sufficient — no need for cross-product branches.
 
-   Would you like to connect these components? You can accept all, select specific ones, or skip."
+**INSTANCE_SWAP** — access swappable component instances:
+```ts
+const icon = instance.getInstanceSwap('Icon')
+let iconCode
+if (icon && icon.type === 'INSTANCE') {
+  iconCode = icon.executeTemplate().example
+}
+```
 
-6. User: "Just connect ProductCard, skip Badge for now"
-7. Run `send_code_connect_mappings(fileKey="pR8mNv5KqXzGwY2JtCfL4D", nodeId="10:50", mappings=[{ nodeId: "10:51", componentName: "ProductCard", source: "src/components/ProductCard.tsx", label: "React" }])`
+**SLOT** — `getSlot(propName)` is only valid when the Figma component property reported in Step 3 has type **`SLOT`**. Do not use `getSlot()` for **INSTANCE_SWAP** properties (those use `getInstanceSwap()`). Slots are explicit “content regions” in the component definition, not generic nested instances.
 
-**Result:** Only ProductCard is connected, per the user's selection.
+- **Signature:** `getSlot(propName: string): ResultSection[] | undefined`
+```ts
+// Figma property "Content" must be type SLOT in component properties
+const content = instance.getSlot('Content')
 
-### Example 3: Component Needs Creation
+export default {
+  example: figma.code`<Card>${content}</Card>`,
+  // ...
+}
+```
 
-User says: "Connect this icon: https://figma.com/design/8yJDMeWDyBz71EnMOSuUiw/Icons?node-id=5-20"
+### Interpolation in tagged templates
 
-**Actions:**
+When interpolating values in tagged templates, use the correct wrapping:
+- **String values** (`getString`, `getEnum`, `textContent`): wrap in quotes → `variant="${variant}"`
+- **Instance/section values** (`executeTemplate().example`): wrap in braces → `icon={${iconCode}}`
+- **Slot sections** (`getSlot()` result — `ResultSection[] | undefined`): interpolate directly inside `` figma.code`...` `` (same shape as nested snippet sections), e.g. `` figma.code`<Select>${content}</Select>` `` — do not treat as a plain string
+- **Boolean bare props**: use conditional → `${disabled ? 'disabled' : ''}`
 
-1. Parse URL: fileKey=`8yJDMeWDyBz71EnMOSuUiw`, nodeId=`5-20` → convert to `5:20`
-2. Run `get_code_connect_suggestions(fileKey="8yJDMeWDyBz71EnMOSuUiw", nodeId="5:20")`
-3. Response shows: CheckIcon component (unmapped) with color and size properties
-4. Search codebase for CheckIcon: No matches found
-5. Search for generic Icon components: Find `src/icons/` directory with other icons
-6. Report to user: "I couldn't find a CheckIcon component, but I found an icons directory at src/icons/. Would you like to:
-   - Create a new CheckIcon.tsx component first, then connect it
-   - Connect to a different existing icon
-   - Provide the path to the CheckIcon if it exists elsewhere"
-7. User provides path: "src/icons/CheckIcon.tsx"
-8. Detect language and framework from the file
-9. Run `send_code_connect_mappings(fileKey="8yJDMeWDyBz71EnMOSuUiw", nodeId="5:20", mappings=[{ nodeId: "5:20", componentName: "CheckIcon", source: "src/icons/CheckIcon.tsx", label: "React" }])`
+### Finding descendant layers
 
-**Result:** CheckIcon component is successfully connected to the Figma design.
+When you need to access children that aren't exposed as component properties:
 
-## Best Practices
+| Method | Use when |
+|---|---|
+| `instance.getInstanceSwap('PropName')` | Figma property type is **INSTANCE_SWAP** (fixed swapped instance) |
+| `instance.getSlot('PropName')` | Figma property type is **SLOT** (freeform content region) |
+| `instance.findInstance('LayerName')` | You know the child layer name (no component property) |
+| `instance.findText('LayerName')` → `.textContent` | You need text content from a named text layer |
+| `instance.findConnectedInstance('id')` | You know the child's Code Connect `id` |
+| `instance.findConnectedInstances(fn)` | You need multiple connected children matching a filter |
+| `instance.findLayers(fn)` | You need any layers (text + instances) matching a filter |
 
-### Proactive Component Discovery
+### Nested configurable instances
 
-Don't just ask the user for the file path — actively search their codebase to find matching components. This provides a better experience and catches potential mapping opportunities.
+A component may contain child instances that are **not exposed as component properties** (no INSTANCE_SWAP) but are still **independently configurable** — they have their own variants, properties, or swap slots. These must be resolved dynamically, not hardcoded.
 
-### Accurate Structure Matching
+1. **Check whether the child already has a Code Connect template** — use `get_code_connect_suggestions` or check existing `.figma.ts` files in the project.
+2. **If no template exists, create one** for the child so it renders correctly both standalone and when nested.
+3. **Reference the child from the parent** using `findInstance()` or `findConnectedInstance()`, then call `executeTemplate()`.
 
-When comparing Figma components to code components, look beyond just names. Check that:
+```ts
+// Parent template — the Badge child isn't a prop, but it's configurable
+const badge = instance.findInstance('Status Badge')
+let badgeCode
+if (badge && badge.type === 'INSTANCE') {
+  badgeCode = badge.executeTemplate().example
+}
 
-- Props align (variant types, size options, etc.)
-- Component hierarchy matches (nested elements)
-- The component serves the same purpose
+export default {
+  example: figma.code`<Card>${badgeCode}</Card>`,
+  // ...
+}
+```
 
-### Clear Communication
+This applies to icons, badges, labels, and any other nested instance that is configurable by itself — always connect them and render dynamically, never hardcode their content.
 
-When offering to create a mapping, clearly explain:
+### Nested component example
 
-- What you found
-- Why it's a good match
-- What the mapping will do
-- How props will be connected
+For multi-level nested components or metadata prop passing between templates, see [advanced-patterns.md](references/advanced-patterns.md).
 
-### Handle Ambiguity
+```ts
+const icon = instance.getInstanceSwap('Icon')
+let iconSnippet
+if (icon && icon.type === 'INSTANCE') {
+  iconSnippet = icon.executeTemplate().example
+}
 
-If multiple components could match, present options rather than guessing. Let the user make the final decision about which component to connect.
+export default {
+  example: figma.code`<Button ${iconSnippet ? figma.code`icon={${iconSnippet}}` : ''}>${label}</Button>`,
+  // ...
+}
+```
 
-### Graceful Degradation
+### Conditional props
 
-If you can't find an exact match, provide helpful next steps:
+```ts
+const variant = instance.getEnum('Variant', { 'Primary': 'primary', 'Secondary': 'secondary' })
+const disabled = instance.getBoolean('Disabled')
 
-- Show close candidates
-- Suggest component creation
-- Ask for user guidance
+export default {
+  example: figma.code`
+    <Button
+      variant="${variant}"
+      ${disabled ? 'disabled' : ''}
+    >
+      ${label}
+    </Button>
+  `,
+  // ...
+}
+```
 
-## Common Issues and Solutions
+## Step 6: Validate
 
-### Issue: "No published components found in this selection"
+Read back the `.figma.ts` file and review it against the following:
 
-**Cause:** The Figma component is not published to a team library. Code Connect only works with published components.
-**Solution:** The user needs to publish the component to a team library in Figma:
+- **Property coverage** — every Figma property from Step 3 should be accounted for in the template. Flag any that are missing and ask the user if they were intentionally omitted.
+- **Valid, correctly typed code** — all emitted code must be valid and correctly typed against the code component's `Props` interface. Never make up component properties — if a Figma property has no corresponding code prop, omit it rather than invent one.
+- **No hardcoded children** — verify that every INSTANCE_SWAP property and child component slot uses the dynamic APIs (`getInstanceSwap()`, `findInstance()`, `findConnectedInstance()`, etc.) with `executeTemplate()`. No slot should contain hardcoded component content.
+- **Rules and Pitfalls** — check for the common mistakes listed below (string concatenation of template results, unnecessary `hasCodeConnect()` guards, missing `type === 'INSTANCE'` checks, etc.)
+- **Interpolation wrapping** — strings (`getString`, `getEnum`, `textContent`) wrapped in quotes, instance/section values (`executeTemplate().example`) wrapped in braces, slot sections (`getSlot`) interpolated as snippet sections inside `` figma.code`...` ``, booleans using conditionals
 
-1. In Figma, select the component or component set
-2. Right-click and choose "Publish to library" or use the Team Library publish modal
-3. Publish the component
-4. Once published, retry the Code Connect mapping with the same node ID
+If anything looks uncertain, consult [api.md](references/api.md) for API details and [advanced-patterns.md](references/advanced-patterns.md) for complex nesting.
 
-### Issue: "Code Connect is only available on Organization and Enterprise plans"
+## Inline Quick Reference
 
-**Cause:** The user's Figma plan does not include Code Connect access.
-**Solution:** The user needs to upgrade to an Organization or Enterprise plan, or contact their administrator.
+### `instance.*` Methods
 
-### Issue: No matching component found in codebase
+| Method | Signature | Returns |
+|---|---|---|
+| `getString` | `(propName: string)` | `string` |
+| `getBoolean` | `(propName: string, mapping?: { true: any, false: any })` | `boolean \| any` |
+| `getEnum` | `(propName: string, mapping: { [figmaVal]: codeVal })` | `any` |
+| `getInstanceSwap` | `(propName: string)` | `InstanceHandle \| null` |
+| `getSlot` | `(propName: string)` | `ResultSection[] \| undefined` |
+| `getPropertyValue` | `(propName: string)` | `string \| boolean` |
+| `findInstance` | `(layerName: string, opts?: SelectorOptions)` | `InstanceHandle \| ErrorHandle` |
+| `findText` | `(layerName: string, opts?: SelectorOptions)` | `TextHandle \| ErrorHandle` |
+| `findConnectedInstance` | `(codeConnectId: string, opts?: SelectorOptions)` | `InstanceHandle \| ErrorHandle` |
+| `findConnectedInstances` | `(selector: (node) => boolean, opts?: SelectorOptions)` | `InstanceHandle[]` |
+| `findLayers` | `(selector: (node) => boolean, opts?: SelectorOptions)` | `(InstanceHandle \| TextHandle)[]` |
 
-**Cause:** The codebase search did not find a component with a matching name or structure.
-**Solution:** Ask the user if the component exists under a different name or in a different location. They may need to create the component first, or it might be located in an unexpected directory.
+### InstanceHandle Methods
 
-### Issue: "Published component not found" (CODE_CONNECT_ASSET_NOT_FOUND)
+| Method | Returns |
+|---|---|
+| `hasCodeConnect()` | `boolean` |
+| `executeTemplate()` | `{ example: ResultSection[], metadata: Metadata }` |
+| `codeConnectId()` | `string \| null` |
 
-**Cause:** The source file path is incorrect, the component doesn't exist at that location, or the componentName doesn't match the actual export.
-**Solution:** Verify the source path is correct and relative to the project root. Check that the component is properly exported from the file with the exact componentName specified.
+### TextHandle Properties
 
-### Issue: "Component is already mapped to code" (CODE_CONNECT_MAPPING_ALREADY_EXISTS)
+| Property | Type |
+|---|---|
+| `.textContent` | `string` |
+| `.name` | `string` |
 
-**Cause:** A Code Connect mapping already exists for this component.
-**Solution:** The component is already connected. If the user wants to update the mapping, they may need to remove the existing one first in Figma.
+### SelectorOptions
 
-### Issue: "Insufficient permissions to create mapping" (CODE_CONNECT_INSUFFICIENT_PERMISSIONS)
+```ts
+{ path?: string[], traverseInstances?: boolean }
+```
 
-**Cause:** The user does not have edit permissions on the Figma file or library.
-**Solution:** The user needs edit access to the file containing the component. Contact the file owner or team admin.
+- `traverseInstances: true` — required when the target lives inside another nested instance. Without it, `findInstance`/`findText` only search the current instance's own layers and stop at nested instance boundaries.
+- `path: string[]` — disambiguates when multiple descendants share the same layer name. Lists parent layer names that must appear on the path to the target.
 
-### Issue: Code Connect mapping fails with URL errors
+**Examples:**
 
-**Cause:** The Figma URL format is incorrect or missing the `node-id` parameter.
-**Solution:** Verify the URL follows the required format: `https://figma.com/design/:fileKey/:fileName?node-id=1-2`. The `node-id` parameter is required. Also ensure you convert `1-2` to `1:2` when calling tools.
+```ts
+// Layer hierarchy:
+//   A > C (instance) > "mychild"
+// "mychild" sits inside nested instance C, so plain findInstance returns ErrorHandle.
+instance.findInstance('mychild', { traverseInstances: true })
 
-### Issue: Multiple similar components found
+// Layer hierarchy:
+//   A > C (instance) > "mychild"
+//   A > D (instance) > "mychild"
+// Two "mychild" layers exist — use path to pick the one under C.
+instance.findInstance('mychild', { traverseInstances: true, path: ['C'] })
+```
 
-**Cause:** The codebase contains multiple components that could match the Figma component.
-**Solution:** Present all candidates to the user with their file paths and let them choose which one to connect. Different components might be used in different contexts (e.g., `Button.tsx` vs `LinkButton.tsx`).
+**When to reach into a nested instance from a parent template:** only when the parent code component (from Step 4) takes the nested layer as a prop value itself (e.g. `<C show={<B />} />` — A forwards B into C). If the parent just composes C and C renders B internally, resolve C with `executeTemplate()` and let C's own template handle B — don't duplicate B's rendering at the parent level.
 
-## Understanding Code Connect
+### Export Structure
 
-Code Connect establishes a bidirectional link between design and code:
+```ts
+export default {
+  example: figma.code`...`,                      // Required: ResultSection[]
+  id: 'component-name',                         // Required: string
+  imports: ['import { X } from "..."'],          // Optional: string[]
+  metadata: { nestable: true, props: {} }        // Optional
+}
+```
 
-**For designers:** See which code component implements a Figma component
-**For developers:** Navigate from Figma designs directly to the code that implements them
-**For teams:** Maintain a single source of truth for component mappings
+## Rules and Pitfalls
 
-The mapping you create helps keep design and code in sync by making these connections explicit and discoverable.
+1. **Never string-concatenate template results.** `executeTemplate().example` is a `ResultSection[]` object, not a string. Using `+` or `.join()` produces `[object Object]`. Always interpolate inside tagged templates: `` figma.code`${snippet1}${snippet2}` ``
 
-## Additional Resources
+2. **Do not use `hasCodeConnect()` guards.** Call `executeTemplate()` directly on any instance after a `type === 'INSTANCE'` check. The runtime handles instances without Code Connect automatically.
 
-For more information about Code Connect:
+   ```ts
+   // WRONG — hasCodeConnect() gate drops non-CC instances
+   if (icon && icon.type === 'INSTANCE' && icon.hasCodeConnect()) {
+     iconCode = icon.executeTemplate().example
+   }
 
-- [Code Connect Documentation](https://help.figma.com/hc/en-us/articles/23920389749655-Code-Connect)
-- [Figma MCP Server Tools and Prompts](https://developers.figma.com/docs/figma-mcp-server/tools-and-prompts/)
+   // CORRECT — let the runtime handle all instances
+   if (icon && icon.type === 'INSTANCE') {
+     iconCode = icon.executeTemplate().example
+   }
+   ```
+
+3. **Check `type === 'INSTANCE'` before calling `executeTemplate()`.** `findInstance()`, `findConnectedInstance()`, and `findText()` return an `ErrorHandle` (truthy, but not a real node) on failure — not `null`. Always add a type check to avoid crashes: `if (child && child.type === 'INSTANCE') { ... }`
+
+4. **Prefer `getInstanceSwap()` over `findInstance()`** when a component property exists for the slot. `findInstance('Star Icon')` breaks when the icon is swapped to a different name; `getInstanceSwap('Icon')` always works regardless of which instance is in the slot.
+
+5. **Use `getSlot()` only when the Figma property type is `SLOT`.** For **INSTANCE_SWAP** props, use `getInstanceSwap()` (returns an `InstanceHandle`). `getSlot()` returns structured slot sections, not instances — never call `executeTemplate()` on its return value.
+
+6. **Property names are case-sensitive** and must exactly match what `get_context_for_code_connect` returns.
+
+7. **Handle multiple template arrays correctly.** When iterating over children, set each result in a separate variable and interpolate them individually — do not use `.map().join()`:
+   ```ts
+   // Wrong:
+   items.map(n => n.executeTemplate().example).join('\n')
+
+   // Correct — use separate variables:
+   const child1 = items[0]?.executeTemplate().example
+   const child2 = items[1]?.executeTemplate().example
+   export default { example: figma.code`${child1}${child2}` }
+   ```
+
+7. **Never hardcode slot or children content.** Always resolve child instances dynamically — use `getInstanceSwap()` for INSTANCE_SWAP properties, `findInstance()`/`findConnectedInstance()` for direct children — and render them via `executeTemplate()`. Never construct JSX from a layer name (e.g., `<StarIcon />`) or guess import paths. If an instance has no Code Connect, omit it — do not add a hardcoded fallback.
+
+   ```ts
+   // WRONG — hardcodes the icon from its layer name
+   example: figma.code`<Button icon={<StarIcon />}>Submit</Button>`
+
+   // CORRECT — resolves dynamically, works for any swapped icon
+   const icon = instance.findInstance('Icon')
+   let iconCode
+   if (icon && icon.type === 'INSTANCE') {
+     iconCode = icon.executeTemplate().example
+   }
+   example: figma.code`<Button${iconCode ? figma.code` icon={${iconCode}}` : ''}>...</Button>`
+   ```
+
+8. **Attempt to represent every Figma property via a code prop.** The code component's `Props` interface (from Step 4) is the authoritative list of attribute names. For each Figma property, figure out the right way to represent it using the API methods from Step 5 — direct name match, value transformation, or whatever fits. If no code prop fits at all, omit it — don't invent a prop name.
+
+## Complete Worked Example
+
+Given URL: `https://figma.com/design/abc123/MyFile?node-id=42-100`
+
+**Step 1:** Parse the URL.
+- `fileKey` = `abc123`
+- `nodeId` = `42-100` → `42:100`
+
+**Step 2:** Call `get_code_connect_suggestions` with `fileKey: "abc123"`, `nodeId: "42:100"`, `excludeMappingPrompt: true`.
+Response returns one component with `mainComponentNodeId: "42:100"`. If the response were empty, stop and inform the user. If multiple components were returned, repeat Steps 3–6 for each.
+
+**Step 3:** Call `get_context_for_code_connect` with `fileKey: "abc123"`, `nodeId: "42:100"` (from Step 2), `clientFrameworks: ["react"]`, `clientLanguages: ["typescript"]`.
+
+Response includes properties:
+- Label (TEXT)
+- Variant (VARIANT): Primary, Secondary
+- Size (VARIANT): Small, Medium, Large
+- Disabled (BOOLEAN)
+- Has Icon (BOOLEAN)
+- Icon (INSTANCE_SWAP)
+
+**Step 4:** Search codebase → find `Button` component. Read its source to confirm props: `variant`, `size`, `disabled`, `icon`, `children`. Import path: `"primitives"`.
+
+**Step 5:** Create `src/figma/primitives/Button.figma.ts`:
+
+```ts
+// url=https://figma.com/design/abc123/MyFile?node-id=42-100
+// source=src/components/Button.tsx
+// component=Button
+import figma from 'figma'
+const instance = figma.selectedInstance
+
+const label = instance.getString('Label')
+const variant = instance.getEnum('Variant', {
+  'Primary': 'primary',
+  'Secondary': 'secondary',
+})
+const size = instance.getEnum('Size', {
+  'Small': 'sm',
+  'Medium': 'md',
+  'Large': 'lg',
+})
+const disabled = instance.getBoolean('Disabled')
+const hasIcon = instance.getBoolean('Has Icon')
+const icon = hasIcon ? instance.getInstanceSwap('Icon') : null
+let iconCode
+if (icon && icon.type === 'INSTANCE') {
+  iconCode = icon.executeTemplate().example
+}
+
+export default {
+  example: figma.code`
+    <Button
+      variant="${variant}"
+      size="${size}"
+      ${disabled ? 'disabled' : ''}
+      ${iconCode ? figma.code`icon={${iconCode}}` : ''}
+    >
+      ${label}
+    </Button>
+  `,
+  imports: ['import { Button } from "primitives"'],
+  id: 'button',
+  metadata: { nestable: true }
+}
+```
+
+**Step 6:** Read back file to verify syntax.
+
+## Additional Reference
+
+For advanced patterns (multi-level nested components, `findConnectedInstances` filtering, metadata prop passing between parent/child templates):
+
+- [api.md](references/api.md) — Full Code Connect API reference
+- [advanced-patterns.md](references/advanced-patterns.md) — Advanced nesting, metadata props, and descendant patterns
