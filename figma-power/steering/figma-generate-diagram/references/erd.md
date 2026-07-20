@@ -229,7 +229,7 @@ ER diagrams render via the **same ELK layered layout** as flowcharts. The princi
    - **Color-coding** entities by category (core / lookup / junction / audit) using replacement shapes or rectangles layered behind the tables
    - **Sequence numbers** or badges for migration order, deprecation status, etc.
 
-Loading [figma-use](../../figma-use/SKILL.md) and [figma-use-figjam](../../figma-use-figjam/SKILL.md) covers how to make those edits.
+Loading [figma-use](../../figma-use.md) and [figma-use-figjam](../../figma-use-figjam.md) covers how to make those edits.
 
 ### Signals the request needs the hybrid workflow
 

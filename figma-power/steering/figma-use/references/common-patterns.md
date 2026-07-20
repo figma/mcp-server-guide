@@ -1,6 +1,6 @@
 # Common Patterns
 
-> Part of the [use_figma skill](../SKILL.md). Working code examples for frequently used operations.
+> Part of the [use_figma skill](../../figma-use.md). Working code examples for frequently used operations.
 
 ## Contents
 

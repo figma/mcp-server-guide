@@ -1,4 +1,4 @@
-> Part of the [figma-generate-library skill](../SKILL.md).
+> Part of the [figma-generate-library skill](../../figma-generate-library.md).
 
 # Token Creation Reference
 

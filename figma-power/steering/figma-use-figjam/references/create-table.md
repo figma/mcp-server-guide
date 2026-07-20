@@ -1,6 +1,6 @@
 # Create Tables
 
-> Part of the [figma-use-figjam skill](../SKILL.md). Creating and styling tables with rows, columns, and cell content.
+> Part of the [figma-use-figjam skill](../../figma-use-figjam.md). Creating and styling tables with rows, columns, and cell content.
 
 **Scope:** Tables are FigJam-specific nodes created with `figma.createTable()`. They structure content in rows and columns. For stickies and sections, see [create-sticky](create-sticky.md) and [create-section](create-section.md). For shapes with text in them, see [create-shape-with-text](create-shape-with-text.md).
 

@@ -1,6 +1,6 @@
 # Create Label Nodes
 
-> Part of the [figma-use-figjam skill](../SKILL.md). Creating small circle callout markers with a number or letter.
+> Part of the [figma-use-figjam skill](../../figma-use-figjam.md). Creating small circle callout markers with a number or letter.
 
 **Scope:** Label nodes are small fixed-size circle shapes containing a single number or letter, used as callout markers, step indicators, or annotation anchors on a FigJam board. They are created with `figma.createShapeWithText()` using `shapeType = 'ELLIPSE'` and a fixed size. For shapes that need to fit longer text content, see [create-shape-with-text](create-shape-with-text.md).
 

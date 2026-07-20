@@ -1,6 +1,6 @@
 # Gotchas & Common Mistakes
 
-> Part of the [use_figma skill](../SKILL.md). Every known pitfall with WRONG/CORRECT code examples.
+> Part of the [use_figma skill](../../figma-use.md). Every known pitfall with WRONG/CORRECT code examples.
 
 ## Contents
 

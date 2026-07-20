@@ -1,6 +1,6 @@
 # Plugin API Patterns
 
-> Part of the [use_figma skill](../SKILL.md). Quick reference for common Figma Plugin API operations.
+> Part of the [use_figma skill](../../figma-use.md). Quick reference for common Figma Plugin API operations.
 
 ## Contents
 

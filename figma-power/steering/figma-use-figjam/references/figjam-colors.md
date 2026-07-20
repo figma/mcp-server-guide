@@ -1,6 +1,6 @@
 # FigJam Colors
 
-> Part of the [figma-use-figjam skill](../SKILL.md). Canonical color palettes for FigJam node types — stickies, sections, connectors, shapes-with-text, and labels.
+> Part of the [figma-use-figjam skill](../../figma-use-figjam.md). Canonical color palettes for FigJam node types — stickies, sections, connectors, shapes-with-text, and labels.
 
 This is the shared color reference for every FigJam node type. Each node type has its own palette (FigJam doesn't share one universal palette across all node types), so use the table for the node type you're working with. The hex/255 conversion helper at the top is shared across all of them.
 

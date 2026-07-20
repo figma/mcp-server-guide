@@ -1,6 +1,6 @@
 # Text Style API Patterns
 
-> Part of the [use_figma skill](../SKILL.md). How to create, apply, and inspect text styles using the Plugin API.
+> Part of the [use_figma skill](../../figma-use.md). How to create, apply, and inspect text styles using the Plugin API.
 >
 > For design system context (when to create text styles, how they relate to tokens, `use_figma` limitations), see [wwds-text-styles](working-with-design-systems/wwds-text-styles.md).
 

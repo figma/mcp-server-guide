@@ -1,6 +1,6 @@
 # Create Sticky Notes
 
-> Part of the [figma-use-figjam skill](../SKILL.md). Creating, modifying, and styling sticky notes.
+> Part of the [figma-use-figjam skill](../../figma-use-figjam.md). Creating, modifying, and styling sticky notes.
 
 **Scope:** Sticky notes are FigJam-specific nodes created with `figma.createSticky()`. For advanced text formatting on stickies, see [edit-text](edit-text.md).
 

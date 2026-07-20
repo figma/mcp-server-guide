@@ -2,16 +2,16 @@
 
 Use this skill to create or update **screens, views, and multi-section UI containers** in Figma by **reusing the published design system** — components, variables, and styles — rather than drawing primitives with hardcoded values. This includes full pages, modals, dialogs, drawers, sidebars, panels, and any composed view with multiple sections. The key insight: the Figma file likely has a published design system with components, color/spacing variables, and text/effect styles that correspond to the codebase's UI components and tokens. Find and use those instead of drawing boxes with hex colors.
 
-**MANDATORY**: You MUST also load [figma-use](../figma-use/SKILL.md) before any `use_figma` call. That skill contains critical rules (color ranges, font loading, etc.) that apply to every script you write.
+**MANDATORY**: You MUST also load [figma-use](figma-use.md) before any `use_figma` call. That skill contains critical rules (color ranges, font loading, etc.) that apply to every script you write.
 
 **Always pass `skillNames: "figma-generate-design"` when calling `use_figma` as part of this skill.** This is a logging parameter — it does not affect execution.
 
 ## Skill Boundaries
 
 - Use this skill when the deliverable is a **composed Figma view** (new or updated) — full-page screens, modals, dialogs, drawers, sidebars, panels, or any multi-section container — built from design system component instances.
-- If the user wants to generate **code from a Figma design**, switch to [figma-implement-design](../figma-implement-design/SKILL.md).
-- If the user wants to create **new reusable components or variants**, use [figma-use](../figma-use/SKILL.md) directly.
-- If the user wants to write **Code Connect mappings**, switch to [figma-code-connect](../figma-code-connect/SKILL.md).
+- If the user wants to generate **code from a Figma design**, switch to [figma-implement-design](figma-implement-design.md).
+- If the user wants to create **new reusable components or variants**, use [figma-use](figma-use.md) directly.
+- If the user wants to write **Code Connect mappings**, switch to [figma-code-connect](code-connect-components.md).
 
 ## Prerequisites
 
@@ -163,7 +163,7 @@ return [...varMap.values()];
 
 For library variables (remote = true), import them by key with `figma.variables.importVariableByKeyAsync(key)`. For local variables, use `figma.variables.getVariableByIdAsync(id)` directly.
 
-See [variable-patterns.md](../figma-use/references/variable-patterns.md) for binding patterns.
+See [variable-patterns.md](figma-use/references/variable-patterns.md) for binding patterns.
 
 #### 2c: Discover styles (text styles, effect styles)
 
@@ -190,11 +190,11 @@ return {
 
 Import library styles with `figma.importStyleByKeyAsync(key)`, then apply with `node.textStyleId = style.id` or `node.effectStyleId = style.id`.
 
-See [text-style-patterns.md](../figma-use/references/text-style-patterns.md) and [effect-style-patterns.md](../figma-use/references/effect-style-patterns.md) for details.
+See [text-style-patterns.md](figma-use/references/text-style-patterns.md) and [effect-style-patterns.md](figma-use/references/effect-style-patterns.md) for details.
 
 ### Step 3: Create the Wrapper Frame First With Placeholders
 
-**MUST use $fig** Use `$fig` for all node creation. See [fig-builder.md](../figma-use/references/fig-builder.md) for API reference.
+**MUST use $fig** Use `$fig` for all node creation. See [fig-builder.md](figma-use/references/fig-builder.md) for API reference.
 
 **Use placeholders and do not fill in all sections at once** — New nodes with `placeholder: true` will show up in the tool call result after plan changes are auto-flushed, e.g. `{ created: { '0:3': 'My Screen', '0:4': 'Header Placeholder' }}`
 
@@ -264,7 +264,7 @@ Validate the section with `.screenshot()` before moving on. Look closely for cro
 
 #### Override instance text with setProperties()
 
-Component instances ship with placeholder text ("Title", "Heading", "Button"). Use the component property keys you discovered in Step 2 to override them with `setProperties()` — this is more reliable than direct `node.characters` manipulation. See [component-patterns.md](../figma-use/references/component-patterns.md#overriding-text-in-a-component-instance) for the full pattern.
+Component instances ship with placeholder text ("Title", "Heading", "Button"). Use the component property keys you discovered in Step 2 to override them with `setProperties()` — this is more reliable than direct `node.characters` manipulation. See [component-patterns.md](figma-use/references/component-patterns.md#overriding-text-in-a-component-instance) for the full pattern.
 
 For nested instances that expose their own TEXT properties, call `setProperties()` on the nested instance:
 
@@ -312,7 +312,7 @@ const chevron = $fig.svg(
 // or append onto an existing plan node — e.g. row.svg('<svg .../>', { name: 'icon/chevron-right' })
 ```
 
-**Codebase SVGs usually use `currentColor`** (e.g. `stroke="currentColor"` / `fill="currentColor"`), which imports as **black** — it does not inherit the parent's color. Set the intended color after import: substitute the literal color into the SVG string before importing, or bind the imported vector's fills/strokes to a design-system color variable with `setBoundVariableForPaint` (same as any paint). To turn an imported SVG into a reusable icon component (for INSTANCE_SWAP), see [figma-generate-library → Creating Icon Components](../figma-generate-library/references/component-creation.md#creating-icon-components-for-instance_swap) and the [INSTANCE_SWAP pattern](../figma-use/references/component-patterns.md#instance_swap-avoiding-variant-explosion).
+**Codebase SVGs usually use `currentColor`** (e.g. `stroke="currentColor"` / `fill="currentColor"`), which imports as **black** — it does not inherit the parent's color. Set the intended color after import: substitute the literal color into the SVG string before importing, or bind the imported vector's fills/strokes to a design-system color variable with `setBoundVariableForPaint` (same as any paint). To turn an imported SVG into a reusable icon component (for INSTANCE_SWAP), see [figma-generate-library → Creating Icon Components](figma-generate-library/references/component-creation.md#creating-icon-components-for-instance_swap) and the [INSTANCE_SWAP pattern](figma-use/references/component-patterns.md#instance_swap-avoiding-variant-explosion).
 
 ### Step 5: Validate the Full View and Transfer Images
 
@@ -384,17 +384,17 @@ return { success: true, mutatedNodeIds: [existingButton.id] };
 
 ## Reference Docs
 
-For detailed API patterns and gotchas, load these from the [figma-use](../figma-use/SKILL.md) references as needed:
+For detailed API patterns and gotchas, load these from the [figma-use](figma-use.md) references as needed:
 
-- [component-patterns.md](../figma-use/references/component-patterns.md) — importing by key, finding variants, setProperties, text overrides, working with instances
-- [variable-patterns.md](../figma-use/references/variable-patterns.md) — creating/binding variables, importing library variables, scopes, aliasing, discovering existing variables
-- [text-style-patterns.md](../figma-use/references/text-style-patterns.md) — creating/applying text styles, importing library text styles, type ramps
-- [effect-style-patterns.md](../figma-use/references/effect-style-patterns.md) — creating/applying effect styles (shadows), importing library effect styles
-- [gotchas.md](../figma-use/references/gotchas.md) — layout pitfalls (HUG/FILL interactions, counterAxisAlignItems, sizing order), paint/color issues, page context resets
+- [component-patterns.md](figma-use/references/component-patterns.md) — importing by key, finding variants, setProperties, text overrides, working with instances
+- [variable-patterns.md](figma-use/references/variable-patterns.md) — creating/binding variables, importing library variables, scopes, aliasing, discovering existing variables
+- [text-style-patterns.md](figma-use/references/text-style-patterns.md) — creating/applying text styles, importing library text styles, type ramps
+- [effect-style-patterns.md](figma-use/references/effect-style-patterns.md) — creating/applying effect styles (shadows), importing library effect styles
+- [gotchas.md](figma-use/references/gotchas.md) — layout pitfalls (HUG/FILL interactions, counterAxisAlignItems, sizing order), paint/color issues, page context resets
 
 ## Error Recovery
 
-Follow the error recovery process from [figma-use](../figma-use/SKILL.md#6-error-recovery--self-correction):
+Follow the error recovery process from [figma-use](figma-use.md#6-error-recovery--self-correction):
 
 1. **STOP** on error — do not retry immediately.
 2. **Read the error message carefully** to understand what went wrong.

@@ -72,7 +72,7 @@ Phase 4: INTEGRATION + QA (final pass)
 **Plugin API basics** (from use_figma skill — enforced here too):
 - Use `return` to send data back (auto-serialized). Do NOT wrap in IIFE or call closePlugin.
 - Return ALL created/mutated node IDs in every return value
-- Page context resets each call — always `await figma.setCurrentPageAsync(page)` at start. **Call it at most once per script**: each component or doc page is its own `use_figma` call. Never loop over `figma.root.children` and switch pages inside a mutating script — split that work into one focused call per target page (see [figma-use → gotchas.md → Set current page once per `use_figma` call](../figma-use/references/gotchas.md#set-current-page-once-per-use_figma-call--split-multi-page-work-across-calls))
+- Page context resets each call — always `await figma.setCurrentPageAsync(page)` at start. **Call it at most once per script**: each component or doc page is its own `use_figma` call. Never loop over `figma.root.children` and switch pages inside a mutating script — split that work into one focused call per target page (see [figma-use → gotchas.md → Set current page once per `use_figma` call](figma-use/references/gotchas.md#set-current-page-once-per-use_figma-call--split-multi-page-work-across-calls))
 - `figma.notify()` throws — never use it
 - Colors are 0–1 range, not 0–255
 - Font MUST be loaded before any text write: `await figma.loadFontAsync({family, style})`. Use `await figma.listAvailableFontsAsync()` to discover available fonts and verify exact style strings — if a load fails, query available fonts to find the correct name or a fallback.
@@ -229,7 +229,7 @@ typography/body/font-size    typography/heading/line-height
 
 **Page separators**: `---` (most common) or `——— COMPONENTS ———`
 
-> Full naming reference: [naming-conventions.md](references/naming-conventions.md)
+> Full naming reference: [naming-conventions.md](figma-generate-library/references/naming-conventions.md)
 
 ---
 
@@ -239,7 +239,7 @@ typography/body/font-size    typography/heading/line-height
 |-----------|---------|
 | < 50 tokens | Single collection, 2 modes (Light/Dark) |
 | 50–200 tokens | **Standard**: Primitives (1 mode) + Color semantic (Light/Dark) + Spacing (1 mode) + Typography (1 mode) |
-| 200+ tokens | **Advanced**: Multiple semantic collections, 4–8 modes (Light/Dark × Contrast × Brand). See M3 pattern in [token-creation.md](references/token-creation.md) |
+| 200+ tokens | **Advanced**: Multiple semantic collections, 4–8 modes (Light/Dark × Contrast × Brand). See M3 pattern in [token-creation.md](figma-generate-library/references/token-creation.md) |
 
 Standard pattern (recommended starting point):
 ```
@@ -301,13 +301,13 @@ Use your file reading tool to read these docs when needed. Do not assume their c
 
 | Doc | Phase | Required / Optional | Load when |
 |-----|-------|---------------------|-----------|
-| [discovery-phase.md](references/discovery-phase.md) | 0 | **Required** | Starting any build — codebase analysis + Figma inspection |
-| [token-creation.md](references/token-creation.md) | 1 | **Required** | Creating variables, collections, modes, styles |
-| [documentation-creation.md](references/documentation-creation.md) | 2 | Required | Creating cover page, foundations docs, swatches |
-| [component-creation.md](references/component-creation.md) | 3 | **Required** | Creating any component or variant |
-| [code-connect-setup.md](references/code-connect-setup.md) | 3–4 | Required | Setting up Code Connect or variable code syntax |
-| [naming-conventions.md](references/naming-conventions.md) | Any | Optional | Naming anything — variables, pages, variants, styles |
-| [error-recovery.md](references/error-recovery.md) | Any | **Required on error** | Script fails, multi-step workflow recovery, cleanup of abandoned workflow state |
+| [discovery-phase.md](figma-generate-library/references/discovery-phase.md) | 0 | **Required** | Starting any build — codebase analysis + Figma inspection |
+| [token-creation.md](figma-generate-library/references/token-creation.md) | 1 | **Required** | Creating variables, collections, modes, styles |
+| [documentation-creation.md](figma-generate-library/references/documentation-creation.md) | 2 | Required | Creating cover page, foundations docs, swatches |
+| [component-creation.md](figma-generate-library/references/component-creation.md) | 3 | **Required** | Creating any component or variant |
+| [code-connect-setup.md](figma-generate-library/references/code-connect-setup.md) | 3–4 | Required | Setting up Code Connect or variable code syntax |
+| [naming-conventions.md](figma-generate-library/references/naming-conventions.md) | Any | Optional | Naming anything — variables, pages, variants, styles |
+| [error-recovery.md](figma-generate-library/references/error-recovery.md) | Any | **Required on error** | Script fails, multi-step workflow recovery, cleanup of abandoned workflow state |
 
 ---
 

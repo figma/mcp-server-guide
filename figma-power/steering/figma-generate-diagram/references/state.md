@@ -249,7 +249,7 @@ State diagrams generated via `generate_diagram` produce a clean, laid-out state 
    - **Color-coding** states by category (terminal / active / error)
    - **Sequence numbers** on transitions for step-by-step walkthroughs
 
-Loading [figma-use](../../figma-use/SKILL.md) and [figma-use-figjam](../../figma-use-figjam/SKILL.md) covers how to make those edits.
+Loading [figma-use](../../figma-use.md) and [figma-use-figjam](../../figma-use-figjam.md) covers how to make those edits.
 
 ### Signals the request needs the hybrid workflow
 

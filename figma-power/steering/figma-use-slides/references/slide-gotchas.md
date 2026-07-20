@@ -1,6 +1,6 @@
 # Slide Gotchas & Common Mistakes
 
-> Part of the [figma-use-slides skill](../SKILL.md). Pitfalls specific to working in Slides files.
+> Part of the [figma-use-slides skill](../../figma-use-slides.md). Pitfalls specific to working in Slides files.
 
 ## Contents
 
@@ -305,7 +305,7 @@ return { clean: issues.length === 0, issues };
 
 When building a **single complex slide** (data-heavy chart, intricate one-off layout), work incrementally within that slide — create the background and structure first, then add content, then decorative elements, validating between steps.
 
-When building a **deck** (multiple slides), build complete slides in each `use_figma` call. The helpers (`addFrame`, `addText`, `addRect`) enforce the appendChild-before-position rule, so building a complete slide in one pass is safe. Validate using the [batch validation script](#batch-validation-script) above, not per-element screenshots. See [Deck-Building Workflow](../SKILL.md#deck-building-workflow) for the full process.
+When building a **deck** (multiple slides), build complete slides in each `use_figma` call. The helpers (`addFrame`, `addText`, `addRect`) enforce the appendChild-before-position rule, so building a complete slide in one pass is safe. Validate using the [batch validation script](#batch-validation-script) above, not per-element screenshots. See [Deck-Building Workflow](../../figma-use-slides.md#deck-building-workflow) for the full process.
 
 
 ## Code preamble for deck-building scripts

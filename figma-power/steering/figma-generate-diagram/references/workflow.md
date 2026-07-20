@@ -1,6 +1,6 @@
 # Hybrid Diagram Workflow
 
-Mermaid's syntax can't express everything a good diagram needs — annotations tied to specific data, domain color-coding, callouts that live _next_ to the diagram rather than inside it. This reference covers the **hybrid workflow**: use `generate_diagram` to scaffold the structural diagram, then use `use_figma` (via the [figma-use-figjam](../../figma-use-figjam/SKILL.md) skill) to layer on what Mermaid can't do.
+Mermaid's syntax can't express everything a good diagram needs — annotations tied to specific data, domain color-coding, callouts that live _next_ to the diagram rather than inside it. This reference covers the **hybrid workflow**: use `generate_diagram` to scaffold the structural diagram, then use `use_figma` (via the [figma-use-figjam](../../figma-use-figjam.md) skill) to layer on what Mermaid can't do.
 
 **This is a judgment tool, not a procedure.** The hybrid workflow costs extra tokens and latency. Deploy it when the user's ask genuinely benefits — not on every diagram. When in doubt, ship the base diagram first; the user can tell you what's missing.
 

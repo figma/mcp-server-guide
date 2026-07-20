@@ -1,8 +1,8 @@
 # SwiftUI → Figma (code → design)
 
-Translate SwiftUI source code into a Figma design using `use_figma`. This doc covers the SwiftUI-specific translation knowledge; the API-level rules for `use_figma` itself live in [`figma-use`](../../figma-use/SKILL.md), the screen-assembly workflow lives in [`figma-generate-design`](../../figma-generate-design/SKILL.md), and the component / variant / variable workflow lives in [`figma-generate-library`](../../figma-generate-library/SKILL.md). Load whichever of those match the scope of the request, and use this doc to drive the *SwiftUI semantic interpretation* of the source.
+Translate SwiftUI source code into a Figma design using `use_figma`. This doc covers the SwiftUI-specific translation knowledge; the API-level rules for `use_figma` itself live in [`figma-use`](../../figma-use.md), the screen-assembly workflow lives in [`figma-generate-design`](../../figma-generate-design.md), and the component / variant / variable workflow lives in [`figma-generate-library`](../../figma-generate-library.md). Load whichever of those match the scope of the request, and use this doc to drive the *SwiftUI semantic interpretation* of the source.
 
-Assumes the shared context in [SKILL.md](../SKILL.md) is loaded.
+Assumes the shared context in [SKILL.md](../../figma-swiftui.md) is loaded.
 
 ## 1. Decide the scope first
 
@@ -10,22 +10,22 @@ What is actually being pushed into Figma? The scope decides which companion skil
 
 | Source SwiftUI | Figma scope | Companion skill to load |
 |---|---|---|
-| A single view / component (one `Button` style, one row, one card) | A single component or component set | [`figma-generate-library`](../../figma-generate-library/SKILL.md) |
-| A screen — a `NavigationStack { … }`, a `TabView { … }` body, or a `View` that renders a whole route | A frame on a page, composed from design-system components | [`figma-generate-design`](../../figma-generate-design/SKILL.md) |
-| A multi-screen flow — every screen in an app, plus shared tokens | A design system + screen frames | [`figma-generate-library`](../../figma-generate-library/SKILL.md), then [`figma-generate-design`](../../figma-generate-design/SKILL.md) |
-| A standalone token set (colors, typography, spacing) with no views | Variable collections only | [`figma-generate-library`](../../figma-generate-library/SKILL.md) |
-| A target Figma file does not yet exist | Create one first | [`figma-create-new-file`](../../figma-create-new-file/SKILL.md) before any `use_figma` call |
+| A single view / component (one `Button` style, one row, one card) | A single component or component set | [`figma-generate-library`](../../figma-generate-library.md) |
+| A screen — a `NavigationStack { … }`, a `TabView { … }` body, or a `View` that renders a whole route | A frame on a page, composed from design-system components | [`figma-generate-design`](../../figma-generate-design.md) |
+| A multi-screen flow — every screen in an app, plus shared tokens | A design system + screen frames | [`figma-generate-library`](../../figma-generate-library.md), then [`figma-generate-design`](../../figma-generate-design.md) |
+| A standalone token set (colors, typography, spacing) with no views | Variable collections only | [`figma-generate-library`](../../figma-generate-library.md) |
+| A target Figma file does not yet exist | Create one first | [`figma-create-new-file`](../../figma-create-new-file.md) before any `use_figma` call |
 
 If the scope is unclear from the prompt, ask before writing — building a component set when the user wanted a screen frame (or vice versa) is expensive to undo.
 
 ## 2. Discover before creating
 
-Before writing any `use_figma` script, run the discovery the [`figma-use`](../../figma-use/SKILL.md) and [`figma-generate-design`](../../figma-generate-design/SKILL.md) skills already require — but with SwiftUI-shaped expectations:
+Before writing any `use_figma` script, run the discovery the [`figma-use`](../../figma-use.md) and [`figma-generate-design`](../../figma-generate-design.md) skills already require — but with SwiftUI-shaped expectations:
 
 - **Existing variables.** Does the file already have a semantic color collection with iOS-flavored names (`label/primary`, `background/secondary`, `separator/non-opaque`)? Use it. If not, the names from Apple's HIG (see §4) are reasonable defaults.
 - **Existing components.** Search via `search_design_system` for the SwiftUI controls you're about to translate — `Button`, `Toggle`, `Slider`, `Picker (Segmented)`, `NavigationBar`, `TabBar`, etc. Most design systems already have these; rebuilding produces duplicates.
 - **Apple's official design libraries.** Apple publishes per-OS Figma libraries as Community libraries — *iOS 18 and iPadOS 18*, *iOS and iPadOS 26*, *watchOS 26*, *visionOS 26*. Many files don't have them subscribed yet, but they're available to add. Call `get_libraries` and check `libraries_added_to_file` first, then `libraries_available_to_add` (Apple's libraries show up with `source: "community"`). Once you have the library's `libraryKey`, scope every subsequent `search_design_system` call with `includeLibraryKeys: [appleLibraryKey]` so you only match Apple's authored components instead of every other library the file has ever subscribed. Naming is stable across these libraries — `Navigation Bar - iPhone (Compact Size Class)`, `Status Bar - iPhone`, `Tab Bar - iPhone`, `Row`, `Button`, `Segmented Control`, `Stepper` — so queries can be specific. Prefer the matching library over hand-rolling SF-Symbol-and-rectangle approximations.
-- **Code Connect mappings.** If the project already has `figma-code-connect` templates pointing the existing Figma components at SwiftUI source (or vice versa), follow them — don't generate parallel components. See [`figma-code-connect`](../../figma-code-connect/SKILL.md).
+- **Code Connect mappings.** If the project already has `figma-code-connect` templates pointing the existing Figma components at SwiftUI source (or vice versa), follow them — don't generate parallel components. See [`figma-code-connect`](../../code-connect-components.md).
 - **Device frame conventions.** Apple's Figma libraries ship **Product Bezels** components — the physical hardware shell around the screen, sized to match real device dimensions (iPhone 16: 393 × 852, iPhone 16 Pro: 402 × 874, iPad models likewise). Search `search_design_system` for `Product Bezels` and drop the matching bezel as the outer wrapper rather than drawing your own. The screen frame nested inside the bezel **must match the width of the chrome components from the same library** — Nav Bar, Tab Bar, Status Bar are authored at the same width as the bezel they belong to. Sizing the screen at 393 and dropping in a 402-wide nav bar produces a misaligned design. **This pixel-width discipline applies only to the outer screen frame and the chrome components — inner content still uses auto-layout (`FILL`/`HUG`) and Figma's responsive constraints, not absolute `x`/`y` positioning.** SwiftUI's layout is relative, and the Figma representation should be too inside the screen.
 
 ## 3. Map SwiftUI structure to Figma structure
@@ -43,7 +43,7 @@ The SwiftUI source already encodes intent — translate the *system semantics*, 
 | `Form { … }` | Same shape as grouped `List` — inset rounded sections with rows. |
 | `ScrollView { LazyVStack { … } }` | Vertical auto-layout frame; add a scroll-edge fade only if the design system already has one. |
 | `ScrollView(.horizontal) { LazyHStack { … } }` | Horizontal auto-layout frame, child cards as instances. |
-| `VStack`, `HStack` | `figma.createAutoLayout('VERTICAL')` / `figma.createAutoLayout('HORIZONTAL')` — never absolute `x`/`y` for arranging contents. See [`figma-use`](../../figma-use/SKILL.md) Rule 12a. |
+| `VStack`, `HStack` | `figma.createAutoLayout('VERTICAL')` / `figma.createAutoLayout('HORIZONTAL')` — never absolute `x`/`y` for arranging contents. See [`figma-use`](../../figma-use.md) Rule 12a. |
 | `ZStack` | A frame with `.overlay(alignment:)`-style stacking. Reserve absolute `x`/`y` for genuinely-overlapping decoration, not for primary layout. |
 | `Spacer()` | Auto-layout `primaryAxisAlignItems: 'SPACE_BETWEEN'` on the parent, or a `FILL`-sized empty child. Do not materialize a literal "Spacer" node. |
 | `Divider()` | `figma.createLine()` (or a thin `RECTANGLE` bound to a `separator/*` variable). Do not draw a 1pt frame with a fill. |
@@ -72,7 +72,7 @@ When the SwiftUI source uses HIG semantic colors, bind to (or create) Figma vari
 | `Color.accentColor` | `accent/primary` (or whatever the file calls the brand tint) |
 | Hardcoded `Color(red:green:blue:)` | A primitive variable if reused, otherwise a raw value in-place |
 
-If the source uses a project-specific token (`Color.brandPrimary`, `Color("AccentColor")`), look for the matching semantic variable in Figma before creating a new one. When creating variables, follow [`figma-generate-library`](../../figma-generate-library/SKILL.md) — set scopes explicitly (`FRAME_FILL, SHAPE_FILL` for backgrounds, `TEXT_FILL` for labels, `STROKE_COLOR` for separators); never leave `ALL_SCOPES`.
+If the source uses a project-specific token (`Color.brandPrimary`, `Color("AccentColor")`), look for the matching semantic variable in Figma before creating a new one. When creating variables, follow [`figma-generate-library`](../../figma-generate-library.md) — set scopes explicitly (`FRAME_FILL, SHAPE_FILL` for backgrounds, `TEXT_FILL` for labels, `STROKE_COLOR` for separators); never leave `ALL_SCOPES`.
 
 **Dark mode:** model both modes on the same variable collection. If the SwiftUI source distinguishes via `.preferredColorScheme(.dark)` or different literal colors per scheme, model both modes; otherwise the system-color mapping inherits dark mode for free.
 
@@ -93,7 +93,7 @@ The helper throws `RangeError` when the name is unknown — if that happens, **s
 
 **Fall back to uploading a PNG / SVG via `upload_assets`** only when the symbol's tint must be independent of the surrounding label color (a colored brand glyph, a multicolor variant), or when the target file pre-dates SF Symbol support.
 
-For long-term linkage, set up a Code Connect mapping pointing a Figma "Icon" component (with an `INSTANCE_SWAP` property for each symbol) at the SwiftUI source's `Image(systemName: …)` — see [`figma-code-connect`](../../figma-code-connect/SKILL.md). The next design → code task on this file will then return SwiftUI directly.
+For long-term linkage, set up a Code Connect mapping pointing a Figma "Icon" component (with an `INSTANCE_SWAP` property for each symbol) at the SwiftUI source's `Image(systemName: …)` — see [`figma-code-connect`](../../code-connect-components.md). The next design → code task on this file will then return SwiftUI directly.
 
 ## 6. Typography
 
@@ -142,7 +142,7 @@ Annotations are the catch-all for "the view had behavior X that the static desig
 
 ## 8. Loop back via Code Connect
 
-Once the Figma component exists and the SwiftUI source is in the repo, set up a Code Connect mapping so the design and the code stay linked. See [`figma-code-connect`](../../figma-code-connect/SKILL.md) for the workflow. The mapping is what makes the *next* design → code task on the same file return correct SwiftUI snippets instead of generic React+Tailwind.
+Once the Figma component exists and the SwiftUI source is in the repo, set up a Code Connect mapping so the design and the code stay linked. See [`figma-code-connect`](../../code-connect-components.md) for the workflow. The mapping is what makes the *next* design → code task on the same file return correct SwiftUI snippets instead of generic React+Tailwind.
 
 **Limit Code Connect to your project's custom components.** System SwiftUI controls (`Button`, `Toggle`, `Slider`, `Picker`, `Stepper`, `DatePicker`, `ProgressView`, `TextField`, `Label`, `NavigationStack`, `TabView`, `List`, `Form`, `Section`, etc.) already have first-party mappings shipped with the design context tool — overriding them with a project-local Code Connect template makes the design → code output worse, not better. If a SwiftUI source uses one of these, leave it to the built-in mapping and only Code Connect the custom wrappers around it.
 
@@ -159,9 +159,9 @@ These show up in SwiftUI sources but should be omitted or simplified when buildi
 
 ## Output
 
-Per [`figma-use`](../../figma-use/SKILL.md), every `use_figma` script must `return` all created/mutated node IDs and follow the incremental workflow (skeleton first, then fill, validate with `get_metadata` / screenshots between steps). For SwiftUI → Figma specifically:
+Per [`figma-use`](../../figma-use.md), every `use_figma` script must `return` all created/mutated node IDs and follow the incremental workflow (skeleton first, then fill, validate with `get_metadata` / screenshots between steps). For SwiftUI → Figma specifically:
 
 1. **Inspect first.** Does the file already have the variables, text styles, and components implied by the SwiftUI source? Match what is there.
 2. **Tokens before components.** If you are creating variables (per §4), do it before building any view that binds to them.
 3. **Components before screens.** Translate each SwiftUI view into a Figma component before composing a screen from instances. Don't inline.
-4. **One screen at a time.** Even for multi-screen flows, build one screen, take a screenshot, get sign-off, then move on. The same checkpoint discipline from [`figma-generate-design`](../../figma-generate-design/SKILL.md) and [`figma-generate-library`](../../figma-generate-library/SKILL.md) applies.
+4. **One screen at a time.** Even for multi-screen flows, build one screen, take a screenshot, get sign-off, then move on. The same checkpoint discipline from [`figma-generate-design`](../../figma-generate-design.md) and [`figma-generate-library`](../../figma-generate-library.md) applies.

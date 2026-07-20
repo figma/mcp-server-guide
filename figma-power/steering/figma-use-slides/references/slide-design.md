@@ -1,6 +1,6 @@
 # Slide Design Principles
 
-> Part of the [figma-use-slides skill](../SKILL.md). Design guidance for creating visually compelling, varied slide decks that meet the expectations of a design-literate audience.
+> Part of the [figma-use-slides skill](../../figma-use-slides.md). Design guidance for creating visually compelling, varied slide decks that meet the expectations of a design-literate audience.
 
 ## Contents
 

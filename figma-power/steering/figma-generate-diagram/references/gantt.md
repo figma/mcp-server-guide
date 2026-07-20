@@ -192,7 +192,7 @@ Gantt is a great fit for the 80% case: phases, sequenced tasks, milestones, a cl
 
 When a user asks for something in this territory, **don't stretch the gantt syntax to pretend it supports it** — `generate_diagram` will silently drop or strip the relevant directives and the output will mislead the user.
 
-Instead, build the timeline directly on a FigJam canvas using the `use_figma` tool. The [figma-use](../../figma-use/SKILL.md) and [figma-use-figjam](../../figma-use-figjam/SKILL.md) skills cover how to: create a new FigJam file, place shapes and connectors, position nodes on a time axis, add sticky notes and annotations, color-code elements, and group content into sections. Load those skills and compose the timeline to the user's actual spec.
+Instead, build the timeline directly on a FigJam canvas using the `use_figma` tool. The [figma-use](../../figma-use.md) and [figma-use-figjam](../../figma-use-figjam.md) skills cover how to: create a new FigJam file, place shapes and connectors, position nodes on a time axis, add sticky notes and annotations, color-code elements, and group content into sections. Load those skills and compose the timeline to the user's actual spec.
 
 Signals it's time to switch from `generate_diagram` to `use_figma`:
 

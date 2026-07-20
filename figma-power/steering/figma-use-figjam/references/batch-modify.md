@@ -1,6 +1,6 @@
 # Batch Operations Pattern
 
-> Part of the [figma-use-figjam skill](../SKILL.md). Patterns for modifying many existing nodes at once.
+> Part of the [figma-use-figjam skill](../../figma-use-figjam.md). Patterns for modifying many existing nodes at once.
 
 **Typical workflow:**
 

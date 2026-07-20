@@ -1,6 +1,6 @@
 # Text Operations
 
-> Part of the [figma-use-figjam skill](../SKILL.md). Editing existing text content, styles, and font segments.
+> Part of the [figma-use-figjam skill](../../figma-use-figjam.md). Editing existing text content, styles, and font segments.
 
 ## Critical: Load Fonts First
 

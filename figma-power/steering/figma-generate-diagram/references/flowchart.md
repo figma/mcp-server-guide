@@ -388,7 +388,7 @@ flowchart LR
 
 ## 11. When a flowchart is NOT the right choice
 
-Route back to [SKILL.md](../SKILL.md) and pick a different diagram type if the user wants:
+Route back to [SKILL.md](../../figma-generate-diagram.md) and pick a different diagram type if the user wants:
 
 - **Interactions over time between parties** → sequence diagram
 - **Data model / entity relationships** → ER diagram

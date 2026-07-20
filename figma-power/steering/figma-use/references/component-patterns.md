@@ -1,6 +1,6 @@
 # Component & Variant API Patterns
 
-> Part of the [use_figma skill](../SKILL.md). How to correctly use the Plugin API for components, variants, and component properties.
+> Part of the [use_figma skill](../../figma-use.md). How to correctly use the Plugin API for components, variants, and component properties.
 >
 > For design system context (when to use variants vs properties, code-to-Figma translation, property model), see [wwds-components](working-with-design-systems/wwds-components.md).
 

@@ -30,12 +30,12 @@ Lightweight routing — use the first match.
 
 | User wants… | Type | Next step |
 |---|---|---|
-| Services + datastores + queues + integrations | **Architecture flowchart** | Read [references/architecture.md](./references/architecture.md) |
-| Decision tree, process flow, pipeline, dependency graph, user journey | **Flowchart** | Read [references/flowchart.md](./references/flowchart.md) |
-| Interactions between parties over time (API calls, auth, messaging) | **Sequence diagram** | Read [references/sequence.md](./references/sequence.md) |
-| Data model, tables, keys, cardinality | **ER diagram** | Read [references/erd.md](./references/erd.md) |
-| Named states with transitions between them | **State diagram** | Read [references/state.md](./references/state.md) |
-| Project schedule with dates, milestones | **Gantt chart** | Read [references/gantt.md](./references/gantt.md) |
+| Services + datastores + queues + integrations | **Architecture flowchart** | Read [references/architecture.md](figma-generate-diagram/references/architecture.md) |
+| Decision tree, process flow, pipeline, dependency graph, user journey | **Flowchart** | Read [references/flowchart.md](figma-generate-diagram/references/flowchart.md) |
+| Interactions between parties over time (API calls, auth, messaging) | **Sequence diagram** | Read [references/sequence.md](figma-generate-diagram/references/sequence.md) |
+| Data model, tables, keys, cardinality | **ER diagram** | Read [references/erd.md](figma-generate-diagram/references/erd.md) |
+| Named states with transitions between them | **State diagram** | Read [references/state.md](figma-generate-diagram/references/state.md) |
+| Project schedule with dates, milestones | **Gantt chart** | Read [references/gantt.md](figma-generate-diagram/references/gantt.md) |
 
 If a flowchart is requested and it describes software infrastructure (services, datastores, queues, external integrations), route to `architecture.md` — not `flowchart.md`. When in doubt, ask the user.
 
@@ -47,9 +47,9 @@ If a flowchart is requested and it describes software infrastructure (services, 
 4. **Reserved words** — don't use `end`, `subgraph`, `graph` as node IDs.
 5. **Node IDs**: camelCase (`userService`), no spaces. Underscores can break edge routing in some processors.
 6. **Special characters in labels** must be wrapped in quotes: `A["Process (main)"]`, `-->|"O(1) lookup"|`.
-7. **Sequence diagrams** — Mermaid `Note over X` / `Note left of X` / `Note right of X` are silently stripped by the renderer; don't put them in the source. If the user wants annotations on a sequence diagram, generate the base diagram first and add stickies/text via the hybrid workflow ([references/workflow.md](references/workflow.md)).
-8. **Gantt charts** — `classDef`, `class`, and any other styling are stripped by preprocessing; the rendered chart will not have colors. If the user wants color-coded phases, milestones, or tasks, generate the base chart first and add color/annotations via the hybrid workflow ([references/workflow.md](references/workflow.md)) — or, for diagrams that fundamentally need styling, build the timeline directly with `use_figma` instead (see [references/gantt.md](references/gantt.md) §11).
-9. **Use FigJam-only APIs in any `use_figma` extension.** `generate_diagram` output lands in a FigJam file (`figma.com/board/...`), so hybrid extensions must stick to FigJam-supported APIs. Do NOT call `figma.createPage()` — it's Design-only (`figma.com/design/...`) and throws `TypeError: figma.createPage no such property 'createPage' on the figma global object` in FigJam. Organize content with FigJam sections instead (see [figma-use-figjam](../figma-use-figjam/SKILL.md)).
+7. **Sequence diagrams** — Mermaid `Note over X` / `Note left of X` / `Note right of X` are silently stripped by the renderer; don't put them in the source. If the user wants annotations on a sequence diagram, generate the base diagram first and add stickies/text via the hybrid workflow ([references/workflow.md](figma-generate-diagram/references/workflow.md)).
+8. **Gantt charts** — `classDef`, `class`, and any other styling are stripped by preprocessing; the rendered chart will not have colors. If the user wants color-coded phases, milestones, or tasks, generate the base chart first and add color/annotations via the hybrid workflow ([references/workflow.md](figma-generate-diagram/references/workflow.md)) — or, for diagrams that fundamentally need styling, build the timeline directly with `use_figma` instead (see [references/gantt.md](figma-generate-diagram/references/gantt.md) §11).
+9. **Use FigJam-only APIs in any `use_figma` extension.** `generate_diagram` output lands in a FigJam file (`figma.com/board/...`), so hybrid extensions must stick to FigJam-supported APIs. Do NOT call `figma.createPage()` — it's Design-only (`figma.com/design/...`) and throws `TypeError: figma.createPage no such property 'createPage' on the figma global object` in FigJam. Organize content with FigJam sections instead (see [figma-use-figjam](figma-use-figjam.md)).
 
 ## Step 4: Garbage in, garbage out
 
@@ -67,11 +67,11 @@ Don't invent edges, labels, or entities to "round out" a diagram. Missing inform
 
 ## Step 5: Will the diagram need more than Mermaid can express?
 
-Mermaid can't do everything. Sticky-note annotations tied to specific nodes, per-node domain coloring on ERDs, callouts with attached data — these all require composing `generate_diagram` with `use_figma` (via the [figma-use-figjam](../figma-use-figjam/SKILL.md) skill). This is the **hybrid workflow**.
+Mermaid can't do everything. Sticky-note annotations tied to specific nodes, per-node domain coloring on ERDs, callouts with attached data — these all require composing `generate_diagram` with `use_figma` (via the [figma-use-figjam](figma-use-figjam.md) skill). This is the **hybrid workflow**.
 
 It's a judgment call, not a default. Deploy it when the user's ask clearly benefits — skip it when the base diagram is obviously enough. Signals that say yes: user explicitly asked for notes, colors, callouts, or "X attached to each node"; they shared data that maps to specific nodes; the diagram is a shareable artifact, not a thinking sketch. Signals that say no: short/self-explanatory request, small diagram, user exploring or testing.
 
-**If hybrid is warranted, read [references/workflow.md](./references/workflow.md) before calling `generate_diagram`** — it covers the pattern, two core recipes (annotations + color-coding), communication style, and failure handling. If not, proceed directly to Step 6.
+**If hybrid is warranted, read [references/workflow.md](figma-generate-diagram/references/workflow.md) before calling `generate_diagram`** — it covers the pattern, two core recipes (annotations + color-coding), communication style, and failure handling. If not, proceed directly to Step 6.
 
 ## Step 6: Calling the tool
 
@@ -89,7 +89,7 @@ Do **not** call `create_new_file` before `generate_diagram` — the tool creates
 ## Step 7: After generation
 
 - The tool returns a link (or widget) the user can click to open the diagram in FigJam. Show it as a markdown link unless the client renders an inline widget.
-- If extensions are warranted (see Step 5), compose with `use_figma` now — the pattern and recipes are in [references/workflow.md](./references/workflow.md).
+- If extensions are warranted (see Step 5), compose with `use_figma` now — the pattern and recipes are in [references/workflow.md](figma-generate-diagram/references/workflow.md).
 - If the user is dissatisfied after 2 attempts at the same diagram, stop regenerating. Ask what specifically is wrong, or suggest they open it in Figma and edit manually rather than burning more tool calls.
 
 ### Reuse the same file when iterating or adding related diagrams

@@ -1,6 +1,6 @@
 # Create Connectors
 
-> Part of the [figma-use-figjam skill](../SKILL.md). Creating connectors between nodes — endpoints, arrows, line types, labels, and colors.
+> Part of the [figma-use-figjam skill](../../figma-use-figjam.md). Creating connectors between nodes — endpoints, arrows, line types, labels, and colors.
 
 **Scope:** Connectors are FigJam-specific nodes created with `figma.createConnector()`. They connect shapes, stickies, sections, and other nodes to show relationships. For creating shapes to connect, see [create-shape-with-text](create-shape-with-text.md). For stickies, see [create-sticky](create-sticky.md). For sections, see [create-section](create-section.md).
 

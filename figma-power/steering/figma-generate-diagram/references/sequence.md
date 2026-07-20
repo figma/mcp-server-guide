@@ -192,7 +192,7 @@ Our renderer is a **substantial** subset of full Mermaid sequence. The following
    - Labeled groups (e.g. a rectangle around a block of messages labeled "retry loop") to stand in for `loop`/`alt`/`opt`
    - Surrounding narrative, adjacent diagrams, or screenshots on the same board
 
-Loading [figma-use](../../figma-use/SKILL.md) and [figma-use-figjam](../../figma-use-figjam/SKILL.md) covers how to make those edits.
+Loading [figma-use](../../figma-use.md) and [figma-use-figjam](../../figma-use-figjam.md) covers how to make those edits.
 
 ### When to skip `generate_diagram` entirely
 

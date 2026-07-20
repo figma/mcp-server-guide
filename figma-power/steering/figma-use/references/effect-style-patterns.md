@@ -1,6 +1,6 @@
 # Effect Style API Patterns
 
-> Part of the [use_figma skill](../SKILL.md). How to create, apply, and inspect effect styles using the Plugin API.
+> Part of the [use_figma skill](../../figma-use.md). How to create, apply, and inspect effect styles using the Plugin API.
 >
 > For design system context (effect types, variable bindings on effects, gotchas), see [wwds-effect-styles](working-with-design-systems/wwds-effect-styles.md).
 

@@ -1,6 +1,6 @@
 # Figma Plugin API Reference
 
-> Part of the [use_figma skill](../SKILL.md). What works and what doesn't in the `use_figma` environment.
+> Part of the [use_figma skill](../../figma-use.md). What works and what doesn't in the `use_figma` environment.
 
 ## Contents
 

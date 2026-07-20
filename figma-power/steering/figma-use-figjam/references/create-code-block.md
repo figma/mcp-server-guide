@@ -1,6 +1,6 @@
 # Create Code Blocks
 
-> Part of the [figma-use-figjam skill](../SKILL.md). Creating and configuring FigJam code block nodes.
+> Part of the [figma-use-figjam skill](../../figma-use-figjam.md). Creating and configuring FigJam code block nodes.
 
 **Scope:** Code blocks are FigJam-specific nodes created with `figma.createCodeBlock()`. They render code content with syntax highlighting and a monospace font. `CODE_BLOCK` is a first-class node type — not a shape or text node.
 

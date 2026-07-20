@@ -1,6 +1,6 @@
 # Validation Workflow & Error Recovery
 
-> Part of the [use_figma skill](../SKILL.md). How to debug, validate, and recover from errors.
+> Part of the [use_figma skill](../../figma-use.md). How to debug, validate, and recover from errors.
 
 ## Contents
 

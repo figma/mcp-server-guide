@@ -1,6 +1,6 @@
 # Create Shapes with Text
 
-> Part of the [figma-use-figjam skill](../SKILL.md). Creating shapes with embedded text for diagrams and visual layouts.
+> Part of the [figma-use-figjam skill](../../figma-use-figjam.md). Creating shapes with embedded text for diagrams and visual layouts.
 
 **Scope:** ShapeWithText nodes are FigJam-specific geometric shapes with built-in text, created with `figma.createShapeWithText()`. For tables, see [create-table](create-table.md). For sections, see [create-section](create-section.md). For stickies, see [create-sticky](create-sticky.md).
 

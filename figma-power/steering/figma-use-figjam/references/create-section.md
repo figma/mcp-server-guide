@@ -1,6 +1,6 @@
 # Create Sections
 
-> Part of the [figma-use-figjam skill](../SKILL.md). Creating, modifying, and organizing sections.
+> Part of the [figma-use-figjam skill](../../figma-use-figjam.md). Creating, modifying, and organizing sections.
 
 **Scope:** Sections are FigJam containers created with `figma.createSection()`. They organize related objects on the board. For creating stickies to place inside sections, see [create-sticky](create-sticky.md). For creating text to place inside sections, see [create-text](create-text.md).
 

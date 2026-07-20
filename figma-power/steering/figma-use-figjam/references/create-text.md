@@ -1,6 +1,6 @@
 # Create Text Nodes
 
-> Part of the [figma-use-figjam skill](../SKILL.md). Creating and styling standalone text nodes and mind map operations.
+> Part of the [figma-use-figjam skill](../../figma-use-figjam.md). Creating and styling standalone text nodes and mind map operations.
 
 Use this skill when creating, modifying, or styling standalone text in FigJam (text created with the **Text** tool, not text inside stickies, shapes, or connectors). Also use this skill for mind map operations — adding, inserting, or extending connected text nodes.
 

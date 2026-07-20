@@ -1,6 +1,6 @@
 # FigJam Node Positioning Tutorial
 
-> Part of the [figma-use-figjam skill](../SKILL.md). Positioning, sizing, and reparenting nodes on the canvas.
+> Part of the [figma-use-figjam skill](../../figma-use-figjam.md). Positioning, sizing, and reparenting nodes on the canvas.
 
 Use this skill when working with positioning, sizing, and reparenting nodes.
 

@@ -1,6 +1,6 @@
 # Variable & Token API Patterns
 
-> Part of the [use_figma skill](../SKILL.md). How to correctly create, bind, scope, and alias variables using the Plugin API.
+> Part of the [use_figma skill](../../figma-use.md). How to correctly create, bind, scope, and alias variables using the Plugin API.
 >
 > For design system context (aliasing strategy, mode decisions, code syntax philosophy, grouping conventions), see [wwds-variables](working-with-design-systems/wwds-variables.md).
 
