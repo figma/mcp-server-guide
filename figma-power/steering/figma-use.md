@@ -231,7 +231,7 @@ Do not guess node properties or assume CSS-like properties. Accessing non-existe
 - Plugin API type reference (load `readPowerSteering("figma", "figma-use-api.md")`) — type definitions (grep, don't read whole)
 - [Plugin API Index](#reference--plugin-api-index) — API navigation
 - [Common Patterns](#reference--common-patterns), [Component & Variant API Patterns](#reference--component--variant-api-patterns), [Variable & Token API Patterns](#reference--variable--token-api-patterns), [Text Style API Patterns](#reference--text-style-api-patterns), [Effect Style API Patterns](#reference--effect-style-api-patterns) — pattern playbooks
-- [references/working-with-design-systems/](references/working-with-design-systems/) — design system workflows
+- [Working with design systems](#reference--working-with-design-systems) — design system workflows
 - [Validation Workflow & Error Recovery](#reference--validation-workflow--error-recovery) — error recovery patterns
 
 ---
