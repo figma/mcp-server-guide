@@ -41,11 +41,12 @@ The Figma MCP server provides these tools:
 | `send_code_connect_mappings` | Confirms Code Connect mappings after suggestions are generated |
 | `get_code_connect_map` | Maps Figma node IDs to corresponding code components in your codebase |
 | `add_code_connect_map` | Establishes new mappings between Figma elements and code implementations |
-| `create_design_system_rules` | Generates rule files that guide agents in translating designs to frontend code |
 | `generate_figma_design` | Converts UI descriptions into design layers in Figma files |
 | `get_figjam` | Converts FigJam diagrams to XML format including metadata and node screenshots |
 | `generate_diagram` | Creates FigJam diagrams from Mermaid syntax (flowcharts, Gantt charts, etc.) |
 | `whoami` | Returns authenticated user identity and plan information |
+
+The server also provides `create_design_system_rules` as an **MCP prompt** (not a tool), which generates rule files that guide agents in translating designs to frontend code. MCP prompts are invoked using commands specific to your agent or client, and not all agents and clients support them.
 
 ## Steering
 
@@ -79,7 +80,7 @@ User: "Connect this Figma button to my code: https://figma.com/design/kL9xQn2VwM
 
 User: "Create design system rules for my React project"
 
-→ Load `create-design-system-rules.md` steering, then follow the 5-step workflow to run the tool, analyze codebase, generate rules, save to CLAUDE.md, and validate.
+→ Load `create-design-system-rules.md` steering, then follow the 5-step workflow to run the prompt, analyze codebase, generate rules, save to CLAUDE.md, and validate.
 
 ## Troubleshooting
 
