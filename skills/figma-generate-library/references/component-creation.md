@@ -164,8 +164,6 @@ label.name = 'label';
 label.fontName = { family: 'Inter', style: 'Medium' };
 label.fontSize = 14;
 label.characters = 'Button';
-label.layoutSizingHorizontal = 'HUG';
-label.layoutSizingVertical = 'HUG';
 
 // Text fill — bound to color variable
 const textPaint = figma.variables.setBoundVariableForPaint(
@@ -175,6 +173,8 @@ const textPaint = figma.variables.setBoundVariableForPaint(
 );
 label.fills = [textPaint];
 comp.appendChild(label);
+label.layoutSizingHorizontal = 'HUG';
+label.layoutSizingVertical = 'HUG';
 
 // --- Icon placeholder (Rectangle for now — will be INSTANCE_SWAP) ---
 const iconBox = figma.createFrame();
@@ -760,8 +760,8 @@ const desc = figma.createText();
 desc.fontName = { family: 'Inter', style: 'Regular' };
 desc.fontSize = 14;
 desc.characters = 'Buttons allow users to take actions with a single tap. Use Primary for the highest-emphasis action on a page, Secondary for supporting actions.';
-desc.layoutSizingHorizontal = 'FILL';
 docFrame.appendChild(desc);
+desc.layoutSizingHorizontal = 'FILL';
 
 
 return { docFrameId: docFrame.id };
