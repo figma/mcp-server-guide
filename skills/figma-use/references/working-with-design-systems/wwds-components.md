@@ -20,7 +20,7 @@ Figma has four property types, which can be inspected through `componentProperty
 
 ## Descriptions
 
-Components, component sets, and instances all inherit `PublishableMixin`, which includes a writable `description` string. Setting a description is important for any component intended to be used by others — it appears in Figma's dev mode and component panel, and is surfaced when reading component metadata.
+Components and component sets inherit `PublishableMixin`, which includes a writable `description` string. Frames, instances, and other scene nodes do not; accessing `description` on them throws instead of returning `undefined`. Setting a description is important for any component intended to be used by others — it appears in Figma's dev mode and component panel, and is surfaced when reading component metadata.
 
 Descriptions should explain the component's intent and any non-obvious usage constraints. They are not a substitute for Code Connect annotations, but they are always visible without any tooling setup.
 
