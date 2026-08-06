@@ -254,13 +254,9 @@ return "Done!"
 
 ## Prefer returned IDs for workflow state
 
-Return node IDs and keep workflow state outside the Figma file. Put human-readable component purpose and usage in `description`. Use shared plugin data only when the user explicitly needs metadata shared across integrations; in that case, use a stable namespace unique to the integration and at least 3 characters long.
+Return node IDs and keep workflow state outside the Figma file. Put human-readable component purpose and usage in `description`.
 
 ```js
-node.setSharedPluginData('my_namespace', 'my_key', 'my_value')
-const val = node.getSharedPluginData('my_namespace', 'my_key')
-
-// ALSO CORRECT — return node IDs and track them across calls
 const rect = figma.createRectangle()
 return { nodeId: rect.id }
 // Then pass nodeId as a string literal in the next use_figma call
@@ -418,23 +414,19 @@ await Promise.all(uniqueFonts.map(f => figma.loadFontAsync(f)))
 
 **Rule: use `findAllWithCriteria({ types: [...] })` for type-based searches. Reserve `findOne` / `findAll(predicate)` for cases the criteria API can't express** — name patterns, regex, capability checks (`'fills' in n`), or any predicate that touches properties the engine doesn't index.
 
-`findAll` and `findOne` walk the entire subtree node-by-node and run a JS predicate on each one. For supported criteria such as type and shared plugin data, use the faster API in this table:
+`findAll` and `findOne` walk the entire subtree node-by-node and run a JS predicate on each one. For supported criteria such as type, use the faster API in this table:
 
 | You want… | DON'T | DO |
 |---|---|---|
 | One specific node, you have its ID | `page.findOne(n => n.id === id)` | `await figma.getNodeByIdAsync(id)` |
 | All nodes of a given type | `page.findAll(n => n.type === 'TEXT')` | `page.findAllWithCriteria({ types: ['TEXT'] })` |
 | Type + a few cheap attributes (`name`, `visible`, etc.) | `page.findAll(n => n.type === 'TEXT' && n.name === 'Title')` | `page.query('TEXT[name=Title]')` (see [SKILL.md → node.query](../SKILL.md#nodequeryselector--css-like-node-search)) |
-| Nodes with shared plugin data | `page.findAll(n => n.getSharedPluginData('ns', 'key'))` | `page.findAllWithCriteria({ sharedPluginData: { namespace: 'ns', keys: ['key'] } })` |
 
-**`types` and `sharedPluginData.keys` are arrays — pass multiple values in a single call instead of issuing N separate ones.** A union over `types` is OR'd; multiple `sharedPluginData.keys` match nodes that carry *any* of the given keys.
+**`types` is an array — pass multiple values in a single call instead of issuing N separate ones.** A union over `types` is OR'd.
 
 ```js
 // Multiple types in one call — returns COMPONENT ∪ COMPONENT_SET in one indexed pass
 page.findAllWithCriteria({ types: ['COMPONENT', 'COMPONENT_SET'] })
-
-// Multiple sharedPluginData keys (under the same namespace)
-page.findAllWithCriteria({ sharedPluginData: { namespace: 'my.namespace', keys: ['key', 'status'] } })
 ```
 
 One more rule applies to any traversal — see also the dedicated [Scope traversal to the smallest known ancestor](#scope-traversal-to-the-smallest-known-ancestor) gotcha below:
