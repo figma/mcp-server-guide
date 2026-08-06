@@ -25,7 +25,7 @@ IMPORTANT: Whenever you work with design systems, start with [working-with-desig
 1.  **Use `return` to send data back.** The return value is JSON-serialized automatically (objects, arrays, strings, numbers). Do NOT call `figma.closePlugin()` or wrap code in an async IIFE — this is handled for you.
 2.  **Write plain JavaScript with top-level `await` and `return`.** Code is automatically wrapped in an async context. Do NOT wrap in `(async () => { ... })()`.
 3.  `figma.notify()` **throws "not implemented"** — never use it
-3a. **Prefer returned IDs and external state for workflow persistence.** Put human-readable component purpose and usage in the component's `description`. `getSharedPluginData(namespace, key)` and `setSharedPluginData(namespace, key, value)` should almost never be needed; if needed, you must use a stable namespace (at least 3 alphanumeric, `_`, or `.` characters).
+3a. **Return node IDs and keep workflow state outside the Figma file.** Put human-readable component purpose and usage in the component's `description`.
 4.  `console.log()` is NOT returned — use `return` for output
 5.  **Work incrementally in small steps.** Break large operations into multiple `use_figma` calls. Validate after each step. This is the single most important practice for avoiding bugs.
 6.  Colors are **0–1 range** (not 0–255): `{r: 1, g: 0, b: 0}` = red
