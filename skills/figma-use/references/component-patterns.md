@@ -439,7 +439,7 @@ If you must detach multiple nested instances across sibling components, do it in
 ## Inspecting Component Metadata (Deep Traversal)
 
 These helpers extract the full property schema and descendant structure of a component. Useful for understanding complex components before creating instances or setting properties.
-
+<a id="component-property-owner-narrowing"></a>**Component-property owner narrowing:** `componentPropertyDefinitions` throws when read from a variant `COMPONENT`, including through optional chaining. Always resolve the property-owning node before touching the getter: a `COMPONENT_SET` owns its definitions, a variant component delegates to its parent set, and a non-variant component owns its own definitions.
 ```javascript
 /**
  * Imports a component or component set from a library by its published key.

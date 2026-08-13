@@ -64,7 +64,7 @@ Work through the phases in order. Do not move to the next phase until the curren
 
 - [ ] 0a. Analyze codebase → extract tokens, components, naming conventions
 - [ ] 0b. Inspect Figma file → pages, variables, components, styles, existing conventions
-- [ ] 0c. Search subscribed libraries → use `search_design_system` for reusable assets
+- [ ] 0c. Discover and search libraries → call `get_libraries` for the target file before `search_design_system`
 - [ ] 0d. Lock v1 scope → exact token set + component list recorded before any creation
 - [ ] 0e. Map code → Figma → every conflict (code disagrees with Figma) resolved and recorded
 - [ ] 0f. Print a **gap analysis** to chat: what exists in code but not Figma, what exists in Figma but not code, and every conflict from 0e with its resolution
@@ -190,7 +190,14 @@ Maintain a state ledger tracking:
 
 Search FIRST in Phase 0, then again immediately before each component creation.
 
-**Start with `get_libraries`** to understand what libraries are available before searching blindly:
+Before calling `search_design_system` for a target file, you MUST call `get_libraries` first for that file. You MUST NOT assume libraries are added or available.
+
+An empty `get_libraries` result does NOT excuse skipping the search — it only means you have no library keys to scope with. `get_libraries` paginates (community UI kits appear only on the first page, org libraries page in batches of 20), so empty lists are not proof that no library exists. How to act on the result:
+
+- **Libraries returned** — run `search_design_system` scoped with `includeLibraryKeys`. Libraries in `libraries_available_to_add` are NOT searched by default; pass their `libraryKey`s to reach them.
+- **No libraries returned** — still run `search_design_system`, but omit `includeLibraryKeys`. Omitting it scopes the search to the file itself, which is exactly what you want when discovery returned nothing to scope by.
+
+Only once the search itself comes back empty may you record "no design system assets available" in the Phase 0f gap analysis and build from code tokens. Never infer "no libraries" from a failed or unattempted `get_libraries` call.
 
 ```
 // Discover all libraries accessible to the file

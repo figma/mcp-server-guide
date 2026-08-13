@@ -397,21 +397,21 @@ If failure in Call 5 (combineAsVariants + layout):
   → Fix Call 5 and retry.
   → If the component set was already created by a prior attempt of Call 5
     that succeeded, remove it first, then re-run.
-
 If failure in Call 6 (component properties):
   → The component set already exists and is structurally sound.
   → Fix Call 6 and retry — addComponentProperty is safe to retry if
-    you first check componentPropertyDefinitions for existing properties.
-  → Idempotency check: if 'Label' property already exists, skip addComponentProperty.
+    you first resolve the COMPONENT_SET and check componentPropertyDefinitions there.
+  → Idempotency check: if a UID-suffixed `Label#...` property already exists, skip addComponentProperty.
 ```
 
 **Idempotency for component properties (Call 6 retry):**
 
 ```javascript
-const existingDefs = cs.componentPropertyDefinitions;
-const labelKey = existingDefs['Label']
-  ? Object.keys(existingDefs).find(k => k.startsWith('Label'))
-  : cs.addComponentProperty('Label', 'TEXT', 'Button');
+const candidate = await figma.getNodeByIdAsync(COMPONENT_SET_ID);
+if (!candidate || candidate.type !== 'COMPONENT_SET') throw new Error('Expected a component set');
+const existingDefs = candidate.componentPropertyDefinitions;
+const labelKey = Object.keys(existingDefs).find(key => key.startsWith('Label#'))
+  ?? candidate.addComponentProperty('Label', 'TEXT', 'Button');
 ```
 
 ### Phase 4 fails mid-execution (QA / Code Connect)
