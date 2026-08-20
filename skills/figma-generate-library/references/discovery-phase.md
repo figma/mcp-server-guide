@@ -490,7 +490,7 @@ GAPS / CONFLICTS NEEDING DECISIONS
 
 WHAT I WON'T BUILD (and why)
   - {item}: already exists in Figma with matching conventions
-  - {item}: not supported as a Figma variable (e.g. z-index, animation timing)
+  - {item}: not supported as a Figma variable (e.g. z-index)
 
 Shall I proceed?
 ```
