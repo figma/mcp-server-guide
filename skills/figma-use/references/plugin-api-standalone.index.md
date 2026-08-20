@@ -266,8 +266,8 @@ type BaseNode   (L10862) = DocumentNode | PageNode | SceneNode
 | `Variable`                    | L10153 | Core variable object                                          |
 | `VariableCollection`          | L10367 | Collection of variables + modes                               |
 | `VariableAlias`               | L10121 | Reference to another variable                                 |
-| `VariableValue`               | L10125 | `boolean \| string \| number \| RGB \| RGBA \| VariableAlias` |
-| `VariableResolvedDataType`    | L10120 | `'BOOLEAN' \| 'COLOR' \| 'FLOAT' \| 'STRING'`                 |
+| `VariableValue`               | L10125 | `boolean \| string \| number \| RGB \| RGBA \| MotionEasing \| VariableAlias` |
+| `VariableResolvedDataType`    | L10120 | `'BOOLEAN' \| 'COLOR' \| 'FLOAT' \| 'STRING' \| 'TIMING' \| 'EASING'` |
 | `VariableDataType`            | L5023  | Includes `'VARIABLE_ALIAS' \| 'EXPRESSION'`                   |
 | `VariableScope`               | L10126 | Where variable can be applied                                 |
 | `CodeSyntaxPlatform`          | L10152 | `'WEB' \| 'ANDROID' \| 'iOS'`                                 |

@@ -4,7 +4,7 @@
       "type": "http",
       "url": "https://mcp.figma.com/mcp",
       "headers": {
-        "X-Figma-Plugin-Bundle": "figma_prod@2_2_96"
+        "X-Figma-Plugin-Bundle": "figma_prod@2_2_101"
       },
       "_meta": {
         "ideToolIconPath": "./Figma Icon (Mono-line black, tight).svg",

@@ -5228,6 +5228,28 @@ interface EasingFunctionSpring {
   damping: number
   initialVelocity: number
 }
+interface NormalizedSpring {
+  readonly bounce: number
+}
+interface MotionEasing {
+  readonly type:
+    | 'EASE_IN'
+    | 'EASE_OUT'
+    | 'EASE_IN_AND_OUT'
+    | 'LINEAR'
+    | 'EASE_IN_BACK'
+    | 'EASE_OUT_BACK'
+    | 'EASE_IN_AND_OUT_BACK'
+    | 'CUSTOM_CUBIC_BEZIER'
+    | 'GENTLE'
+    | 'QUICK'
+    | 'BOUNCY'
+    | 'SLOW'
+    | 'CUSTOM_SPRING'
+    | 'HOLD'
+  readonly easingFunctionCubicBezier?: EasingFunctionBezier
+  readonly easingFunctionSpring?: NormalizedSpring
+}
 type OverflowDirection = 'NONE' | 'HORIZONTAL' | 'VERTICAL' | 'BOTH'
 /**
  * @see https://developers.figma.com/docs/plugins/api/Overlay
@@ -10126,12 +10148,12 @@ interface ConnectorNode extends OpaqueNodeMixin, MinimalBlendMixin, MinimalStrok
    */
   clone(): ConnectorNode
 }
-type VariableResolvedDataType = 'BOOLEAN' | 'COLOR' | 'FLOAT' | 'STRING'
+type VariableResolvedDataType = 'BOOLEAN' | 'COLOR' | 'FLOAT' | 'STRING' | 'TIMING' | 'EASING'
 interface VariableAlias {
   type: 'VARIABLE_ALIAS'
   id: string
 }
-type VariableValue = boolean | string | number | RGB | RGBA | VariableAlias
+type VariableValue = boolean | string | number | RGB | RGBA | MotionEasing | VariableAlias
 type VariableScope =
   | 'ALL_SCOPES'
   | 'TEXT_CONTENT'

@@ -112,7 +112,7 @@ collection.renameMode(modeId, "Light")
 // Variables
 const variable = figma.variables.createVariable("name", collection, "COLOR")
 //                                                       ^ must be a collection object (passing an ID string is deprecated)
-// resolvedType: "COLOR" | "FLOAT" | "STRING" | "BOOLEAN"
+// resolvedType: "COLOR" | "FLOAT" | "STRING" | "BOOLEAN" | "TIMING" | "EASING"
 variable.setValueForMode(modeId, value)
 
 // Scopes — controls where variable appears in property pickers
