@@ -19,20 +19,36 @@ import os
 from pathlib import Path
 
 
+LANDSCAPE_MIN_WIDTH = 1440
+PORTRAIT_MIN_WIDTH = 900
+MIN_JPEG_QUALITY = 45
+
+
 def prepare_image(
     input_path: str,
     output_path: Path,
     max_width: int,
+    minimum_width: int,
     quality: int,
     max_bytes: int,
 ) -> dict:
-    """Resize and compress an image for upload_assets, returning final metadata."""
+    """Prepare an image without sacrificing the minimum readable width."""
     try:
         from PIL import Image
     except ImportError as exc:
         raise RuntimeError("Pillow is required: pip install Pillow --break-system-packages") from exc
 
     with Image.open(input_path) as img:
+        source_width = img.width
+        source_height = img.height
+        required_width = min(source_width, minimum_width)
+
+        if max_width < required_width:
+            raise ValueError(
+                f"Configured max width {max_width}px is below the required readable width "
+                f"{required_width}px for {input_path}"
+            )
+
         if img.mode != "RGB":
             img = img.convert("RGB")
 
@@ -50,22 +66,27 @@ def prepare_image(
             if size_bytes <= max_bytes:
                 break
 
-            if current_quality > 45:
-                current_quality = max(45, current_quality - 10)
+            if current_quality > MIN_JPEG_QUALITY:
+                current_quality = max(MIN_JPEG_QUALITY, current_quality - 10)
                 continue
 
-            next_width = max(480, int(img.width * 0.85))
-            if next_width >= img.width:
-                break
-            ratio = next_width / img.width
-            img = img.resize((next_width, int(img.height * ratio)), Image.LANCZOS)
+            raise RuntimeError(
+                f"{input_path} is {size_bytes / 1024 / 1024:.1f} MB at "
+                f"{img.width}x{img.height} and JPEG q{current_quality}; it cannot fit the "
+                f"{max_bytes / 1024 / 1024:.1f} MB upload budget without dropping below "
+                f"the required readable width of {required_width}px"
+            )
 
         return {
+            "source_width": source_width,
+            "source_height": source_height,
+            "required_width": required_width,
             "width": img.width,
             "height": img.height,
             "quality": current_quality,
             "size_bytes": output_path.stat().st_size,
             "within_budget": output_path.stat().st_size <= max_bytes,
+            "readability_passed": img.width >= required_width,
         }
 
 
@@ -115,12 +136,19 @@ def main() -> None:
 
     video_info = manifest.get("video_info", {})
     orientation = video_info.get("orientation", "landscape")
+    minimum_width = (
+        PORTRAIT_MIN_WIDTH if orientation == "portrait" else LANDSCAPE_MIN_WIDTH
+    )
     if args.max_width > 0:
         max_width = args.max_width
-    elif orientation == "portrait":
-        max_width = 900
     else:
-        max_width = 1440
+        max_width = minimum_width
+
+    if max_width < minimum_width:
+        raise ValueError(
+            f"--max-width {max_width} would make screenshots unreadable; "
+            f"{orientation} recordings require at least {minimum_width}px"
+        )
 
     prepared_moments = []
     frame_width = None
@@ -145,13 +173,24 @@ def main() -> None:
 
             if source_path and os.path.exists(source_path):
                 output_file = assets_dir / f"moment_{moment_index:03d}_{role}_{label}.jpg"
-                info = prepare_image(source_path, output_file, max_width, args.quality, max_bytes)
+                info = prepare_image(
+                    source_path,
+                    output_file,
+                    max_width,
+                    minimum_width,
+                    args.quality,
+                    max_bytes,
+                )
                 prepared[upload_key] = str(output_file)
+                prepared[f"{role}_source_width"] = info["source_width"]
+                prepared[f"{role}_source_height"] = info["source_height"]
+                prepared[f"{role}_required_width"] = info["required_width"]
                 prepared[f"{role}_upload_width"] = info["width"]
                 prepared[f"{role}_upload_height"] = info["height"]
                 prepared[f"{role}_upload_quality"] = info["quality"]
                 prepared[f"{role}_upload_size_bytes"] = info["size_bytes"]
                 prepared[f"{role}_upload_within_budget"] = info["within_budget"]
+                prepared[f"{role}_readability_passed"] = info["readability_passed"]
                 frame_width = frame_width or info["width"]
                 frame_height = frame_height or info["height"]
                 status = "ok" if info["within_budget"] else "over budget"
@@ -162,8 +201,9 @@ def main() -> None:
                     flush=True,
                 )
             else:
-                prepared[upload_key] = None
-                print(f"  [{index}/{len(moments)}] {role}: missing ({source_path})", flush=True)
+                raise FileNotFoundError(
+                    f"Moment {moment_index} is missing its {role} frame: {source_path}"
+                )
 
         prepared_moments.append(prepared)
 
@@ -184,9 +224,12 @@ def main() -> None:
         "frame_height": frame_height,
         "image_budget": {
             "max_width": max_width,
+            "minimum_width": minimum_width,
             "requested_quality": args.quality,
+            "minimum_quality": MIN_JPEG_QUALITY,
             "max_file_mb": args.max_file_mb,
             "max_file_bytes": max_bytes,
+            "readability_policy": "fail_instead_of_shrink",
         },
         "total_moments": len(prepared_moments),
         "assets_dir": str(assets_dir),
