@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "figma",
+  "description": "Plugin that includes the Figma MCP server and Skills for common workflows.",
+  "version": "2.2.87",
+  "author": {
+    "name": "Figma",
+    "url": "https://www.figma.com"
+  },
+  "homepage": "https://github.com/figma/mcp-server-guide",
+  "repository": "https://github.com/figma/mcp-server-guide",
+  "keywords": [
+    "figma",
+    "design",
+    "mcp",
+    "ui",
+    "code-connect"
+  ]
+}
