@@ -343,16 +343,43 @@ Page failures rarely require foundation rollback unless the page structure itsel
 
 ### Component creation fails
 
-This is the most common failure mode in long builds. Previous successful calls persist. If `safeToRetryWithoutCanvasRead` is `false`, inspect the component page and state ledger before resuming idempotently.
+This is the most common failure mode in long builds. Since `use_figma` is atomic, a failed call creates nothing — but previous successful calls in the component creation sequence will have created state. Handle by which call in the sequence failed:
+
+```
+If failure in Call 1 (page creation):
+  → Nothing was created. Fix the script and retry.
+
+If failure in Call 2 (doc frame):
+  → Call 1's page exists. Fix Call 2 and retry — idempotency check handles it.
+
+If failure in Call 3 (base component):
+  → Calls 1-2 succeeded. Fix Call 3 and retry.
+
+If failure in Call 4 (variant creation):
+  → Call 3's base component exists. Fix Call 4 and retry.
+  → If you need to restart from Call 3, clean up Call 3's nodes first
+    using cleanupOrphans scoped to the component page.
+
+If failure in Call 5 (combineAsVariants + layout):
+  → Variant ComponentNodes from Call 4 exist but aren't combined yet.
+  → Fix Call 5 and retry.
+  → If the component set was already created by a prior attempt of Call 5
+    that succeeded, remove it first, then re-run.
+
+If failure in Call 6 (component properties):
+  → The component set already exists and is structurally sound.
+  → Fix Call 6 and retry — addComponentProperty is safe to retry if
+    you first check componentPropertyDefinitions for existing properties.
+  → Idempotency check: if 'Label' property already exists, skip addComponentProperty.
+```
 
 **Idempotency for component properties (Call 6 retry):**
 
 ```javascript
-const candidate = await figma.getNodeByIdAsync(COMPONENT_SET_ID);
-if (!candidate || candidate.type !== 'COMPONENT_SET') throw new Error('Expected a component set');
-const existingDefs = candidate.componentPropertyDefinitions;
-const labelKey = Object.keys(existingDefs).find(key => key.startsWith('Label#'))
-  ?? candidate.addComponentProperty('Label', 'TEXT', 'Button');
+const existingDefs = cs.componentPropertyDefinitions;
+const labelKey = existingDefs['Label']
+  ? Object.keys(existingDefs).find(k => k.startsWith('Label'))
+  : cs.addComponentProperty('Label', 'TEXT', 'Button');
 ```
 
 ### In-scope QA or Code Connect fails

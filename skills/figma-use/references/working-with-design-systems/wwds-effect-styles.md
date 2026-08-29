@@ -41,9 +41,12 @@ Assign the style's `id` to the node's `effectStyleId`. The node's `effects` prop
 
 ### Looking up a library effect style by key
 
-When an effect style is found via a `search_design_system` `queries` entry with `entity: "style"`, use the returned `key` to reference and apply that library style. Prefer reusing an existing library style over recreating its effects.
+When an effect style is found via `search_design_system` (`includeStyles: true` returns each result's `key`), pass that key directly into `$fig.getStyle(styleKey)` — the plan queues the library import automatically, no separate `await figma.importStyleByKeyAsync(...)` step required. The handle can then be applied via the `effects` property on any `$fig.rectangle(...)` / `$fig.frame(...)` / `$fig.query(...).set(...)` call.
 
-For lookup and application examples, see [effect-style-patterns.md](../effect-style-patterns.md).
+```js
+const shadow = $fig.getStyle(ELEVATION_200_KEY)
+$fig.frame({ name: 'Card', effects: shadow })
+```
 
 ## Common gotchas
 
