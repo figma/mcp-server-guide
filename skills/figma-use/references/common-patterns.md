@@ -17,6 +17,15 @@
 
 ## Basic Script Structure
 
+When using only `$fig` for mutations:
+
+```js
+// Your code here
+// $fig...
+```
+
+When using the raw plugin API for mutations:
+
 ```js
 const createdNodeIds = []
 const mutatedNodeIds = []
@@ -34,7 +43,21 @@ return {
 }
 ```
 
-## Create a Styled Shape
+## Create a Styled Shape using `$fig`
+
+```js
+$fig.rectangle({
+  name: "Blue Box",
+  width: 200,
+  height: 100,
+  fills: [{ type: 'SOLID', color: { r: 0.047, g: 0.549, b: 0.914 } }],
+  cornerRadius: 8,
+})
+```
+
+## Create a Styled Shape using the raw plugin API
+
+Prefer using `$fig` over the raw plugin API for node creation and mutation. This code sample is for reference only if `$fig` cannot be used.
 
 ```js
 // Find clear space to the right of existing content
@@ -57,54 +80,31 @@ return { nodeId: rect.id }
 
 ## Create a Text Node
 
-Canonical text-edit recipe: load font → `await` → mutate → return affected IDs. Inter is preloaded in most environments; for any other family/style you would have hit `Cannot write to node with unloaded font "<family> <style>"` without the load step — the recipe is identical regardless of font.
-
 ```js
-// Find clear space to the right of existing content
-const page = figma.currentPage
-let maxX = 0
-for (const child of page.children) {
-  maxX = Math.max(maxX, child.x + child.width)
-}
-
-// Load font BEFORE any text mutation — required for every font, not just Inter
-await figma.loadFontAsync({ family: "Inter", style: "Regular" })
-const text = figma.createText()
-text.characters = "Hello World"
-text.fontSize = 16
-text.fills = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }]
-text.textAutoResize = 'WIDTH_AND_HEIGHT'
-text.x = maxX + 100
-text.y = 0
-figma.currentPage.appendChild(text)
-return { createdNodeIds: [text.id] }
+$fig.text({
+  characters: "Hello World",
+  fontSize: 16,
+  fills: [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }],
+  textAutoResize: 'WIDTH_AND_HEIGHT',
+})
 ```
 
 ## Create Frame with Auto-Layout
 
 ```js
-// Find clear space to the right of existing content
-const page = figma.currentPage
-let maxX = 0
-for (const child of page.children) {
-  maxX = Math.max(maxX, child.x + child.width)
-}
-
-const frame = figma.createAutoLayout('VERTICAL')
-frame.name = "Card"
-frame.primaryAxisAlignItems = 'MIN'
-frame.counterAxisAlignItems = 'MIN'
-frame.paddingLeft = 16
-frame.paddingRight = 16
-frame.paddingTop = 12
-frame.paddingBottom = 12
-frame.itemSpacing = 8
-frame.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
-frame.cornerRadius = 8
-frame.x = maxX + 100
-frame.y = 0
-figma.currentPage.appendChild(frame)
-return { nodeId: frame.id }
+$fig.autoLayout({
+  name: "Card",
+  layoutMode: 'VERTICAL',
+  primaryAxisAlignItems: 'MIN',
+  counterAxisAlignItems: 'MIN',
+  paddingLeft: 16,
+  paddingRight: 16,
+  paddingTop: 12,
+  paddingBottom: 12,
+  itemSpacing: 8,
+  fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }],
+  cornerRadius: 8,
+})
 ```
 
 ## Create Variable Collection with Multiple Modes
@@ -219,40 +219,52 @@ return {
 }
 ```
 
-## Import a Component by Key (Team Libraries)
+## Use a Component by Key (Team Libraries)
 
-`importComponentByKeyAsync` and `importComponentSetByKeyAsync` import components from **team libraries** (not the same file you're working in). For components in the current file, use `figma.getNodeByIdAsync()` or `findOne()`/`findAll()` to locate them directly.
+`search_design_system` returns a `componentKey` per result. Pass it directly into `$fig.get(...)` / `$fig.instance(...)` — the plan queues the library import automatically, so no separate `importComponentByKeyAsync` call is needed. The same call site accepts node IDs for components in the current file.
 
 ```js
-// Batch independent imports with Promise.all — these are independent IPC
-// calls; awaiting them one after another doubles the round-trip latency.
-const [comp, compSet] = await Promise.all([
-  figma.importComponentByKeyAsync("COMPONENT_KEY"),
-  figma.importComponentSetByKeyAsync("COMPONENT_SET_KEY"),
-])
+// PREFERRED — asset key flows straight from search_design_system into $fig
+const instance = $fig.instance(BUTTON_COMPONENT_KEY, { name: 'Submit', x: 40, y: 40 })
 
-const instance = comp.createInstance()
-instance.x = 40
-instance.y = 40
-figma.currentPage.appendChild(instance)
+// Component set: pass the set's componentKey + variant props
+const variantInstance = $fig.instance(BUTTON_SET_KEY, {
+  name: 'Submit (md)',
+  x: 240, y: 40,
+  props: { Size: 'md', Variant: 'primary' },
+})
 
-// Select a variant from the imported component set
-const variant =
-  compSet.children.find((c) =>
-    c.type === "COMPONENT" && c.name.includes("size=md")
-  ) || compSet.defaultVariant
+// Wrap a set without instantiating, e.g. to inspect it after $fig.done()
+const set = $fig.get(BUTTON_SET_KEY)
+```
 
-const variantInstance = variant.createInstance()
-variantInstance.x = 240
-variantInstance.y = 40
-figma.currentPage.appendChild(variantInstance)
+You do not need to import the component set, drill into `compSet.children`, or call `defaultVariant.createInstance()` yourself. `$fig.instance(setKey, { props })` picks the matching variant by `setProperties` after the instance is created from the default variant — the same path you'd use for variant switches on an existing instance via `$fig.set(inst, { props })` or `inst.setInstanceProps({...})`.
 
+### Discover a set's variant props when you only have its key
+
+`search_design_system` returns the set's `componentKey` but not its variant properties. Discover them across **two `use_figma` calls** because the first call returns the valid values in the tool result:
+
+```js
+const setHandle = $fig.get(BUTTON_SET_KEY)
+await $fig.done()
+const set = setHandle.node
+if (!set || set.type !== 'COMPONENT_SET') {
+  throw new Error(`Key ${BUTTON_SET_KEY} is not a COMPONENT_SET`)
+}
 return {
-  componentId: comp.id,
-  componentSetId: compSet.id,
-  placedInstanceIds: [instance.id, variantInstance.id]
+  componentPropertyDefinitions: set.componentPropertyDefinitions,
+  variants: set.children
+    .filter((child) => child.type === 'COMPONENT')
+    .map((child) => ({ name: child.name, variantProperties: child.variantProperties })),
 }
 ```
+
+```js
+// Call 2 — read the props from call 1's result, then instantiate the variant you want
+$fig.instance(BUTTON_SET_KEY, { props: { Size: 'Large', Kind: 'Secondary' } })
+```
+
+The library must be reachable from the current file — a key from an inaccessible library errors with `failed to import DS asset <key>`.
 
 ## Component Set with Variable Modes (Full Pattern)
 
@@ -433,20 +445,13 @@ return { csId: cs.id, count: components.length };
 
 ```js
 const page = figma.currentPage
-// findAllWithCriteria is hundreds of times faster than findAll for a pure
-// type filter — the engine uses an internal type index instead of running
-// a JS predicate on every node.
-const nodes = page.findAllWithCriteria({ types: ['FRAME'] })
+const nodes = page.findAll(n => n.type === 'FRAME')
 const data = nodes.map(n => ({
   id: n.id,
   name: n.name,
   width: n.width,
   height: n.height,
-  // `n.children` is safe here because the findAll predicate restricts to FRAME.
-  // Do NOT use `n.children?.length` defensively on an unfiltered node — the
-  // property access itself throws `no such property 'children'` on leaf types
-  // like TEXT/RECTANGLE, and optional chaining does not catch that.
-  childCount: n.children.length
+  childCount: n.children?.length || 0
 }))
 return { frames: data }
 ```
