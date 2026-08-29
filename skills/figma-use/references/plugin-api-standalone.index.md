@@ -1,6 +1,6 @@
 # Plugin API Index
 
-> Full typings: `plugin-api-standalone.d.ts` (10,191 lines)
+> Full typings: `plugin-api-standalone.d.ts` (12,216 lines)
 > Grep by symbol name to jump to definition. All `L#` line numbers refer to that file.
 > This index describes the APIs available through `use_figma`. See the `.d.ts` for full type declarations.
 
@@ -30,28 +30,30 @@
 
 ### Create Nodes
 
-| Method                              | Returns                                                                                                                                        |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createFrame()`                     | `FrameNode`                                                                                                                                    |
-| `createAutoLayout(direction?)`      | `FrameNode`                                                                                                                                    |
-| `createComponent()`                 | `ComponentNode`                                                                                                                                |
-| `createComponentFromNode(node)`     | `ComponentNode`                                                                                                                                |
-| `createRectangle()`                 | `RectangleNode`                                                                                                                                |
-| `createEllipse()`                   | `EllipseNode`                                                                                                                                  |
-| `createLine()`                      | `LineNode`                                                                                                                                     |
-| `createPolygon()`                   | `PolygonNode`                                                                                                                                  |
-| `createStar()`                      | `StarNode`                                                                                                                                     |
-| `createVector()`                    | `VectorNode`                                                                                                                                   |
-| `createText()`                      | `TextNode`                                                                                                                                     |
-| `createSection()`                   | `SectionNode`                                                                                                                                  |
-| `createPage()`                      | `PageNode` — **Design files only** (`figma.com/design/...`); throws in both FigJam (`figma.com/board/...`) and Slides (`figma.com/slides/...`) |
-| `createSlice()`                     | `SliceNode`                                                                                                                                    |
-| `createTable(rows?, cols?)`         | `TableNode`                                                                                                                                    |
-| `createImage(data: Uint8Array)`     | `Image`                                                                                                                                        |
-| `createNodeFromSvg(svg)`            | `FrameNode`                                                                                                                                    |
-| `importComponentByKeyAsync(key)`    | `Promise<ComponentNode>`                                                                                                                       |
-| `importComponentSetByKeyAsync(key)` | `Promise<ComponentSetNode>`                                                                                                                    |
-| `importStyleByKeyAsync(key)`        | `Promise<BaseStyle>`                                                                                                                           |
+| Method                              | Returns                     |
+| ----------------------------------- | --------------------------- |
+| `createFrame()`                     | `FrameNode`                 |
+| `createAutoLayout(direction?)`      | `FrameNode`                 |
+| `createComponent()`                 | `ComponentNode`             |
+| `createComponentFromNode(node)`     | `ComponentNode`             |
+| `createRectangle()`                 | `RectangleNode`             |
+| `createEllipse()`                   | `EllipseNode`               |
+| `createLine()`                      | `LineNode`                  |
+| `createPolygon()`                   | `PolygonNode`               |
+| `createStar()`                      | `StarNode`                  |
+| `createVector()`                    | `VectorNode`                |
+| `createText()`                      | `TextNode`                  |
+| `createSection()`                   | `SectionNode`               |
+| `createPage()`                      | `PageNode`                  |
+| `createSlice()`                     | `SliceNode`                 |
+| `createBooleanOperation()`          | `BooleanOperationNode`      |
+| `createTable(rows?, cols?)`         | `TableNode`                 |
+| `createImage(data: Uint8Array)`     | `Image`                     |
+| `createNodeFromSvg(svg)`            | `FrameNode`                 |
+| `createNodeFromJSXAsync(jsx)`       | `Promise<SceneNode>`        |
+| `importComponentByKeyAsync(key)`    | `Promise<ComponentNode>`    |
+| `importComponentSetByKeyAsync(key)` | `Promise<ComponentSetNode>` |
+| `importStyleByKeyAsync(key)`        | `Promise<BaseStyle>`        |
 
 ### Styles (Local)
 
@@ -339,81 +341,75 @@ type BaseNode   (L9791) = DocumentNode | PageNode | SceneNode
 To find any symbol: `grep -n "^interface Foo\|^type Foo\|^declare type Foo" plugin-api-standalone.d.ts`
 
 ```
-PluginAPI               VariablesAPI            LibraryVariableCollectionLibraryVariable
-AnnotationsAPI          BuzzTextField           BuzzMediaField          TeamLibraryAPI
-MotionAPI               UtilAPI                 ViewportAPI             SuggestionResults
-ParametersAPI           NodeChangeProperty      Transform               Vector
-Rect                    RGB                     RGBA                    FontName
-FontVariationSettings   FontNameInput           TextCase                TextDecoration
-TextDecorationStyle     FontStyle               TextDecorationOffset    TextDecorationThickness
-TextDecorationColor     OpenTypeFeature         ArcData                 DropShadowEffect
-InnerShadowEffect       BlurEffectBase          BlurEffectNormal        BlurEffectProgressive
-BlurEffect              NoiseEffectBase         NoiseEffectMonotone     NoiseEffectDuotone
-NoiseEffectMultitone    NoiseEffect             TextureEffect           GlassEffect
-ShaderEffect            Effect                  ConstraintType          Constraints
-ColorStop               ImageFilters            SolidPaint              GradientPaint
-ImagePaint              VideoPaint              PatternPaint            ShaderPaint
-Paint                   ShaderPropertyValue     ShaderPropertyDefinitionShader
-Guide                   RowsColsLayoutGrid      GridLayoutGrid          LayoutGrid
-ExportSettingsConstraintsExportSettingsImage     ExportSettingsSVGBase   ExportSettingsSVG
-ExportSettingsSVGString ExportSettingsPDF       ExportSettingsREST      ExportSettings
-WindingRule             VectorVertex            VectorSegment           VectorRegion
-VectorNetwork           VectorPath              VectorPaths             LetterSpacing
-LineHeight              LeadingTrim             TextWrapStyle           HyperlinkTarget
-TextListOptions         BlendMode               MaskType                Font
-TextStyleOverrideType   StyledTextSegment       TextPathStartData       Reaction
-VariableDataType        ExpressionFunction      Expression              VariableValueWithExpression
-VariableData            ConditionalBlock        Action                  SimpleTransition
-DirectionalTransition   Transition              Trigger                 Navigation
-Easing                  EasingFunctionBezier    EasingFunctionSpring    MotionEasing
-PhysicalSpring          NormalizedSpring        AnimationStylePropValue AvailableAnimationStylePropValue
-BaseAnimationStyle      AvailableAnimationStyle AnimationStyleConfigurationAppliedAnimationStyle
-KeyframeValue           ManualKeyframeInput     ManualKeyframeTrackInputManualKeyframe
-ManualKeyframeBinding   ManualKeyframeTrack     KeyframeBinding         KeyframePropertyFieldName
-EffectKeyframeFieldName KeyframeField           ComponentPropKeyframeTracksComponentPropKeyframeBindings
-PaintManualKeyframeTrackPaintKeyframeBinding    EffectManualKeyframeTracksEffectKeyframeBindings
-ManualKeyframeTracks    Animations              Timeline                OverflowDirection
-OverlayPositionType     OverlayBackground       OverlayBackgroundInteractionPublishStatus
-ConnectorEndpointPositionConnectorEndpointPositionAndEndpointNodeIdConnectorEndpointEndpointNodeIdAndMagnetConnectorEndpoint
-ConnectorStrokeCap      BaseNodeMixin           PluginDataMixin         SceneNodeMixin
-MotionNodeMixin         VariableBindableNodeFieldVariableBindableTextFieldVariableBindablePaintField
-VariableBindablePaintStyleFieldVariableBindableColorStopFieldVariableBindableEffectFieldVariableBindableEffectStyleField
-VariableBindableLayoutGridFieldVariableBindableGridStyleFieldVariableBindableComponentPropertyFieldVariableBindableComponentPropertyDefinitionField
-StickableMixin          ChildrenMixin           ConstraintMixin         DimensionAndPositionMixin
-LayoutMixin             AspectRatioLockMixin    BlendMixin              ContainerMixin
-StrokeCap               StrokeJoin              HandleMirroring         AutoLayoutMixin
-GridTrackSize           GridTrackReorderOptions GridTrackReorderEntry   GridLayoutMixin
-AutoLayoutChildrenMixin GridChildrenMixin       InferredAutoLayoutResultDetachedInfo
-MinimalStrokesMixin     IndividualStrokesMixin  MinimalFillsMixin       VariableWidthPoint
-PresetVariableWidthStrokePropertiesCustomVariableWidthStrokePropertiesVariableWidthStrokePropertiesComplexStrokeProperties
-ScatterBrushProperties  StretchBrushProperties  BrushStrokeProperties   DynamicStrokeProperties
-GeometryMixin           ComplexStrokesMixin     CornerMixin             RectangleCornerMixin
-ExportMixin             FramePrototypingMixin   VectorLikeMixin         ReactionMixin
-DocumentationLink       PublishableMixin        DefaultShapeMixin       BaseFrameMixin
-DefaultFrameMixin       OpaqueNodeMixin         MinimalBlendMixin       Annotation
-AnnotationProperty      AnnotationPropertyType  AnnotationsMixin        Measurement
-MeasurementSide         MeasurementOffset       MeasurementsMixin       ComponentPropertiesMixin
-BaseNonResizableTextMixinNonResizableTextMixin   NonResizableTextPathMixinTextSublayerNode
-DocumentNode            ExplicitVariableModesMixinPageNode                FrameNode
-GroupNode               TransformGroupNode      SliceNode               RectangleNode
-LineNode                EllipseNode             PolygonNode             StarNode
-VectorNode              TextNode                TextPathNode            ComponentPropertyType
-InstanceSwapPreferredValueSlotSettings            ComponentPropertyOptionsComponentPropertyDefinitions
-ComponentSetNode        ComponentNode           ComponentProperties     InstanceNode
-SlotNode                BooleanOperationNode    StickyNode              StampNode
-TableNode               TableCellNode           HighlightNode           WashiTapeNode
-ShapeWithTextNode       CodeBlockNode           LabelSublayerNode       ConnectorNode
-VariableResolvedDataTypeVariableAlias           VariableValue           VariableScope
-CodeSyntaxPlatform      Variable                VariableCollection      ExtendedVariableCollection
-AnnotationCategoryColor AnnotationCategory      WidgetNode              EmbedData
-EmbedNode               LinkUnfurlData          LinkUnfurlNode          MediaData
-MediaNode               SectionNode             SlideNode               SlideRowNode
-SlideGridNode           InteractiveSlideElementNodeSlideTransition         BaseNode
-SceneNode               NodeType                StyleType               InheritedStyleField
-StyleConsumers          BaseStyleMixin          PaintStyle              TextStyle
-EffectStyle             GridStyle               BaseStyle               Image
-FindAllCriteria         TransformModifier       RepeatModifier          LinearRepeatModifier
-RadialRepeatModifier    QueryResult             ScreenshotOptions
+PluginAPI               VariablesAPI            AnnotationsAPI          TeamLibraryAPI
+UIAPI                   UtilAPI                 ViewportAPI             ClientStorageAPI
+ConstantsAPI            CodegenAPI              PaymentsAPI             TextReviewAPI
+ParametersAPI           TimerAPI                BuzzAPI                 DevResourcesAPI
+
+DocumentNode            PageNode                FrameNode               GroupNode
+ComponentNode           ComponentSetNode        InstanceNode            RectangleNode
+EllipseNode             LineNode                PolygonNode             StarNode
+VectorNode              TextNode                TextPathNode            BooleanOperationNode
+SliceNode               SectionNode             TableNode               TableCellNode
+StickyNode              ConnectorNode           ShapeWithTextNode       StampNode
+CodeBlockNode           EmbedNode               LinkUnfurlNode          MediaNode
+WidgetNode              SlideNode               SlideRowNode            SlideGridNode
+TransformGroupNode      HighlightNode           WashiTapeNode
+
+BaseNodeMixin           SceneNodeMixin          ChildrenMixin           LayoutMixin
+AutoLayoutMixin         AutoLayoutChildrenMixin GridLayoutMixin         GridChildrenMixin
+GeometryMixin           MinimalFillsMixin       MinimalStrokesMixin     BlendMixin
+MinimalBlendMixin       CornerMixin             RectangleCornerMixin    ExportMixin
+ReactionMixin           PublishableMixin        VariantMixin            ComponentPropertiesMixin
+PluginDataMixin         DevResourcesMixin       DevStatusMixin          StickableMixin
+ConstraintMixin         DimensionAndPositionMixin AspectRatioLockMixin  FramePrototypingMixin
+BaseFrameMixin          DefaultFrameMixin       DefaultShapeMixin       OpaqueNodeMixin
+VectorLikeMixin         ComplexStrokesMixin     IndividualStrokesMixin  ContainerMixin
+AnnotationsMixin        MeasurementsMixin       ExplicitVariableModesMixin
+
+Variable                VariableCollection      VariableAlias           ExtendedVariableCollection
+LibraryVariableCollection LibraryVariable
+VariableValue           VariableResolvedDataType VariableDataType       VariableScope
+CodeSyntaxPlatform      VariableBindableNodeField VariableBindableTextField
+VariableBindablePaintField VariableBindableEffectField VariableBindableLayoutGridField
+
+SolidPaint              GradientPaint           ImagePaint              VideoPaint
+PatternPaint            Paint                   ColorStop               ImageFilters
+DropShadowEffect        InnerShadowEffect       BlurEffect              NoiseEffect
+TextureEffect           GlassEffect             Effect
+LayoutGrid              RowsColsLayoutGrid      GridLayoutGrid
+
+PaintStyle              TextStyle               EffectStyle             GridStyle
+BaseStyle               BaseStyleMixin          StyleType
+
+FontName                Font                    LetterSpacing           LineHeight
+TextCase                TextDecoration          TextDecorationStyle     FontStyle
+OpenTypeFeature         StyledTextSegment       LeadingTrim
+
+Vector                  Rect                    RGB                     RGBA
+Transform               ArcData                 Constraints             ConstraintType
+VectorPath              VectorNetwork           VectorVertex            VectorSegment
+VectorRegion            Guide                   BlendMode               MaskType
+
+Reaction                Trigger                 Action                  Transition
+Easing                  Navigation              OverflowDirection       OverlayPositionType
+OverlayBackground       PublishStatus
+
+ArgFreeEventType        RunEvent                DropEvent               DocumentChangeEvent
+NodeChangeEvent         NodeChangeProperty      StyleChangeEvent        DocumentChange
+TextReviewEvent         SlidesViewChangeEvent   CanvasViewChangeEvent
+
+ExportSettingsImage     ExportSettingsSVG       ExportSettingsPDF       ExportSettingsREST
+ExportSettingsConstraints
+
+User                    ActiveUser              BaseUser                Image
+Video                   VersionHistoryResult    FindAllCriteria
+
+FigAPI                  FigDoneResult           FigQueryResult          FigPlanNode
+FigPlanStyle            FigPlanPaintStyle       FigPlanTextStyle        FigPlanEffectStyle
+FigPlanGridStyle        FigPlanVarCollection    FigPlanVariable
+FigPlanColorVar         FigPlanNumVar           FigPlanBoolVar          FigPlanStringVar
+GradientStop
 ```
 
 ---
@@ -438,9 +434,42 @@ These helpers are available when running code with `use_figma`.
 | ---------------------------- | ------- | ------------------------------------------------ |
 | `figma.io.write(path, data)` | `void`  | Write image/data to be returned in tool response |
 
+### `$fig` Builder API
+
+Plan-based builder — see [fig-builder.md](fig-builder.md) for details.
+
+| Method | Returns | Description |
+|---|---|---|
+| `$fig.frame` / `.rectangle` / `.ellipse` / `.polygon` / `.star` / `.line` / `.vector` / `.text` / `.section` / `.component` / `.page` / `.slice` | `FigPlanNode` | Create a plan node of the given type: `(opts?, children?)` |
+| `$fig.autoLayout(opts?, children?)` | `FigPlanNode` | `FRAME` with auto-layout pre-configured (both axes hugging content). Default direction `HORIZONTAL`; pass `layoutMode: 'VERTICAL'` in opts to switch. |
+| `$fig.svg(svgString, opts?)`  | `FigPlanNode` | Create a node tree from SVG |
+| `$fig.instance(compRef, opts?)` | `FigPlanNode` | Create an instance of a component (plan node or ID) |
+| `$fig.group` / `.union` / `.subtract` / `.intersect` / `.exclude` / `.variants` | `FigPlanNode` | Wrap children in a group, boolean op, or component set |
+| `$fig.get(id)` | `FigPlanNode` | Wrap an existing node by ID so it can be mutated |
+| `$fig.query(selector, scope?)` | `FigQueryResult` | CSS selector search — same syntax as `node.query()` |
+| `$fig.set(target, props)` | `FigPlanNode` | Update props on a plan node |
+| `$fig.delete(...nodes)` | `void` | Remove nodes |
+| `$fig.move(target, newParent, index?)` / `.clone(target, props?)` | `void` | Reparent / clone |
+| `$fig.add(parent, child)` / `.append(parent, child)` / `.addAt(parent, index, child)` | `FigPlanNode` | Insert children |
+| `$fig.replace(oldNode, newNode)` / `.reorder(parent, children)` | `FigPlanNode` | Swap / reorder |
+| `$fig.gradient(node, type, stops, transform?)` / `.image(node, hash, scaleMode?)` | `void` | Paint shortcuts |
+| `$fig.paintStyle` / `.textStyle` / `.effectStyle` / `.gridStyle` | `FigPlanPaintStyle` / `FigPlanTextStyle` / `FigPlanEffectStyle` / `FigPlanGridStyle` | Create a local style — `(opts)` with required `name`. Pass the returned handle into `fills` / `strokes` / `effects` / `layoutGrids` / `textStyle` to bind by id. |
+| `$fig.getStyle(nameOrId)` | `FigPlanStyle \| null` | Wrap an existing local style. Tries id first, then scans by name. Narrow via `handle.style?.type`. |
+| `planStyle.set(opts \| fn)` / `.remove()` / `.style` / `.id` | — | Style handle methods. Fn form receives the **live Figma `Style`** narrowed to the concrete subtype (`PaintStyle` / `TextStyle` / `EffectStyle` / `GridStyle`), not the plan handle. |
+| `$fig.varCollection(opts)` | `FigPlanVarCollection` | Create a variable collection. `opts.name` + `opts.modes` (string array) required. |
+| `$fig.getVarCollection(idOrName)` | `FigPlanVarCollection` | Wrap existing collection by id or name. Throws if not found. |
+| `$fig.getVar(id)` | `FigPlanVariable` | Wrap existing variable by real Figma id. Throws if not found. Use `coll.getVar(name)` for name-based lookup. |
+| `coll.colorVar` / `.numVar` / `.boolVar` / `.stringVar` | `FigPlanColorVar` / `FigPlanNumVar` / `FigPlanBoolVar` / `FigPlanStringVar` | Create a typed variable. `opts.name` required. `opts.values` as `{ modeName: value }`. Specify `opts.scopes` explicitly — `ALL_SCOPES` is almost never right. |
+| `coll.getVar(nameOrId)` | `FigPlanVariable` | Wrap existing variable in this collection by name or id. |
+| `planVar.value(mode, val)` / `.setValues(map \| fn)` / `.set(opts \| fn)` / `.remove()` | — | Variable handle methods. Pass another variable handle as a value to create a `VARIABLE_ALIAS`. |
+| `$fig.done()` | `Promise<FigDoneResult>` | Explicitly materialize the plan. Auto-flushes on script shutdown if not called. |
+
+Plan nodes returned by create methods are chainable — `.frame()`, `.text()`, `.set()`, `.remove()`, `.clone()`, `.moveTo()`, `.reorderChildren()`, `.replace()`, `.query()`, `.gradient()`, `.image()` operate within that subtree.
+
 ### Types
 
 | Type                | Description                                                                                                                         |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `QueryResult`       | Iterable result from `node.query()` with `.first()`, `.last()`, `.each()`, `.map()`, `.filter()`, `.values()`, `.set()`, `.query()` |
-| `ScreenshotOptions` | `{ scale?: number, contentsOnly?: boolean }`                                                                                        |
+| `FigQueryResult`    | Result from `$fig.query()` / `planNode.query()` with `.toArray()`, `.map()`, `.values()`, `.set()`, `.remove()`, `.moveTo()`, `.each()`, `.first()`, `.last()`, `.filter()` |
+| `ScreenshotOptions` | `{ scale?: number, contentsOnly?: boolean }` — `contentsOnly` defaults to `false` |

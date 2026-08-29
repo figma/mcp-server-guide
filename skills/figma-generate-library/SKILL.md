@@ -16,73 +16,60 @@ Build professional-grade design-system assets in Figma that match code. Scale th
 
 ## 1. Scope and Completion Contract
 
-Before the first mutation, choose one primary scope from the user's request and record its included deliverables and acceptance checks. Do not silently promote a narrower request into a full-library project.
-
-| Requested scope | Required work | Excluded unless requested or necessary |
-|---|---|---|
-| **Tokens / foundations only** | Requested variables, modes, scopes, code syntax, styles, and any requested specimen sheet | Components, component pages, Code Connect, full-library navigation |
-| **Single component or family** | Inspect and reuse compatible foundations; create only missing tokens the component requires; build requested variants/properties/bindings; validate the component | Unrelated foundations, other components, full file skeleton, broad documentation or audits |
-| **Full library / design system** | Discovery, foundations, file structure, requested component inventory, documentation, integration, and final QA | Work outside the agreed v1 inventory |
-| **Reconciliation / update** | Diff code and Figma, then update only affected tokens, styles, components, docs, and dependents | Rebuilding valid assets or expanding the library |
-
-Communicate proportionally: post one concise scope-and-acceptance checklist before mutations, give updates at meaningful boundaries, and finish with one summary of created or changed objects, validation evidence, and unresolved limitations. Do not repeat unchanged checklists or narrate every API call.
-
-Batch related operations when the resulting script stays safe to retry. Split at page-context boundaries, hard-to-recover mutations, or for a targeted retry after an actual failure; never split a working operation only to create a validation checkpoint. Keep mutations sequential. Use structural evidence returned by writes (IDs plus relevant counts, names, and bounds), and run a separate audit only when evidence is missing or a later mutation made it stale. Take one visual review per coherent composition phase and one post-fix screenshot only after a targeted visual fix; the latest passing screenshot is final.
-
-### Definition of done
-
-Stop when all conditions for the chosen scope are true:
-
-- The final deliverable covers the locked inventory and is materially faithful to the applicable source of truth, including requested variant/state coverage, required assets, and in-scope review examples.
-- For component tasks, keep main components and construction assets outside the final review frame, and show the requested states as instances in one compact frame. Before stopping, inspect that frame at normal scale and repair clipped, truncated, low-contrast, empty, misplaced, or detached content.
-- Required variable scopes, aliases, code syntax, component properties, variants, and bindings are verified.
-- The requested artifact passes applicable structural and visual validation. Confirm requested content is fully visible unless clipping or truncation is intentional; repair defects and recheck only the affected output.
-- Replace placeholders when the source provides the required asset; remove temporary instances, test frames, captures, abandoned artifacts, and unrelated stray nodes.
-- No known defect or unresolved decision prevents the agreed acceptance checks from passing. Report limitations outside the scope without starting extra work.
-
-Additional documentation, components, Code Connect mappings, accessibility sweeps, or speculative audits are follow-up work unless the chosen scope requires them. Once the definition of done passes, stop.
-
-### Scope changes
-
-If the user changes the deliverable, update the scope and acceptance checklist. Preserve verified work, run only newly applicable steps, and do not retroactively add work from an unselected path.
+**This is NEVER a one-shot task.** Building a design system requires 20–100+ `use_figma` calls across multiple phases, with mandatory user checkpoints between them. Any attempt to create everything in one call WILL produce broken, incomplete, or unrecoverable results. Break every operation to the smallest useful unit, validate, get feedback, proceed.
 
 ---
 
 ## 2. Scoped Workflow
 
-Every scope begins with focused discovery: analyze the relevant code, inspect the target Figma assets and conventions, call `get_libraries` before `search_design_system`, and resolve code/Figma conflicts before mutation. Batch independent searches and reuse their results. Lock the requested inventory, then run only its path below.
+Every design system build follows this phase order. Skipping or reordering phases causes structural failures that are expensive to undo.
 
-### Tokens / foundations
+```
+Phase 0: DISCOVERY (always first — no use_figma writes yet)
+  0a. Analyze codebase → extract tokens, components, naming conventions
+  0b. Inspect Figma file → pages, variables, components, styles, existing conventions
+  0c. Search subscribed libraries → use search_design_system for reusable assets
+  0d. Lock v1 scope → agree on exact token set + component list before any creation
+  0e. Map code → Figma → resolve conflicts (code and Figma disagree = ask user)
+  ✋ USER CHECKPOINT: present full plan, await explicit approval
 
-1. Create or update the requested collections, modes, primitives, semantic aliases, scopes, and code syntax.
-2. Create requested text and effect styles.
-3. Create a specimen or documentation page only when requested.
-4. Validate counts, mode values, aliases, scopes, syntax, styles, and any requested visual artifact; then stop.
+Phase 1: FOUNDATIONS (tokens first — always before components)
+  1a. Create variable collections and modes
+  1b. Create primitive variables (raw values, 1 mode)
+  1c. Create semantic variables (aliased to primitives, mode-aware)
+  1d. Set scopes on ALL variables
+  1e. Set code syntax on ALL variables
+  1f. Create effect styles (shadows) and text styles (typography)
+  → Exit criteria: every token from the agreed plan exists, all scopes set, all code syntax set
+  ✋ USER CHECKPOINT: show variable summary, await approval
 
-### Single component or family
+Phase 2: FILE STRUCTURE (before components)
+  2a. Create page skeleton: Cover → Getting Started → Foundations → --- → Components → --- → Utilities
+  2b. Create foundations documentation pages (color swatches, type specimens, spacing bars)
+  → Exit criteria: all planned pages exist, foundations docs are navigable
+  ✋ USER CHECKPOINT: show page list + screenshot, await approval
 
-1. Inspect and reuse compatible local or library variables, text styles, and effect styles. Create only the missing foundations required by the component. For source-defined, library-standard, or repeated component roles, create or reuse a shared text or effect style and apply it to every matching component node; keep one-off documentation inline.
-2. Build the requested base component, variants, properties, bindings, and dependency components.
-3. Use a dedicated page when it matches the file convention or the request needs a documented showcase; otherwise place it in the existing component area.
-4. Validate variant count, properties, variable bindings, applied text/effect style IDs on representative nodes, structure, and appearance; then stop.
+Phase 3: COMPONENTS (one at a time — never batch)
+  For EACH component (in dependency order: atoms before molecules):
+    3a. Create dedicated page
+    3b. Build base component with auto-layout + full variable bindings
+    3c. Create all variant combinations (combineAsVariants + grid layout)
+    3d. Add component properties (TEXT, BOOLEAN, INSTANCE_SWAP)
+    3e. Link properties to child nodes
+    3f. Add page documentation (title, description, usage notes)
+    3g. Validate: get_metadata (structure) + get_screenshot (visual)
+    3h. Optional: lightweight Code Connect mapping while context is fresh
+    → Exit criteria: variant count correct, all bindings verified, screenshot looks right
+    ✋ USER CHECKPOINT per component: show screenshot, await approval before next component
 
-### Full library / design system
-
-1. **Discovery:** lock the token and component inventory and print the gap analysis.
-2. **Foundations:** create collections, variables, aliases, scopes, code syntax, and styles.
-3. **File structure:** create the agreed cover, getting-started, foundations, component, and utility pages plus requested documentation.
-4. **Components:** build the agreed inventory in dependency order, with properties, bindings, documentation, and validation.
-5. **Integration and QA:** complete Code Connect mappings for the agreed component inventory; audit accessibility, naming, and bindings; and visually validate every agreed page.
-
-### Reconciliation / update
-
-1. Inventory existing assets and identify exact drift from the current code source.
-2. Update affected assets in place, preserving valid names, IDs, bindings, and library structure where possible.
-3. Validate the changed assets and their known dependents; then stop.
-
-If a required acceptance check fails, fix the scoped defect before continuing. Do not substitute fake assets, approximate typography, broken interactions, or unverified state.
-
-The selected path and definition of done take precedence over broader examples or full-library phase labels in the references. Load only references needed for that path.
+Phase 4: INTEGRATION + QA (final pass)
+  4a. Finalize all Code Connect mappings
+  4b. Accessibility audit (contrast, min touch targets, focus visibility)
+  4c. Naming audit (no duplicates, no unnamed nodes, consistent casing)
+  4d. Unresolved bindings audit (no hardcoded fills/strokes remaining)
+  4e. Final review screenshots of every page
+  ✋ USER CHECKPOINT: complete sign-off
+```
 
 ---
 
@@ -99,8 +86,8 @@ The selected path and definition of done take precedence over broader examples o
 **Design system rules**:
 1. **Foundations before dependent components** — reuse compatible existing variables and styles. Create missing foundations before building a component that depends on them; do not recreate valid foundations.
 2. **Inspect before creating** — run read-only `use_figma` to discover existing conventions. Match them.
-3. **Match the file's component organization** — full libraries usually use one page per component; tightly related families may share a page. A single-component task may use an existing component area instead of creating a library skeleton.
-4. **Bind visual properties to variables** *(default)* — fills, strokes, padding, radius, gap. Exceptions: intentionally fixed geometry (icon pixel-grid sizes, static dividers).
+3. **One page per component** *(default)* — exception: tightly related families (e.g., Input + helpers) may share a page with clear section separation.
+4. **Bind visual properties to variables** *(default)* — fills, strokes, padding, radius, gap. In `$fig`, bind by passing the variable handle straight into the property (`fills` color, `cornerRadius`, `itemSpacing`, padding); whenever a token exists for a value, prefer binding it over a literal ([worked recipe](../figma-use/references/fig-builder.md#building-a-component-with-bound-variables-the-default-for-components)). Because components are usually built in a **separate `use_figma` call** from the token foundations, rehydrate the variable IDs in the build call (`figma.variables.getVariableByIdAsync` / `$fig.getVar`) before binding — handles don't survive across calls, and skipping this is why a build silently falls back to literals. Exceptions: intentionally fixed geometry (icon pixel-grid sizes, static dividers).
 5. **Scopes on every variable** — NEVER leave as `ALL_SCOPES`. Background: `FRAME_FILL, SHAPE_FILL`. Text: `TEXT_FILL`. Border: `STROKE_COLOR`. Spacing: `GAP`. Radii: `CORNER_RADIUS`. Primitives: `[]` (hidden).
 6. **Code syntax on every variable** — WEB syntax MUST use the `var()` wrapper: `var(--color-bg-primary)`, not `--color-bg-primary`. Use the actual CSS variable name from the codebase. ANDROID/iOS do NOT use a wrapper.
 7. **Alias semantics to primitives** — `{ type: 'VARIABLE_ALIAS', id: primitiveVar.id }`. Never duplicate raw values in semantic layer.
@@ -112,6 +99,7 @@ The selected path and definition of done take precedence over broader examples o
 13. **NEVER parallelize `use_figma` calls** — Figma state mutations must be strictly sequential. Even if your tool supports parallel calls, never run two use_figma calls simultaneously.
 14. **Never hallucinate Node IDs** — always read IDs from the state ledger returned by previous calls. Never reconstruct or guess an ID from memory.
 15. **Use the helper scripts** — embed scripts from `scripts/` into your use_figma calls. Don't write 200-line inline scripts from scratch.
+16. **Explicit phase approval** — at each checkpoint, name the next phase explicitly. "looks good" is not approval to proceed to Phase 3 if you asked about Phase 1.
 
 ---
 
@@ -164,14 +152,7 @@ Maintain a state ledger tracking:
 
 Search during the scoped discovery pass and reuse the results. Search again before a component only when it was outside the original inventory, the available libraries changed, or the earlier result did not resolve it.
 
-Before calling `search_design_system` for a target file, you MUST call `get_libraries` first for that file. You MUST NOT assume libraries are added or available.
-
-An empty `get_libraries` result does NOT excuse skipping the search — it only means you have no library keys to scope with. `get_libraries` paginates (community UI kits appear only on the first page, org libraries page in batches of 20), so empty lists are not proof that no library exists. How to act on the result:
-
-- **Libraries returned** — run `search_design_system` scoped with `includeLibraryKeys`. Libraries in `libraries_available_to_add` are NOT searched by default; pass their `libraryKey`s to reach them.
-- **No libraries returned** — still run `search_design_system`, but omit `includeLibraryKeys`. Omitting it scopes the search to the file itself, which is exactly what you want when discovery returned nothing to scope by.
-
-Only once the search itself comes back empty may you record "no design system assets available" in the gap analysis and build from code tokens. Never infer "no libraries" from a failed or unattempted `get_libraries` call.
+**Start with `get_libraries`** to understand what libraries are available before searching blindly:
 
 ```
 // Discover all libraries accessible to the file
@@ -216,23 +197,24 @@ search_design_system({ queries: [{ entity: "component", query }], fileKey, inclu
 - Import the library component as a nested instance inside a new wrapper component
 - Expose a clean API on the wrapper
 
-**Priority order**: local existing → subscribed library import → unsubscribed UI Kit library from `libraries_available_to_add` (icons especially) → create new.
+**Three-way priority**: local existing → subscribed library import → create new.
 
 ---
 
-## 6. Decision Forks
+## 6. User Checkpoints
 
-Ask the user when paths fork — when two or more reasonable answers exist and no clear winner comes from the codebase, the Figma file, or the locked plan. Don't silently default. Present each option with its tradeoff and your recommendation; pick only after the user steers.
+Mandatory. Design decisions require human judgment.
 
-**When NOT to ask:** if exactly one path is clearly correct from the source of truth (code, Figma file, agreed plan), take it. This section is for genuine ambiguity, not for offloading every decision.
+| After | Required artifacts | Ask |
+|-------|-------------------|-----|
+| Discovery + scope lock | Token list, component list, gap analysis | "Here's my plan. Approve before I create anything?" |
+| Foundations | Variable summary (N collections, M vars, K modes), style list | "All tokens created. Review before file structure?" |
+| File structure | Page list + screenshot | "Pages set up. Review before components?" |
+| Each component | get_screenshot of component page | "Here's [Component] with N variants. Correct?" |
+| Each conflict (code ≠ Figma) | Show both versions | "Code says X, Figma has Y. Which wins?" |
+| Final QA | Per-page screenshots + audit report | "Complete. Sign off?" |
 
-| Fork situation | What to surface | Example ask |
-|---|---|---|
-| Code ≠ Figma on a token, component, or value | Both versions side by side, with provenance (file/line vs node) | "Code says `--color-bg-primary = #FFFFFF`, Figma has `color/bg/primary = #FAFAFA`. Which wins?" |
-| Subscribed library has a close-but-not-exact match | Library component summary + gap list | "Library has `Button` with no `loading` state. Reuse + wrap locally, or rebuild from scratch?" |
-| Scope ambiguity at plan-lock (0d) | What's clearly in, what's clearly out, what's ambiguous | "Spec lists `Button` and `Input`; `Field` is referenced but not defined. In or out of v1?" |
-
-**If the user rejects an option you already built on:** fix before moving on. Never build on rejected work.
+**If user rejects**: fix before moving on. Never build on rejected work.
 
 ---
 
@@ -304,6 +286,7 @@ Collection: "Spacing"       modes: ["Value"]
 - ❌ Retrying when `safeToRetryWithoutCanvasRead` is `false` before reading the canvas
 - ❌ Using name-prefix matching for cleanup (deletes user-owned nodes)
 - ❌ Building on unvalidated work from the previous step
+- ❌ Skipping user checkpoints to "save time"
 - ❌ Parallelizing use_figma calls (always sequential)
 - ❌ Guessing/hallucinating node IDs from memory (always read from state ledger)
 - ❌ Writing massive inline scripts instead of using the provided helper scripts
