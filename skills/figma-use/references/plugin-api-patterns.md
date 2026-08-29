@@ -5,8 +5,8 @@
 ## Contents
 
 - Execution Basics
-- Creating Nodes (Frames, Text, Rectangles, Ellipses, Lines, Vectors, SVG Import)
-- Fills and Strokes (Solid, Linear Gradient, Radial Gradient, Multiple Fills)
+- Creating Nodes
+- Fills and Strokes
 - Auto Layout
 - Effects
 - Opacity and Blend Modes
@@ -60,78 +60,62 @@ Verify structure with `get_metadata` between steps. Use `get_screenshot` after e
 ### Frames
 
 ```javascript
-const frame = figma.createFrame();
-frame.name = "Container";
-frame.resize(1440, 900);
-frame.x = 0;
-frame.y = 0;
-frame.fills = [{ type: "SOLID", color: { r: 0.98, g: 0.98, b: 0.99 } }];
+$fig.frame({
+  name: "Container",
+  width: 1440,
+  height: 900,
+  fills: [{ type: "SOLID", color: { r: 0.98, g: 0.98, b: 0.99 } }],
+})
 ```
 
 ### Text
 
-Canonical recipe: load font → `await` → mutate → return affected IDs. This pattern is the same for every font — `Inter` happens to be preloaded so the missing-`loadFontAsync` bug usually only surfaces with other families. See [gotchas.md → Canonical text-edit recipe](gotchas.md#canonical-text-edit-recipe-font-load--await--mutate--return-ids).
-
 ```javascript
-// Load font BEFORE any text mutation — required for every font, not just Inter
-await figma.loadFontAsync({ family: "Inter", style: "Regular" });
-
-const text = figma.createText();
-text.fontName = { family: "Inter", style: "Regular" };
-text.fontSize = 16;
-text.lineHeight = { value: 24, unit: "PIXELS" };
-text.letterSpacing = { value: 0, unit: "PERCENT" };
-text.characters = "Hello World";
-text.fills = [{ type: "SOLID", color: { r: 0.1, g: 0.1, b: 0.12 } }];
+$fig.text({
+  characters: "Hello World",
+  fontName: { family: "Inter", style: "Regular" },
+  fontSize: 16,
+  lineHeight: { value: 24, unit: "PIXELS" },
+  letterSpacing: { value: 0, unit: "PERCENT" },
+  fills: [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }],
+  textAutoResize: 'WIDTH_AND_HEIGHT',
+})
 ```
 
 ### Rectangles
 
 ```javascript
-const rect = figma.createRectangle();
-rect.name = "Background";
-rect.resize(400, 300);
-rect.cornerRadius = 12;
-rect.fills = [{ type: "SOLID", color: { r: 0.95, g: 0.95, b: 0.96 } }];
+$fig.rectangle({
+  name: "Background",
+  width: 400,
+  height: 300,
+  cornerRadius: 12,
+  fills: [{ type: 'SOLID', color: { r: 0.95, g: 0.95, b: 0.96 } }],
+})
 ```
 
 ### Ellipses
 
 ```javascript
-const circle = figma.createEllipse();
-circle.name = "Avatar Circle";
-circle.resize(48, 48);
-circle.fills = [{ type: "SOLID", color: { r: 0.85, g: 0.87, b: 0.90 } }];
+$fig.ellipse({
+  name: "Avatar Circle",
+  width: 48,
+  height: 48,
+  fills: [{ type: 'SOLID', color: { r: 0.85, g: 0.87, b: 0.90 } }],
+})
 ```
 
 ### Lines
 
 ```javascript
-const line = figma.createLine();
-line.name = "Divider";
-line.resize(400, 0);
-line.strokes = [{ type: "SOLID", color: { r: 0, g: 0, b: 0 }, opacity: 0.08 }];
-line.strokeWeight = 1;
+$fig.line({
+  name: "Divider",
+  width: 400,
+  height: 0,
+  strokes: [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 }, opacity: 0.08 }],
+  strokeWeight: 1,
+})
 ```
-
-### Vectors (Custom Paths)
-
-Use `figma.createVector()` for any shape that can't be built from primitives — organic curves, flowing contours, custom silhouettes. The `vectorPaths` property accepts SVG path data.
-
-```javascript
-const vector = figma.createVector();
-vector.vectorPaths = [{
-  windingRule: "NONZERO",
-  data: "M 0 60 C 30 10 70 10 100 50 C 130 90 170 20 200 40 L 200 100 L 0 100 Z"
-}];
-vector.fills = [{ type: 'SOLID', color: { r: 0.15, g: 0.3, b: 0.55 } }];
-vector.strokes = [{ type: 'SOLID', color: { r: 0.1, g: 0.2, b: 0.4 } }];
-vector.strokeWeight = 2;
-```
-
-SVG path commands: `M` (move to), `L` (line to), `C x1 y1 x2 y2 x y` (cubic bezier), `Q x1 y1 x y` (quadratic bezier), `A rx ry rot large sweep x y` (arc), `Z` (close). Uppercase = absolute, lowercase = relative.
-
-Vectors support all the same properties as other shapes — fills, strokes, effects, brushes, dynamic strokes, variable-width strokes, and texture effects.
 
 ### SVG Import
 
@@ -140,9 +124,11 @@ const svgString = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" x
   <path d="M5 12h14M12 5l7 7-7 7" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 
-const node = figma.createNodeFromSvg(svgString);
-node.name = "Icon/Arrow Right";
-node.resize(24, 24);
+$fig.svg(svgString, {
+  name: "Icon/Arrow Right",
+  width: 24,
+  height: 24,
+})
 ```
 
 ## Fills & Strokes
@@ -174,26 +160,7 @@ node.fills = [{
     { color: { r: 0.2, g: 0.36, b: 0.96, a: 1 }, position: 0 },
     { color: { r: 0.56, g: 0.24, b: 0.88, a: 1 }, position: 1 }
   ],
-  gradientTransform: [[1, 0, 0], [0, 1, 0]]  // left-to-right (default)
-}];
-
-// Top-to-bottom:
-// gradientTransform: [[0, 1, 0], [-1, 0, 1]]
-```
-
-### Radial Gradient
-
-```javascript
-node.fills = [{
-  type: "GRADIENT_RADIAL",
-  gradientStops: [
-    { color: { r: 0.95, g: 0.7, b: 0.3, a: 1 }, position: 0 },   // bright center
-    { color: { r: 0.82, g: 0.38, b: 0.14, a: 1 }, position: 1 }   // deeper edge
-  ],
-  // 2x3 affine matrix [[scaleX, shearX, tx], [shearY, scaleY, ty]]
-  // Scale <1 = gradient LARGER than shape (freeform color — use for illustration)
-  // Scale >1 = gradient SMALLER than shape (obvious oval — avoid for illustration)
-  gradientTransform: [[0.71, 0, 0.19], [0, 0.57, 0.21]]  // large, offset
+  gradientTransform: [[1, 0, 0], [0, 1, 0]]
 }];
 ```
 
@@ -218,31 +185,30 @@ node.fills = [
 
 ### Setting Up Auto Layout
 
-**Prefer `figma.createAutoLayout()`** — it returns a frame with `layoutMode` already set and both axes hugging content, so children can immediately use `layoutSizingHorizontal/Vertical = "FILL"`.
+**Prefer `$fig.autoLayout()`** — it returns a plan node with `layoutMode` already set and both axes hugging content. Use `figma.createAutoLayout()` if you need a raw scene node.
 
 ```javascript
-const frame = figma.createAutoLayout(); // HORIZONTAL by default
-const column = figma.createAutoLayout("VERTICAL");
-
-// Customize from there as usual:
-frame.itemSpacing = 16;
-frame.paddingTop = 24;
-frame.paddingBottom = 24;
-frame.paddingLeft = 24;
-frame.paddingRight = 24;
+$fig.autoLayout({
+  name: 'Container',
+  layoutMode: 'VERTICAL', // 'HORIZONTAL' or 'VERTICAL'
+  width: 360, // Set width for fixed width and omit height to hug vertically
+  itemSpacing: 16,
+  paddingTop: 24,
+  paddingBottom: 24,
+  paddingLeft: 24,
+  paddingRight: 24,
+})
 ```
 
-If you need a non-auto-layout frame, use `figma.createFrame()` and set the properties manually:
+If you need a non-auto-layout frame, use `$fig.frame()`:
 
 ```javascript
-const frame = figma.createFrame();
-frame.layoutMode = "VERTICAL";              // or "HORIZONTAL"
-frame.resize(360, 1);                        // Width fixed, height auto
-frame.primaryAxisSizingMode = "AUTO";       // Hug main axis
-frame.counterAxisSizingMode = "FIXED";      // Fixed cross axis
+$fig.frame({
+  name: 'Container',
+  width: 360,
+  height: 200,
+})
 ```
-
-**CRITICAL ORDERING:** Always call `resize()` BEFORE setting sizing modes. The `resize()` method silently resets both sizing modes to FIXED, so calling it after setting `primaryAxisSizingMode = "AUTO"` will override your HUG settings and lock the frame to the exact pixel dimensions you passed (even throwaway values like `1`). This causes the common "1px dimension" bug.
 
 ### Alignment
 
@@ -263,17 +229,24 @@ frame.counterAxisAlignItems = "MAX";     // End
 ### Child Sizing
 
 ```javascript
-// FILL requires an auto-layout parent and must be set after appendChild.
-const parent = figma.createAutoLayout("VERTICAL");
-parent.appendChild(child)
-child.layoutSizingHorizontal = "FILL";   // Stretch to parent
-child.layoutSizingVertical = "FIXED";
-
-// HUG is valid for nodes with intrinsic content, such as text and auto-layout frames.
-// Append the node to its auto-layout parent before assigning HUG.
-parent.appendChild(textChild);
-textChild.layoutSizingHorizontal = "HUG";
+$fig.autoLayout(
+  {
+    name: 'Container',
+    layoutMode: 'VERTICAL',
+    width: 200, // Fixed width
+    height: 200, // Fixed height
+  },
+  [
+    $fig.frame({
+      name: 'Child',
+      layoutSizingHorizontal: 'FILL',
+      layoutSizingVertical: 'FILL',
+    })
+  ]
+)
 ```
+
+Use `HUG` only for nodes with intrinsic content, such as text and auto-layout frames. In imperative code, append a child to its auto-layout parent before assigning `FILL` or `HUG`.
 
 ### Wrapping (Grid-like Layout)
 
@@ -287,7 +260,7 @@ frame.counterAxisSpacing = 24;   // Vertical gap (between rows)
 ### Absolute Positioning Within Auto Layout
 
 ```javascript
-// ABSOLUTE also requires the child to be attached to an auto-layout parent first.
+// ABSOLUTE requires the child to be attached to an auto-layout parent first.
 const parent = figma.createAutoLayout("HORIZONTAL");
 parent.appendChild(child);
 child.layoutPositioning = "ABSOLUTE";
@@ -386,27 +359,26 @@ frame.clipsContent = true;   // Children clipped to frame bounds
 ### Groups
 
 ```javascript
-const group = figma.group([node1, node2, node3], figma.currentPage);
-group.name = "Grouped Elements";
+$fig.group({ name: 'Grouped Elements' }, [node1, node2, node3])
 ```
 
 ### Sections
 
 ```javascript
-const section = figma.createSection();
-section.name = "My Section";
-section.resize(800, 600); // `resize` and `resizeWithoutConstraints` are equivalent on sections
-section.x = 0;
-section.y = 0;
+$fig.section({ name: 'My Section', width: 800, height: 600 })
 // IMPORTANT: Sections don't auto-resize — always resize after adding content
 ```
 
 ### Appending Children
 
 ```javascript
-parentFrame.appendChild(childNode);
+// With $fig
+parentFrame.append(child);
+parentFrame.addAt(0, child); // Insert at beginning
+child.moveTo(parentFrame, 0); // Insert at beginning
 
-// Insert at a specific index
+// With raw Plugin API
+parentFrame.appendChild(childNode);
 parentFrame.insertChild(0, childNode);  // Insert at beginning
 ```
 
@@ -415,35 +387,28 @@ parentFrame.insertChild(0, childNode);  // Insert at beginning
 ### Create Component
 
 ```javascript
-const component = figma.createComponent();
-component.name = "Button/Primary";
-component.description = "Primary action button.";
+$fig.component({ name: 'Button/Primary', description: 'Primary action button' })
 ```
 
 ### Create Instance
 
 ```javascript
-const instance = component.createInstance();
-instance.x = 200;
-instance.y = 100;
+$fig.instance(component, { x: 200, y: 100 })
 ```
 
-### Import Components by Key (Team Libraries)
+### Use Components by Key (Team Libraries)
 
-These methods import components from **team libraries** (not the same file). For components in the current file, use `figma.getNodeByIdAsync()` or `findOne()`/`findAll()`.
+Pass the `componentKey` straight into `$fig.get(...)` / `$fig.instance(...)`. The plan queues the library import automatically — there is no need to call `importComponentByKeyAsync` / `importComponentSetByKeyAsync` yourself, or to pick a variant child of a component set by hand.
 
 ```javascript
-// Batch independent imports with Promise.all — sequential awaits multiply
-// IPC latency by the number of imports for no benefit.
-const [comp, set] = await Promise.all([
-  figma.importComponentByKeyAsync(componentKey),
-  figma.importComponentSetByKeyAsync(componentSetKey),
-])
+// Component
+$fig.instance(componentKey, { x: 200, y: 100 })
 
-const instance = comp.createInstance()
-const variant = set.defaultVariant
-const variantInstance = variant.createInstance()
+// Component set: pass variant props; $fig.instance picks the matching variant
+$fig.instance(componentSetKey, { x: 200, y: 100, props: { Size: 'md', Variant: 'primary' } })
 ```
+
+For components in the current file, `$fig.get(nodeId)` accepts a real id too — same call site for both.
 
 ### Combine as Variants
 
@@ -487,40 +452,62 @@ iconInstance.componentPropertyReferences = {
 
 ## Styles
 
+Prefer `$fig` for style creation + binding — fonts preload automatically, and you can bind the style on the node by name (`fills`, `effects`, `textStyle`, etc.) in the same plan. See [fig-builder.md](fig-builder.md) for the full surface.
+
 ### Text Style
 
 ```javascript
-// Load font BEFORE setting style.fontName — required for every font, not just Inter
-await figma.loadFontAsync({ family: "Inter", style: "Regular" });
-
-const style = figma.createTextStyle();
-style.name = "Body/Default";
-style.fontName = { family: "Inter", style: "Regular" };
-style.fontSize = 16;
-style.lineHeight = { value: 24, unit: "PIXELS" };
-style.letterSpacing = { value: 0, unit: "PERCENT" };
-
-// Apply to a text node
-textNode.textStyleId = style.id;
+// $fig — single plan, auto font loading, binds via textStyle property
+const body = $fig.textStyle({
+  name: "Body/Default",
+  fontName: { family: "Inter", style: "Regular" },
+  fontSize: 16,
+  lineHeight: { value: 24, unit: "PIXELS" },
+  letterSpacing: { value: 0, unit: "PERCENT" },
+});
+$fig.text({ characters: "Hello", textStyle: body });
 ```
 
 ### Effect Style
 
 ```javascript
-const shadowStyle = figma.createEffectStyle();
-shadowStyle.name = "Shadow/Subtle";
-shadowStyle.effects = [{
-  type: "DROP_SHADOW",
-  color: { r: 0, g: 0, b: 0, a: 0.06 },
-  offset: { x: 0, y: 2 },
-  radius: 8,
-  spread: 0,
-  visible: true,
-  blendMode: "NORMAL"
-}];
+// $fig — bind via the effects property in the same plan
+const shadow = $fig.effectStyle({
+  name: "Shadow/Subtle",
+  effects: [{
+    type: "DROP_SHADOW",
+    color: { r: 0, g: 0, b: 0, a: 0.06 },
+    offset: { x: 0, y: 2 },
+    radius: 8,
+    spread: 0,
+    visible: true,
+    blendMode: "NORMAL",
+  }],
+});
+$fig.frame({ name: "Card", effects: shadow });
+```
 
-// Apply to a node
-frame.effectStyleId = shadowStyle.id;
+### Paint and Grid Styles
+
+```javascript
+const brand = $fig.paintStyle({
+  name: "Brand/Primary",
+  paints: [{ type: "SOLID", color: { r: 0.2, g: 0.36, b: 0.96 }, opacity: 1 }],
+});
+$fig.rectangle({ name: "Card", fills: brand });
+
+const grid = $fig.gridStyle({
+  name: "Grid/12",
+  layoutGrids: [{ pattern: "COLUMNS", count: 12, gutterSize: 24, sectionSize: 80, alignment: "CENTER", visible: true }],
+});
+$fig.frame({ name: "Page", width: 1280, layoutGrids: grid });
+```
+
+### Referencing an existing style
+
+```javascript
+const existing = $fig.getStyle("Brand/Primary");   // by name or real id; null if miss
+$fig.query("FRAME[name^=Card]").set({ fills: existing });
 ```
 
 ## Cloning & Duplication
@@ -534,17 +521,13 @@ clone.name = "Copy of " + originalNode.name;
 ## Finding Nodes
 
 ```javascript
-// If you already have the node's ID, NEVER scan — use the indexed lookup.
-const known = await figma.getNodeByIdAsync("123:456");
-
-// Find by name on current page (no ID available)
+// Find by name on current page
 const node = figma.currentPage.findOne(n => n.name === "My Frame");
 
-// Find all by type — use findAllWithCriteria, hundreds of times faster than
-// findAll(n => n.type === '…') because the engine uses an internal type index.
-const allTexts = figma.currentPage.findAllWithCriteria({ types: ["TEXT"] });
+// Find all by type
+const allTexts = figma.currentPage.findAll(n => n.type === "TEXT");
 
-// Find all by name pattern (predicate is fine — criteria doesn't index name)
+// Find all by name pattern
 const allButtons = figma.currentPage.findAll(n => n.name.startsWith("Button/"));
 ```
 

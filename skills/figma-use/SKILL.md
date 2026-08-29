@@ -6,430 +6,253 @@ disable-model-invocation: false
 
 # use_figma — Figma Plugin API Skill
 
-Use the `use_figma` tool to execute JavaScript in Figma files via the Plugin API. All detailed reference docs live in `references/`.
-
-**Always include `figma-use` in the comma-separated `skillNames` parameter when calling `use_figma`. If this skill was loaded via an MCP resource, you MUST prefix the name with `resource:` (e.g. `resource:figma-use`).** This is a logging parameter used to track skill usage — it does not affect execution.
-
-**If Figma MCP tools appear as deferred tools, batch-load all their schemas in a single `ToolSearch` call** using the `select:` syntax — e.g. `ToolSearch query="select:use_figma,get_screenshot,get_metadata,create_new_file"`. One round trip beats six.
+Execute JavaScript in Figma files via the Plugin API. **Always pass `skillNames: "figma-use"` when calling `use_figma`** (logging parameter, doesn't affect execution).
 
 **If the task involves building or updating a full page, screen, or multi-section layout in Figma from code**, also load [figma-generate-design](../figma-generate-design/SKILL.md). It provides the workflow for discovering design system components via `search_design_system`, importing them, and assembling screens incrementally. Both skills work together: this one for the API rules, that one for the screen-building workflow.
 
-**If the task involves creating or building a component in Figma** (even a single component), also load [figma-generate-library](../figma-generate-library/SKILL.md). It provides the component creation workflow — variable foundations, variant sets, design token bindings — that `figma-use` alone doesn't cover.
-
-Before anything, load [plugin-api-standalone.index.md](references/plugin-api-standalone.index.md) to understand what is possible. When you are asked to write plugin API code, use this context to grep [plugin-api-standalone.d.ts](references/plugin-api-standalone.d.ts) for relevant types, methods, and properties. This is the definitive source of truth for the API surface. It is a large typings file, so do not load it all at once, grep for relevant sections as needed.
+**If the task involves creating or building a component in Figma** (even a single component), also load [figma-generate-library](../figma-generate-library/SKILL.md). It owns the component-creation workflow — variable foundations first, variant sets, then design token bindings — that `figma-use` alone doesn't cover. Build the token/variable foundation before the component, then bind the component's `fills`/`cornerRadius`/spacing to those variables rather than inlining literals where a token exists.
 
 IMPORTANT: Whenever you work with design systems, start with [working-with-design-systems/wwds.md](references/working-with-design-systems/wwds.md) to understand the key concepts, processes, and guidelines for working with design systems in Figma. Then load the more specific references for components, variables, text styles, and effect styles as needed.
 
-## 1. Critical Rules
+## $fig — the plan-based builder API (ALL NODE CREATION MUST USE THIS)
 
-1.  **Use `return` to send data back.** The return value is JSON-serialized automatically (objects, arrays, strings, numbers). Do NOT call `figma.closePlugin()` or wrap code in an async IIFE — this is handled for you.
-2.  **Write plain JavaScript with top-level `await` and `return`.** Code is automatically wrapped in an async context. Do NOT wrap in `(async () => { ... })()`.
-3.  `figma.notify()` **throws "not implemented"** — never use it
-3a. **Return node IDs and keep workflow state outside the Figma file.** Put human-readable component purpose and usage in the component's `description`.
-4.  `console.log()` is NOT returned — use `return` for output
-5.  **Work incrementally in small steps.** Break large operations into multiple `use_figma` calls. Validate after each step. This is the single most important practice for avoiding bugs.
-6.  Colors are **0–1 range** (not 0–255): `{r: 1, g: 0, b: 0}` = red
-7.  Fills/strokes are **read-only arrays** — clone, modify, reassign
-8.  **Every text edit follows the canonical recipe: load font → `await` → mutate → return affected node IDs.** Skipping the load throws `Cannot write to node with unloaded font "<family> <style>"`. The rule covers more than `characters` — it applies to any operation on nodes with unloaded fonts (`appendChild`, `insertChild`, `setBoundVariable`, `setExplicitVariableModeForCollection`, `setValueForMode`, `findAll` callbacks touching text). When mutating existing text, load the node's *current* fonts via `getStyledTextSegments(['fontName'])`, not a hardcoded default. Inter is preloaded in most environments so other families surface this bug more often — the recipe is the same for every font. Use `await figma.listAvailableFontsAsync()` first if the style string is unverified. See [Canonical text-edit recipe](references/gotchas.md#canonical-text-edit-recipe-font-load--await--mutate--return-ids).
-9.  **Pages load incrementally** — use `await figma.setCurrentPageAsync(page)` to switch pages and load their content. The sync setter `figma.currentPage = page` does **NOT** work and will throw (see Page Rules below)
-10. `setBoundVariableForPaint` returns a **NEW** paint — must capture and reassign
-11. `createVariable` accepts collection **object or ID string** (object preferred)
-12. **`layoutSizingHorizontal/Vertical` is value-restricted by structural context — `FIXED` always works, `HUG` and `FILL` do not.** `'HUG'` is valid only on an auto-layout frame itself OR on a **TEXT** child of one. `'FILL'` is valid only on a child of an auto-layout frame that is also not absolute-positioned, not inside an immutable frame, and not a canvas-grid child. Practical consequence: append to an auto-layout parent FIRST, then set `HUG`/`FILL` — a newly-created or unparented node can't satisfy the rule yet. The property itself exists on every `SceneNode`; the error is value-rejection, not "no such property". See [Gotchas](references/gotchas.md#layoutsizinghorizontallayoutsizingvertical-value-rules-fixed-hug-fill).
-12a. **Use auto-layout for containers that hold related children.** When children have a structural relationship — stacked, side-by-side, aligned, gapped, hugged — wrap them in `figma.createAutoLayout()`, not `figma.createFrame()` with absolute `x`/`y`. Absolute coordinates govern where a container sits on the canvas; auto-layout governs how its children relate inside it. Skipping the container leaves no protection against text reflow, content changes, or overlap.
-12b. **`layoutSizing*` and `*AxisSizingMode` are different enums — don't cross them.** `layoutSizingHorizontal`/`layoutSizingVertical` (set on a **child**) take `'FIXED'|'HUG'|'FILL'`; `primaryAxisSizingMode`/`counterAxisSizingMode` (set on the **frame** itself) take `'FIXED'|'AUTO'`. So `layoutSizingVertical = 'AUTO'` is invalid (use `'HUG'`), and `counterAxisSizingMode = 'FILL'` throws `Expected 'FIXED' | 'AUTO', received 'FILL'` (use `'FIXED'`/`'AUTO'`). Two more errors from the same setter — `Error: in set_layoutSizingHorizontal: node must be an auto-layout frame or a child of an auto-layout frame` and `Error: in set_layoutSizingHorizontal: FILL can only be set on children of auto-layout frames` — mean the node isn't in an auto-layout context yet; **recommendation: make the parent auto-layout (`figma.createAutoLayout()`) and `appendChild` the node before setting** (see Rule 12). See [Gotchas](references/gotchas.md#layoutsizing-vs-axissizingmode-two-different-sizing-enums).
-13. **Position new top-level nodes away from (0,0).** Nodes appended directly to the page default to (0,0). Scan `figma.currentPage.children` to find a clear position (e.g., to the right of the rightmost node). This only applies to page-level nodes — nodes nested inside other frames or auto-layout containers are positioned by their parent. See [Gotchas](references/gotchas.md).
-14. **On `use_figma` error, STOP. Do NOT immediately retry.** Failed scripts are **atomic** — if a script errors, it is not executed at all and no changes are made to the file. Read the error message carefully, fix the script, then retry. See [Error Recovery](#6-error-recovery--self-correction).
-15. **MUST `return` ALL created/mutated node IDs.** Whenever a script creates new nodes or mutates existing ones on the canvas, collect every affected node ID and return them in a structured object (e.g. `return { createdNodeIds: [...], mutatedNodeIds: [...] }`). This is essential for subsequent calls to reference, validate, or clean up those nodes.
-16. **Always set `variable.scopes` explicitly when creating variables.** The default `ALL_SCOPES` pollutes every property picker — almost never what you want. Use specific scopes like `["FRAME_FILL", "SHAPE_FILL"]` for backgrounds, `["TEXT_FILL"]` for text colors, `["GAP"]` for spacing, etc. See [variable-patterns.md](references/variable-patterns.md) for the full list.
-17. **`await` every Promise.** Never leave a Promise unawaited — unawaited async calls (e.g. `figma.loadFontAsync(...)` without `await`, or `figma.setCurrentPageAsync(page)` without `await`) will fire-and-forget, causing silent failures or race conditions. The script may return before the async operation completes, leading to missing data or half-applied changes.
-18. **Never read `componentPropertyDefinitions` from a variant component.** Narrow the owner first: use the node itself when it is a `COMPONENT_SET`, use a `COMPONENT` only when its parent is not a `COMPONENT_SET`, and otherwise promote a variant `COMPONENT` to its parent set. Optional chaining does not make the getter safe. See [Component-property owner narrowing](references/component-patterns.md#component-property-owner-narrowing).
-> For detailed WRONG/CORRECT examples of each rule, see [Gotchas & Common Mistakes](references/gotchas.md).
+`$fig` is a global that is responsible for all node creation. It auto-flushes at script end (no `$fig.done()` needed), handles font preloading, batches mutations, and orders property assignment correctly. **Use it for all node creation and mutation operations.** Never use `figma.createFrame()`, `figma.createText()` or any `figma.create*` methods. They do not exist in this environment.
 
-## 2. Page Rules (Critical)
+### Copy these patterns
 
-**Page context resets between `use_figma` calls** — `figma.currentPage` starts on the first page each time.
+**Build an auto-layout frame with children — single call:**
+```js
+$fig.autoLayout(
+  // fixed width; omit height to hug vertically
+  { name: 'Todo List', layoutMode: 'VERTICAL', width: 480 },
+  ['item 1', 'item 2', 'item 3'].map((item) =>
+    $fig.autoLayout(
+      // Set `layoutSizingHorizontal` to FILL since auto-layout is hug x hug by default
+      { name: 'Todo Item', layoutSizingHorizontal: 'FILL' },
+      [$fig.text({ characters: item, fontName: { family: 'Inter', style: 'Bold' } })],
+    ),
+  ),
+).screenshot() // Screenshot new node trees to verify. Prefer `.screenshot()` over `get_screenshot` call after `use_figma`.
+```
 
-### Switching pages
+**N parallel items for repeated small UI elements like swatches, list items, etc.:**
+```js
+const ITEMS = [
+  { name: 'A', bg: hex('#ffffff'), accent: hex('#0969da') },
+  { name: 'B', bg: hex('#fff8f1'), accent: hex('#bf5af2') },
+  // ...add more here
+]
+ITEMS.forEach((v, i) => $fig.autoLayout({ name: v.name, x: i * 410, width: 390, fills: [{ type:'SOLID', color: v.bg }] }, [
+  $fig.text({ characters: v.name, fills: [{ type:'SOLID', color: v.accent }] }),
+]))
+```
 
-Use `await figma.setCurrentPageAsync(page)` to switch pages and load their content. The sync setter `figma.currentPage = page` does **NOT work** — it throws `"Setting figma.currentPage is not supported"` in `use_figma`. Always use the async method.
+**Update existing nodes — by query or by id:**
+```js
+$fig.query('FRAME[name=Header] TEXT[name=Title]').set({ characters: 'New Title', fontSize: 24 })
+$fig.get('1:42').set({ opacity: 0.8, cornerRadius: 12 })
+```
 
+**Add a node inside an existing node**
+```js
+$fig.get('1:42').append($fig.autoLayout({ name: 'New Frame' }))
+```
+
+**Create a component with a few different variants**
+```js
+const SIZES = ['Small', 'Medium', 'Large']
+$fig.variants({ name: 'Button' }, SIZES.map((size) => $fig.component({ name: `Size=${size}`, layoutMode: 'HORIZONTAL', /** other props */ })))
+```
+> ⚠️ `$fig.variants` does **not** position the variants — they stack at (0,0) and the set renders as one collapsed, overlapping element. You must grid the variants and resize the set afterward. See [`fig-builder.md`](references/fig-builder.md#required-follow-up--grid-the-variants-fig-build--raw-layout) for the required follow-up recipe.
+
+> **Building a component — even a single one? Binding tokenized values is part of finishing the job, not a preference.** A component is **not complete** while any value that *has* a corresponding design token — one that already exists in the file, or that you created from the source — is still a hardcoded literal. When a token exists for a `fills` color / `cornerRadius` / padding / `itemSpacing`, bind it: build a `$fig.varCollection` (primitive tier + semantic tier aliased to it) and pass the variable **handle straight into the property**. **Anti-pattern to avoid:** do NOT copy resolved token values into local JS constants (e.g. `const VARIANTS = [{ bg: '#2c2c2c' }]`) and paint with `hex(...)` — that silently bypasses variables even though the source defines tokens. This applies to a single component as much as a full design system. **Only bind values that actually have a token** — values with genuinely no token (one-off geometry, icon pixel sizes, static 1px dividers) correctly stay literal; don't invent tokens to bind. **If you create the variables in one `use_figma` call and build the component in a later one, rehydrate the handles first** (`$fig.getVar(id)` or `figma.variables.getVariableByIdAsync` using the IDs you returned) — a handle from a previous call isn't in scope. Worked recipe: [fig-builder.md → Building a component with bound variables](references/fig-builder.md#building-a-component-with-bound-variables-the-default-for-components).
+
+**Create an instance of a component**
+```js
+// First arg can be a node ID ('1:2') OR a library asset key
+// from `search_design_system` results (the `componentKey` field).
+$fig.instance('1:2', { name: 'Cancel Btn', props: { label: 'Cancel'}})
+```
+
+**Consume styles/variables**
+```js
+$fig.autoLayout({ name: 'Card', itemSpacing: spacingVar, fills: fillStyle })
+
+// Looked up by asset key from `search_design_system` (the `key` field)
+$fig.autoLayout({ fills: $fig.getStyle(BG_STYLE_KEY) })
+$fig.rectangle({ fills: [{ type: 'SOLID', color: $fig.getVar(BRAND_VAR_KEY) }] })
+```
+
+**Use design-system assets by key (from `search_design_system`)**
+
+`search_design_system` returns `componentKey` for components and component sets, and `key` for styles and variables. Pass these straight into the unified `$fig` lookup — the plan queues the library import automatically, so you don't need a separate `await figma.importComponentByKeyAsync(...)` / `importStyleByKeyAsync(...)` / `importVariableByKeyAsync(...)` step.
+```js
+// One call site, many input shapes — node IDs, real variable/style ids,
+// AND 40-char asset keys (e.g. '49c8754d4b898e176148650df612a47998a8c4a1')
+const btn        = $fig.get(BUTTON_KEY)                    // component / component set
+const instance   = $fig.instance(BUTTON_SET_KEY, {         // create an instance from a set
+  props: { Size: 'md', Variant: 'primary' },
+})
+const heading    = $fig.getStyle(HEADING_TEXT_STYLE_KEY)   // paint / text / effect / grid style
+const brand      = $fig.getVar(BRAND_COLOR_VAR_KEY)        // variable
+
+$fig.text({ characters: 'Hello', textStyle: heading })
+$fig.rectangle({ fills: [{ type: 'SOLID', color: brand }] })
+```
+
+**Discover a set's variant props from its key** — `search_design_system` returns a set's `componentKey`, not its variant properties. This is **two `use_figma` calls**: call 1 `return`s the set's property definitions and its variants so their props come back to you in the tool result; then, knowing the valid props, call 2 instantiates the variant you want.
+```js
+const setHandle = $fig.get(BUTTON_SET_KEY)
+await $fig.done()
+const set = setHandle.node
+if (!set || set.type !== 'COMPONENT_SET') {
+  throw new Error(`Key ${BUTTON_SET_KEY} is not a COMPONENT_SET`)
+}
+return {
+  componentPropertyDefinitions: set.componentPropertyDefinitions,
+  variants: set.children
+    .filter((c) => c.type === 'COMPONENT')
+    .map((c) => ({ name: c.name, variantProperties: c.variantProperties })),
+}
+```
+```js
+// Call 2 — instantiate with props you picked from call 1's output
+$fig.instance(BUTTON_SET_KEY, { props: { Size: 'Large', Kind: 'Secondary' } })
+```
+
+**Bulk component swap — `$fig.query().set()`:**
+```js
+const chevron = $fig.get('CHEVRON_KEY')
+$fig.query('INSTANCE[name=arrow_drop_down]').set({ mainComponent: chevron })
+```
+
+**`.query()` and `.values()` for search and projecting child values**
+```js
+const menuArrows = $fig
+  .query('PAGE[name=Menu] INSTANCE[mainComponent.name*=arrow], PAGE[name=Menu] INSTANCE[mainComponent.name*=chevron]')
+  .values(['id', 'name', 'mainComponent.name', 'mainComponent.id']);
+
+// Use quotes for multi-word selector values
+const expandComponents = $fig
+  .query('COMPONENT[name*=expand], COMPONENT[name*=chevron_down], COMPONENT[name*=chevron_up], COMPONENT[name*="multi word name"]')
+  .values(['id', 'name']);
+```
+
+**Perform operations on another page:**
 ```js
 // Switch to a specific page (loads its content)
 const targetPage = figma.root.children.find((p) => p.name === "My Page");
 await figma.setCurrentPageAsync(targetPage);
-// targetPage.children is now populated
+$fig.query('INSTANCE[name=arrow_drop_down]').set({ ... })
 ```
 
-### Call `setCurrentPageAsync` at most once per `use_figma` invocation — fan multi-page work out in parallel
-
-**One script must switch pages at most once.** Never loop over `figma.root.children` and switch pages inside the loop.
-
-If the work spans multiple pages, **split it into N `use_figma` calls (one per target page) and emit them in parallel** — a single assistant message containing N `use_figma` tool-use blocks. The harness runs them concurrently; each script sets `currentPage` exactly once.
-
-> **Explicit instruction:** when fanning out, you MUST issue the N tool calls in **one message**. Do not send them across multiple turns. Do not await one before issuing the next. Sequential per-page calls are slower than the in-loop pattern this rule replaces and waste the entire benefit of splitting.
-
+**Gradient via helper — no manual transform matrix needed:**
 ```js
-// AVOID — switches pages N times in one script, reloads the file each time
-for (const page of figma.root.children) {
-  await figma.setCurrentPageAsync(page);
-  // ... touch this page ...
-}
-
-// PREFER — read-only discovery call to get page IDs, then in the NEXT message
-// emit N parallel use_figma tool calls (one per page), each setting currentPage once.
+$fig.gradient(node, 'LINEAR', [
+  { position: 0, color: { r: 0, g: 0, b: 0 } },
+  { position: 1, color: { r: 1, g: 1, b: 1 } },
+])
 ```
 
-Default to parallel fan-out for any multi-page work — reads and writes alike. See [gotchas.md → Set current page once per `use_figma` call](references/gotchas.md#set-current-page-once-per-use_figma-call--split-multi-page-work-into-parallel-calls) for the full rationale.
-
-### Across script runs
-
-`figma.currentPage` resets to the **first page** at the start of each `use_figma` call. If your workflow spans multiple calls and targets a non-default page, call `await figma.setCurrentPageAsync(page)` at the start of each invocation.
-
-You can call `use_figma` multiple times to incrementally build on the file state, or to retrieve information before writing another script. For example, write a script to get metadata about existing nodes, `return` that data, then use it in a subsequent script to modify those nodes.
-
-## 3. `return` Is Your Output Channel
-
-The agent sees **ONLY** the value you `return`. Everything else is invisible.
-
-- **Returning IDs (CRITICAL)**: Every script that creates or mutates canvas nodes **MUST** return all affected node IDs — e.g. `return { createdNodeIds: [...], mutatedNodeIds: [...] }`. This is a hard requirement, not optional.
-- **Progress reporting**: `return { createdNodeIds: [...], count: 5, errors: [] }`
-- **Error info**: Thrown errors are automatically captured and returned — just let them propagate or `throw` explicitly.
-- `console.log()` output is **never** returned to the agent
-- Always return actionable data (IDs, counts, status) so subsequent calls can reference created objects
-
-## 4. Editor Mode
-
-`use_figma` works in **design mode** (editorType `"figma"`, the default). FigJam (`"figjam"`) and Slides (`"slides"`) have different sets of available node types — most design nodes are blocked in FigJam, and FigJam-only nodes are blocked in Slides.
-
-**Tell the editor from the URL:** Design = `figma.com/design/...`, FigJam = `figma.com/board/...`, Slides = `figma.com/slides/...`. Confirm before assuming an API is available.
-
-Available in design mode: Rectangle, Frame, Component, Text, Ellipse, Star, Line, Vector, Polygon, BooleanOperation, Slice, Page, Section, TextPath.
-
-**Blocked** in design mode: Sticky, Connector, ShapeWithText, CodeBlock, Slide, SlideRow, SlideGrid, InteractiveSlideElement, Webpage.
-
-Available in Slides mode: Rectangle, Frame, Component, Text, Ellipse, Star, Line, Vector, Polygon, BooleanOperation, Slice, Section, TextPath, Slide, SlideRow, SlideGrid, InteractiveSlideElement.
-
-**Blocked** in Slides mode: Sticky, Connector, ShapeWithText, CodeBlock, Webpage, Page.
-
-**Design-only APIs (not just node types):** `figma.createPage()` is available only in Design files (`figma.com/design/...`). In both FigJam (`figma.com/board/...`) and Slides (`figma.com/slides/...`) it throws `TypeError: figma.createPage no such property 'createPage' on the figma global object`. Do not emit `figma.createPage()` in FigJam or Slides workflows.
-
-> **Slides note:** There is no dedicated read tool for Slides files yet. Use `use_figma` with read-only scripts for inspection (see Section 6 "Inspect first" pattern), and `get_screenshot` / `await node.screenshot()` for visual context. For Slides-specific API guidance, load the [figma-use-slides](../figma-use-slides/SKILL.md) skill.
-
-## 5. Efficient APIs — Prefer These Over Verbose Alternatives
-
-These APIs reduce boilerplate, eliminate ordering errors, and compress token output. **Always prefer them over the verbose alternatives.**
-
-### `node.query(selector)` — CSS-like node search
-
-Find nodes within a subtree using CSS-like selectors. Replaces verbose `findAll` + filter loops.
-
+**Hex helper at script top:**
 ```js
-// BEFORE — verbose traversal
-const texts = frame.findAll(n => n.type === 'TEXT' && n.name === 'Title')
-
-// AFTER — one-liner with query
-const texts = frame.query('TEXT[name=Title]')
+const hex = h => { const n = parseInt(h.replace('#',''), 16); return { r:((n>>16)&255)/255, g:((n>>8)&255)/255, b:(n&255)/255 } }
+// then: color: hex('#2563eb')
 ```
 
-**Selector syntax:**
-- Type: `FRAME`, `TEXT`, `RECTANGLE`, `ELLIPSE`, `COMPONENT`, `INSTANCE`, `SECTION` (case-insensitive)
-- Attribute exact: `[name=Card]`, `[visible=true]`, `[opacity=0.5]`
-- Attribute substring: `[name*=art]` (contains), `[name^=Header]` (starts-with), `[name$=Nav]` (ends-with)
-- Dot-path traversal: `[fills.0.type=SOLID]`, `[fills.*.type=SOLID]` (wildcard index)
-- Instance matching: `[mainComponent=nodeId]`, `[mainComponent.name=Button]`
-- Combinators: `FRAME > TEXT` (direct child), `FRAME TEXT` (any descendant), `A + B` (adjacent sibling), `A ~ B` (general sibling)
-- Pseudo-classes: `:first-child`, `:last-child`, `:nth-child(2)`, `:not(TYPE)`, `:is(FRAME, RECTANGLE)`, `:where(TEXT, ELLIPSE)`
-- Node ID: `#nodeId` or bare GUID
-- Comma: `TEXT, RECTANGLE` (union)
-- Wildcard: `*` (any type)
-
-**QueryResult methods:**
-| Method | Description |
-|---|---|
-| `.length` | Number of matched nodes |
-| `.first()` | First matched node (or `null`) |
-| `.last()` | Last matched node (or `null`) |
-| `.toArray()` | Convert to regular array |
-| `.each(fn)` | Iterate with callback, returns `this` for chaining |
-| `.map(fn)` | Map to new array |
-| `.filter(fn)` | Filter to new QueryResult |
-| `.values(keys)` | Extract property values: `.values(['name', 'x', 'y'])` → `[{name, x, y}, ...]` |
-| `.set(props)` | Set properties on all matched nodes (see `node.set()` below) |
-| `.query(selector)` | Sub-query within matched nodes |
-| `for...of` | Iterable — works in `for` loops |
-
-**Scope:** `node.query()` searches within that node's subtree. To search the whole page: `figma.currentPage.query('...')`. There is no global `figma.query()`.
-
-**Examples:**
+**Chaining on plan nodes — alternative to children array:**
 ```js
-// Recolor all text inside cards
-figma.currentPage.query('FRAME[name^=Card] TEXT').set({
-  fills: [{type: 'SOLID', color: {r: 0.2, g: 0.2, b: 0.8}}]
-})
-
-// Get names and positions of all frames
-return figma.currentPage.query('FRAME').values(['name', 'x', 'y'])
-
-// Find the first component named "Button"
-const btn = figma.currentPage.query('COMPONENT[name=Button]').first()
-
-// Find all instances of a specific component
-figma.currentPage.query(`INSTANCE[mainComponent=${compId}]`)
-
-// Find nodes with solid fills using dot-path traversal
-figma.currentPage.query('[fills.0.type=SOLID]')
+const card = $fig.autoLayout({ name: 'Card', layoutMode: 'VERTICAL' })
+card.text({ characters: 'Title', fontSize: 20 })
+card.text({ characters: 'Description', fontSize: 14 })
 ```
 
-### `node.set(props)` — batch property updates
+### `$fig` create + mutate API (full surface)
 
-Set multiple properties in one call. Returns `this` for chaining.
+- **Create:** `$fig.autoLayout / .frame / .text / .rectangle / .ellipse / .polygon / .star / .line / .vector / .section / .component / .page` — all `(opts?, children?)`. Plan nodes are chainable.
+- **Create from SVG — the preferred ICON path:** `$fig.svg(svgStr, opts?)` builds a vector node tree from an SVG string. **Prefer real vector icons:** import the icon's SVG source (inline `<svg>`, the `.svg` asset, or the source icon-library glyph — e.g. lucide/heroicons) via `$fig.svg(...)` rather than approximating an icon with a typed emoji/Unicode glyph (★ ⚙ 🔍 ☰ ▾) or a plain rectangle. A simple glyph or shape is a fine fallback when the real SVG genuinely can't be obtained — just reach for the SVG first. (Don't reconstruct an icon from rotated line/rect primitives, though — that renders broken.) Full recipe (viewBox+width/height sizing, `currentColor`, INSTANCE_SWAP for design-system icons): [figma-generate-design → Icons](../figma-generate-design/SKILL.md#icons-import-the-svg-never-reconstruct-from-rotated-primitives).
+- **Create an instance of a component:** `$fig.instance(compRef, opts?)` — `compRef` is a component plan node, a node ID string, OR a library asset key (`componentKey` from `search_design_system`); the import is queued in the plan automatically.
+- **Grouping/boolean:** `$fig.group / .union / .subtract / .intersect / .exclude / .variants` — all `(opts?, children?)`.
+- **Read:** `$fig.get(id)` wraps an existing `SceneNode` — `id` can be a real node ID OR a library asset key (`componentKey` from `search_design_system`); the import is queued in the plan automatically. `$fig.query(selector, scope?)` returns `{ length, values(paths), first(), last(), each(fn), filter(fn), set(props), moveTo(parent, idx?), remove() }`. Selectors are CSS-like (e.g. `'FRAME[name*=Card] TEXT'`). `$fig.getStyle(nameOrIdOrKey)` and `$fig.getVar(nameOrIdOrKey)` accept the matching `key` values from `search_design_system`.
+- **Mutate:** `$fig.set(target, props)`, `.delete(...nodes)`, `.move(target, parent, idx?)`, `.clone(target, props?)`, `.append(parent, child)`, `.addAt(parent, idx, child)`, `.replace(old, new)`, `.reorder(parent, children)`, `.setPage(name)`, `.gradient(node, type, stops, transform?)`, `.image(node, hash, scaleMode?)`.
+- **Plan-node methods (chainable):** `.set()`, `.remove()`, `.clone()`, `.moveTo(parent, idx?)`, `.append(child)`, `.query(selector)`, `.screenshot({scale?, contentsOnly?})`, and the `.node` getter for the materialized `SceneNode` (null pre-flush).
 
-```js
-// BEFORE — one line per property
-frame.opacity = 0.5
-frame.cornerRadius = 8
-frame.name = "Card"
+### When to use the raw Figma Plugin API
 
-// AFTER — single call
-frame.set({ opacity: 0.5, cornerRadius: 8, name: "Card" })
-```
+Only these cases — and even then, mix raw API with `$fig` in the same script:
 
-**Priority key ordering:** `layoutMode` is always applied before other properties (like `width`/`height`) regardless of object key order. This prevents the common bug where `resize()` behaves differently depending on whether `layoutMode` is set.
+- **Mid-script async result needed:** `await figma.setCurrentPageAsync(...)`, `await figma.loadFontAsync(...)` — must complete before subsequent plan steps can use the result. (Importing library components is NOT one of these cases: pass the `componentKey` straight into `$fig.get(...)` / `$fig.instance(...)` and pass variant property values in `props`. `$fig` queues the library import in the plan and resolves the variant for you.)
+- **Mid-script real node state read:** measured `width` / `height` after auto-layout, computed colors, getStyledTextSegments — materialize mid-script, then read `.node` on the plan node. See [references/fig-builder.md](references/fig-builder.md) for the mid-script inspection pattern.
+- **Things `$fig` genuinely doesn't expose:** `node.setRangeFontName(...)`, etc. — access via `planNode.node` (see [references/fig-builder.md](references/fig-builder.md)).
 
-**Width/height handling:** `width` and `height` are routed through `node.resize()` automatically — setting `{ width: 200 }` calls `resize(200, currentHeight)`.
+## Critical Rules
 
-**Chaining with query:**
-```js
-// Find all rectangles named "Divider" and update them
-figma.currentPage.query('RECTANGLE[name=Divider]').set({
-  fills: [{type: 'SOLID', color: {r: 0.9, g: 0.9, b: 0.9}}],
-  cornerRadius: 2
-})
-```
+1. **Only use `$fig` for creating / bulk-editing nodes** (`$fig.autoLayout(...)`, `$fig.text(...)`, `$fig.query(...).set(...)`). Raw Plugin API is the fallback — use it only when `$fig` can't express the operation (intermediate node-state reads, non-SceneNode types like Variables). Library components are NOT a reason to leave `$fig`: `$fig.get(componentKey)` / `$fig.instance(componentSetKey, { props })` queue the library import and resolve the variant for you. See [references/fig-builder.md](references/fig-builder.md) and [references/critical-rules-deep.md](references/critical-rules-deep.md) for worked WRONG/RIGHT examples.
 
-### `figma.createAutoLayout(direction?, props?)` — auto-layout frames
+2. **Do not use `findOne`, `findAll`, `findAllWithCriteria`, `findChildren`, `findChild` directly for node searching** They are more verbose, error-prone, and less efficient than `query()`.  Additionally, do not use recursion to search.
 
-Creates a frame with auto-layout already enabled and both axes hugging content. **This is the default container whenever children have a structural relationship to each other (see Rule 12a).**
+3. **Avoid `return` / `$fig.done()` if only using `$fig`** — runtime auto-flushes and returns a `FigDoneResult` with created/updated node IDs. Use `return` if you need raw plugin API mid-script or other data.
 
-```js
-// BEFORE — manual setup, easy to get ordering wrong
-const frame = figma.createFrame()
-frame.layoutMode = 'VERTICAL'
-frame.primaryAxisSizingMode = 'AUTO'
-frame.counterAxisSizingMode = 'AUTO'
-frame.layoutSizingHorizontal = 'HUG'
-frame.layoutSizingVertical = 'HUG'
+4. **Build up larger designs incrementally by section.** Refer to the [figma-generate-design](../figma-generate-design/SKILL.md) skill for the placeholder + replace workflow. Create screens with placeholders inside, e.g. `$fig.autoLayout({ name: 'Header', layoutSizingHorizontal: 'FILL', placeholder: true })`, then make subsequent `use_figma` calls to replace them and screenshot: `$fig.get("PLACEHOLDER_ID_FROM_PREVIOUS_STEP").replace( ... ).screenshot()`. You can make up to 5 `.screenshot()` calls per tool call. If you need to make more screenshots, you are doing too much work and need to break down the task into multiple `use_figma` calls.
 
-// AFTER — one call, layout ready
-const frame = figma.createAutoLayout('VERTICAL')
-```
+5. **Plain JS with top-level `await`.** Code is auto-wrapped in async. Do NOT wrap in `(async () => {})()`.
 
-Children can immediately use `layoutSizingHorizontal/Vertical = 'FILL'` after being appended — no need to set sizing modes manually.
+6. **Colors are 0–1 RGB; ALL fields required.** `{r, g, b}` — no `hex:`, no `a:` in color. Opacity goes outside color: `{type:'SOLID', color:{r,g,b}, opacity: 0.5}`. Hex helper: `const hex = h => { const n = parseInt(h.replace('#',''), 16); return { r:((n>>16)&255)/255, g:((n>>8)&255)/255, b:(n&255)/255 } }`. See [references/critical-rules-deep.md](references/critical-rules-deep.md) for WRONG/RIGHT.
 
-Accepts an optional props object as the first or second argument:
-```js
-figma.createAutoLayout({ name: 'Card', itemSpacing: 12 })               // HORIZONTAL + props
-figma.createAutoLayout('VERTICAL', { name: 'Column', itemSpacing: 8 })  // VERTICAL + props
-```
+7. **No `curl` / `wget` / `Read` of Figma URLs from `Bash`.** Figma file access ONLY via `use_figma` and `mcp__figma__*` tools. After `get_screenshot`, the image is inlined in the tool result — do NOT re-fetch or re-Read it.
 
-### `node.placeholder` — shimmer overlay for AI-in-progress feedback
+8. **Empty / unsupported responses are terminal.** Accept and move on — don't try alternative bypass paths.
 
-Sets a visual shimmer overlay on a node indicating work is in progress. **Always remove the shimmer when done** — leftover shimmers confuse users and indicate incomplete work.
+9. **Verify node-type before touching a property.** Only `FRAME / COMPONENT / COMPONENT_SET / INSTANCE / GROUP / SECTION / PAGE` have `.children`. `GROUP` has no `fills` / `strokes` / `cornerRadius`. `TEXT` has no `cornerRadius` / `padding*` / `layoutMode`. `layoutPositioning='ABSOLUTE'` needs parent with `layoutMode !== 'NONE'`. Check `'<prop>' in node` or grep [references/plugin-api-standalone.d.ts](references/plugin-api-standalone.d.ts). Full list in [references/critical-rules-deep.md](references/critical-rules-deep.md).
 
-```js
-// Mark as in-progress
-frame.placeholder = true
+10. **Don't re-query the same info.** `get_metadata` / `get_comments` on the same target twice yields the same result. Cache mentally.
 
-// ... build out the content ...
+11. **Be decisive once you have enough info.** Don't keep gathering — the marginal information from a 3rd screenshot or 4th metadata call is near-zero.
 
-// MUST remove when done — never leave shimmers on finished nodes
-frame.placeholder = false
-```
+12. **"An unexpected error occurred" from `use_figma` is server-side, not your script bug.** Don't retry unchanged — change approach (smaller batch, different selector, drop one node-prop).
 
-When building complex layouts, set `placeholder = true` on sections before populating them, then set `placeholder = false` on each section as it's completed.
+13. **NEVER call `mcp__figma__get_design_context`. FORBIDDEN.** This tool requires a selection (no selection exists in this environment), so every call will fail. The error is not recoverable — calling it just burns a tool slot and forces a retry. For structured reads of the file, use `mcp__figma__get_metadata` (for top-level frame discovery) and `use_figma` with `$fig.query()` instead. **Never call `get_design_context` for any reason.**
 
-### `await node.screenshot(opts?)` — inline screenshots
+14. **≤3 codebase `Read` calls when the task references source code.** Beyond that, grep only. The 4th codebase Read is forbidden — write your `use_figma` script with what you have.
 
-Capture a node as a PNG and return it inline in the response. Eliminates the need for a separate `get_screenshot` call.
+15. **3 retries of the same error → switch approach.** Most often: switch to `$fig` (which handles ordering automatically). Patching the raw API isn't working.
 
-```js
-// Take a screenshot of a frame (returned inline in the tool response)
-await frame.screenshot()
+16. **Must use auto-layout unless you have a compelling reason not to.** Create auto-layout frames with `$fig.autoLayout(...)` instead of absolutely-positioning nodes.  New auto-layout frames are created with both axes hugging content. Explicitly assign `layoutSizingHorizontal` or `layoutSizingVertical` to `'FILL'` for auto-layout children if you want them to fill the auto-layout container's counter axis.
 
-// Custom scale (default auto-scales: 0.5x or capped so max dimension ≤ 1024px)
-await frame.screenshot({ scale: 2 })
+17. **Gradient paints need ALL fields:** `type`, `gradientStops`, `gradientTransform` (a `[[a,b,tx],[c,d,ty]]` matrix). Missing any throws validation error. See [references/critical-rules-deep.md](references/critical-rules-deep.md).
 
-// Include overlapping content from sibling nodes
-await frame.screenshot({ contentsOnly: false })
-```
+18. **Discover available fonts, esp. for style variations.** Use `await figma.listAvailableFontsAsync()` to discover available fonts for `$fig.text({ fontName: ... })`.
 
-**When to use:** After creating or modifying nodes, call `screenshot()` to visually verify the result within the same script. No need for a separate `get_screenshot` call.
+19. **Set variable `scopes` explicitly when creating variables.** The default `ALL_SCOPES` pollutes every property picker. Use specific scopes — `['FRAME_FILL', 'SHAPE_FILL']` for backgrounds, `['TEXT_FILL']` for text, `['GAP']` for spacing, `['CORNER_RADIUS']` for radii; primitives that shouldn't appear in pickers get `[]`. In `$fig`, pass `scopes` to `colorVar` / `numVar`; in the raw API, set `variable.scopes`. See [references/variable-patterns.md](references/variable-patterns.md).
 
-**Auto-naming:** The image caption includes node metadata — `"Card (300x150 at 0,60).png"` — giving spatial context without parsing the image.
+### Bulk mutation of existing nodes (swap/update/replace) is COMPLETE in 3 `use_figma` calls
 
-**Default scaling:** Uses 0.5x scale, but automatically caps so the largest output dimension never exceeds 1024px. Explicit `{ scale: N }` bypasses the cap.
+For tasks like "swap N icons", "update M colors", "replace K instances":
+1. **DISCOVER + MUTATE** in one script (find via `figma.currentPage.query()`, import any components, mutate via `$fig.query(...).each(...)`, return count).
+2. **VERIFY** (optional) — read-only `.query()` count.
+3. **FINAL REPORT** in assistant text, no tool call. STOP.
 
-## 6. Incremental Workflow (How to Avoid Bugs)
+NO 4th call. NO chasing the last 20% of edge cases. If Call 1 errors, fix and redo — that's still your one mutation call. Full template in [references/critical-rules-deep.md](references/critical-rules-deep.md).
 
-The most common cause of bugs is trying to do too much in a single `use_figma` call. **Work in small steps and validate after each one.**
+## Node property gotchas
 
-### Key rules
+Do not guess node properties or assume CSS-like properties. Accessing non-existent properties will throw `TypeError: node.foo: no such property 'foo' on TYPE node`. Each throw burns a retry. [plugin-api-standalone.index.md](references/plugin-api-standalone.index.md) contains the list of all symbols in the API. Use that file and grep the full API typings in [plugin-api-standalone.d.ts](references/plugin-api-standalone.d.ts) for the full definitions.
 
-- **At most 10 logical operations per `use_figma` call.** A "logical operation" is creating a node, setting its properties, and parenting it. If you need to create 20 nodes, split across 2-3 calls. **Slides override:** in Slides files, slides are isolated subtrees — the relevant limit is complexity per slide, not total nodes across slides. Building 3–5 new slides in one call is safe, and so is applying the same edit (e.g. adding a footer, recoloring a heading) across every slide in the deck in a single call. See [figma-use-slides](../figma-use-slides/SKILL.md) for the deck-building workflow.
-- **Build top-down, starting with placeholders.** Create the outer structure first with `placeholder = true` on each section, then incrementally replace placeholders with real content in subsequent calls.
+- **Only `FRAME` / `COMPONENT` / `COMPONENT_SET` / `INSTANCE` / `GROUP` / `SECTION` / `PAGE` have `.children`.** `RECTANGLE`, `TEXT`, `ELLIPSE`, `POLYGON`, `STAR`, `VECTOR`, `LINE`, `SLICE`, `STICKY`, `SHAPE_WITH_TEXT`, `STAMP`, `CONNECTOR`, `TABLE`, `WIDGET`, `EMBED`, `MEDIA` do NOT. Check `'children' in node` before accessing a node's children.
+- **`GROUP` has NO `fills` / `strokes` / `cornerRadius`.** Apply paints/radii on the child shapes inside.
+- **Figma auto-layout != CSS flexbox.** There is no such thing as margin.
+- **`TEXT` DOES NOT HAVE container properties.** Text has font / size / decoration / fills. Do not use container properties like padding, layout mode, item spacing, etc.
+- **`INSTANCE` descendants are read-only for structural ops** — you cannot `appendChild` / `insertChild` into an instance child. Edit the source `COMPONENT` or detach first.
+- **Never use `primaryAxisSizingMode` or `counterAxisSizingMode` on a node. ** Use `layoutSizingHorizontal` or `layoutSizingVertical` with 'FIXED' | 'HUG' | 'FILL'. Use 'FILL' only when the parent has auto-layout.
+- **There is NO `instance.swapMainComponent(...)`.** Use `instance.setProperties({...})` with the component-property variant value, OR `$fig.query(...).set({props: {...}})`. There IS `instance.swapComponent(component)` (different method name).
 
-### The pattern
+## References
 
-1. **Inspect first.** Before creating anything, run a read-only `use_figma` to discover what already exists in the file — pages, components, variables, naming conventions. Match what's there.
-2. **Build the skeleton.** Create the top-level structure with placeholder sections. Set `placeholder = true` on each section so the user sees progress.
-3. **Fill in sections incrementally.** In each subsequent call, populate one section and set its `placeholder = false` when done. Take a `screenshot()` to verify.
-4. **Return IDs from every call.** Always `return` created node IDs, variable IDs, collection IDs as objects (e.g. `return { createdNodeIds: [...] }`). You'll need these as inputs to subsequent calls.
-5. **Validate after each step.** Use `get_metadata` to verify structure (counts, names, hierarchy, positions). Use `await node.screenshot()` inline or `get_screenshot` after major milestones to catch visual issues.
-6. **Fix before moving on.** If validation reveals a problem, fix it before proceeding to the next step. Don't build on a broken foundation.
-
-### Suggested step order for complex tasks
-
-```
-Step 1: Inspect file — discover existing pages, components, variables, conventions
-Step 2: Create tokens/variables (if needed)
-       → validate with get_metadata
-Step 3: Create individual components
-       → validate with get_metadata + get_screenshot
-Step 4: Compose layouts from component instances
-       → validate with get_screenshot
-Step 5: Final verification
-```
-
-### What to validate at each step
-
-| After... | Check with `get_metadata` | Check with `get_screenshot` |
-|---|---|---|
-| Creating variables | Collection count, variable count, mode names | — |
-| Creating components | Child count, variant names, property definitions | Variants visible, not collapsed, grid readable |
-| Binding variables | Node properties reflect bindings | Colors/tokens resolved correctly |
-| Composing layouts | Instance nodes have mainComponent, hierarchy correct | No cropped/clipped text, no overlapping elements, correct spacing |
-
-## 7. Error Recovery & Self-Correction
-
-**`use_figma` is atomic — failed scripts do not execute.** If a script errors, no changes are made to the file. The file remains in the same state as before the call. This means there are no partial nodes, no orphaned elements from the failed script, and retrying after a fix is safe.
-
-### When `use_figma` returns an error
-
-1. **STOP.** Do not immediately fix the code and retry.
-2. **Read the error message carefully.** Understand exactly what went wrong — wrong API usage, missing font, invalid property value, etc.
-3. **If the error is unclear**, call `get_metadata` or `get_screenshot` to understand the current file state.
-4. **Fix the script** based on the error message.
-5. **Retry** the corrected script.
-
-### Common self-correction patterns
-| Error message | Likely cause | How to fix |
-|---|---|---|
-| `"not implemented"` | Used `figma.notify()` | Remove it — use `return` for output |
-| `Error: in set_layoutSizingHorizontal: node must be an auto-layout frame or a child of an auto-layout frame` / `Error: in set_layoutSizingHorizontal: FILL can only be set on children of auto-layout frames` / `"HUG can only be set on auto-layout frames or text children of auto-layout frames"` / `"FILL cannot be set on absolute positioned auto-layout children"` / `"FILL cannot be set on canvas grid children"` | Tried to assign `HUG`/`FILL` to a node whose structural context doesn't allow it (e.g. parent isn't auto-layout, ran before `appendChild`, non-text child trying to `HUG`, absolute-positioned child trying to `FILL`) | Make the parent auto-layout via `figma.createAutoLayout()`; `appendChild` first; reserve `HUG` for the auto-layout frame itself or for TEXT children; for absolute/immutable/grid children use `FIXED` + `resize()`. See [gotchas.md](references/gotchas.md#layoutsizinghorizontallayoutsizingvertical-value-rules-fixed-hug-fill) |
-| `"Setting figma.currentPage is not supported"` | Used sync page setter (`figma.currentPage = page`) which does NOT work | Use `await figma.setCurrentPageAsync(page)` — the only way to switch pages |
-| `Error: in get_componentPropertyDefinitions: Can only get component property definitions of a component set or non-variant component` | Read `componentPropertyDefinitions` from a variant `COMPONENT` | Read from its parent `COMPONENT_SET` instead. Narrow the owner before touching the getter; optional chaining does not prevent this error. See [component-property owner narrowing](references/component-patterns.md#component-property-owner-narrowing). |
-| Property value out of range | Color channel > 1 (used 0–255 instead of 0–1) | Divide by 255 |
-| `"Cannot read properties of null"` | Node doesn't exist (wrong ID, wrong page) | Check page context, verify ID |
-| Script hangs / no response | Infinite loop or unresolved promise | Check for `while(true)` or missing `await`; ensure code terminates |
-| `"The node with id X does not exist"` | Parent instance was implicitly detached by a child `detachInstance()`, changing IDs | Re-discover nodes by traversal from a stable (non-instance) parent frame |
-
-### When the script succeeds but the result looks wrong
-
-1. Call `get_metadata` to check structural correctness (hierarchy, counts, positions).
-2. Call `get_screenshot` to check visual correctness. Look closely for cropped/clipped text (line heights cutting off content) and overlapping elements — these are common and easy to miss.
-3. Identify the discrepancy — is it structural (wrong hierarchy, missing nodes) or visual (wrong colors, broken layout, clipped content)?
-4. Write a targeted fix script that modifies only the broken parts — don't recreate everything.
-
-> For the full validation workflow, see [Validation & Error Recovery](references/validation-and-recovery.md).
-
-## 8. Pre-Flight Checklist
-
-Before submitting ANY `use_figma` call, verify:
-- [ ] Code uses `return` to send data back (NOT `figma.closePlugin()`)
-- [ ] Code is NOT wrapped in an async IIFE (auto-wrapped for you)
-- [ ] `return` value includes structured data with actionable info (IDs, counts)
-- [ ] NO usage of `figma.notify()` anywhere
-- [ ] NO usage of `console.log()` as output (use `return` instead)
-- [ ] All colors use 0–1 range (not 0–255)
-- [ ] Paint `color` objects use `{r, g, b}` only — no `a` field (opacity goes at the paint level: `{ type: 'SOLID', color: {...}, opacity: 0.5 }`)
-- [ ] Fills/strokes are reassigned as new arrays (not mutated in place)
-- [ ] Page switches use `await figma.setCurrentPageAsync(page)` (sync setter `figma.currentPage = page` does NOT work)
-- [ ] `layoutSizingVertical/Horizontal = 'FILL'` is set AFTER `parent.appendChild(child)`
-- [ ] Wrapping TEXT blocks set `textAutoResize = 'HEIGHT'` and an explicit width (`'FIXED'` + `resize()`) — NOT `FILL` alone, which the default `WIDTH_AND_HEIGHT` mode ignores, collapsing the node to a near-zero-width thread. Verify `node.width > 0`
-- [ ] Every text mutation follows the [canonical recipe](references/gotchas.md#canonical-text-edit-recipe-font-load--await--mutate--return-ids): `loadFontAsync` → `await` → mutate `characters`/font/size/etc. → return affected node IDs. Works for ANY font family/style, not just Inter (which only happens to be preloaded).
-- [ ] Style names have already been verified via `listAvailableFontsAsync()` — NOT guessed from memory (`"SemiBold"` vs `"Semi Bold"` is a common footgun)
-- [ ] For `FONT_FAMILY`-scoped variables: every value across every relevant mode is loaded before `setBoundVariable("fontFamily", …)`, `setValueForMode`, or `setExplicitVariableModeForCollection`
-- [ ] `lineHeight`/`letterSpacing` use `{unit, value}` format (not bare numbers)
-- [ ] `resize()` is called BEFORE setting sizing modes (resize resets them to FIXED)
-- [ ] Every `componentPropertyDefinitions` read is performed only after narrowing to a `COMPONENT_SET` or a non-variant `COMPONENT`; variant components are promoted to their parent set first
-- [ ] For multi-step workflows: IDs from previous calls are passed as string literals (not variables)
-- [ ] New top-level nodes are positioned away from (0,0) to avoid overlapping existing content
-- [ ] Containers with structurally-related children use `figma.createAutoLayout()`, not absolute x/y (see Rule 12a)
-- [ ] ALL created/mutated node IDs are collected and included in the `return` value
-- [ ] Every async call (`loadFontAsync`, `setCurrentPageAsync`, `importComponentByKeyAsync`, etc.) is `await`ed — no fire-and-forget Promises
-
-## 9. Discover Conventions Before Creating
-
-**Always inspect the Figma file before creating anything.** Different files use different naming conventions, variable structures, and component patterns. Your code should match what's already there, not impose new conventions.
-
-When in doubt about any convention (naming, scoping, structure), check the Figma file first, then the user's codebase. Only fall back to common patterns when neither exists.
-
-### Quick inspection scripts
-
-**List all pages and top-level nodes:**
-```js
-const pages = figma.root.children.map(p => `${p.name} id=${p.id} children=${p.children.length}`);
-return pages.join('\n');
-```
-
-**List existing components across all pages:**
-
-`search_design_system` is an option for published components. For on-canvas components, use the two-step fan-out — **don't loop pages inside one script.**
-
-Step 1: one read-only `use_figma` to get page IDs:
-```js
-return figma.root.children.map(p => ({ id: p.id, name: p.name }));
-```
-
-Step 2: in the **next assistant turn, emit one `use_figma` per page in parallel** (a single message containing N tool-use blocks). Each runs:
-```js
-const page = await figma.getNodeByIdAsync(PAGE_ID);
-await figma.setCurrentPageAsync(page);
-// findAllWithCriteria uses an indexed type lookup — hundreds of times faster
-// than the findAll(n => n.type === '…') side-effect-in-predicate antipattern.
-const matches = page.findAllWithCriteria({ types: ['COMPONENT', 'COMPONENT_SET'] });
-return matches.map(n => ({ page: page.name, name: n.name, type: n.type, id: n.id }));
-```
-
-**List existing variable collections and their conventions:**
-```js
-const collections = await figma.variables.getLocalVariableCollectionsAsync();
-const results = collections.map(c => ({
-  name: c.name, id: c.id,
-  varCount: c.variableIds.length,
-  modes: c.modes.map(m => m.name)
-}));
-return results;
-```
-
-## 10. Reference Docs
-
-Load these as needed based on what your task involves:
-
-| Doc | When to load | What it covers |
-|-----|-------------|----------------|
-| [gotchas.md](references/gotchas.md) | Before any `use_figma` | Every known pitfall with WRONG/CORRECT code examples — start with the [canonical text-edit recipe](references/gotchas.md#canonical-text-edit-recipe-font-load--await--mutate--return-ids) |
-| [common-patterns.md](references/common-patterns.md) | Need working code examples | Script scaffolds: shapes, text, auto-layout, variables, components, multi-step workflows |
-| [plugin-api-patterns.md](references/plugin-api-patterns.md) | Creating/editing nodes | Fills, strokes, Auto Layout, effects, grouping, cloning, styles |
-| [api-reference.md](references/api-reference.md) | Need exact API surface | Node creation, variables API, core properties, what works and what doesn't |
-| [validation-and-recovery.md](references/validation-and-recovery.md) | Multi-step writes or error recovery | `get_metadata` vs `get_screenshot` workflow, mandatory error recovery steps |
-| [component-patterns.md](references/component-patterns.md) | Creating components/variants | combineAsVariants, component properties, INSTANCE_SWAP, variant layout, discovering existing components, metadata traversal |
-| [variable-patterns.md](references/variable-patterns.md) | Creating/binding variables | Collections, modes, scopes, aliasing, binding patterns, discovering existing variables |
-| [text-style-patterns.md](references/text-style-patterns.md) | Creating/applying text styles | Type ramps, font discovery via `listAvailableFontsAsync`, listing styles, applying styles to nodes |
-| [effect-style-patterns.md](references/effect-style-patterns.md) | Creating/applying effect styles | Drop shadows, listing styles, applying styles to nodes |
-| [plugin-api-standalone.index.md](references/plugin-api-standalone.index.md) | Need to understand the full API surface | Index of all types, methods, and properties in the Plugin API |
-| [plugin-api-standalone.d.ts](references/plugin-api-standalone.d.ts) | Need exact type signatures | Full typings file — grep for specific symbols, don't load all at once |
-
-## 11. Snippet examples
-
-You will see snippets throughout documentation here. These snippets contain useful plugin API code that can be repurposed. Use them as is, or as starter code as you go. If there are key concepts that are best documented as generic snippets, call them out and write to disk so you can reuse in the future.
+- [references/fig-builder.md](references/fig-builder.md) — full `$fig` API and worked patterns
+- [references/critical-rules-deep.md](references/critical-rules-deep.md) — WRONG/RIGHT examples, full node-type pitfall list, bulk-mutation template, syntax-bug checklist
+- [references/gotchas.md](references/gotchas.md) — raw Plugin API edge cases
+- [references/plugin-api-standalone.d.ts](references/plugin-api-standalone.d.ts) — type definitions (grep, don't read whole)
+- [references/plugin-api-standalone.index.md](references/plugin-api-standalone.index.md) — API navigation
+- [references/common-patterns.md](references/common-patterns.md), [component-patterns.md](references/component-patterns.md), [variable-patterns.md](references/variable-patterns.md), [text-style-patterns.md](references/text-style-patterns.md), [effect-style-patterns.md](references/effect-style-patterns.md) — pattern playbooks
+- [references/working-with-design-systems/](references/working-with-design-systems/) — design system workflows
+- [references/validation-and-recovery.md](references/validation-and-recovery.md) — error recovery patterns

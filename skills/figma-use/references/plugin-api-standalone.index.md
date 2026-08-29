@@ -1,6 +1,6 @@
 # Plugin API Index
 
-> Full typings: `plugin-api-standalone.d.ts` (11,327 lines)
+> Full typings: `plugin-api-standalone.d.ts` (12,216 lines)
 > Grep by symbol name to jump to definition. All `L#` line numbers refer to that file.
 
 ---
@@ -47,7 +47,7 @@
 | `createVector()`                    | `VectorNode`                |
 | `createText()`                      | `TextNode`                  |
 | `createSection()`                   | `SectionNode`               |
-| `createPage()`                      | `PageNode` — **Design files only** (`figma.com/design/...`); throws in both FigJam (`figma.com/board/...`) and Slides (`figma.com/slides/...`) |
+| `createPage()`                      | `PageNode`                  |
 | `createSlice()`                     | `SliceNode`                 |
 | `createBooleanOperation()`          | `BooleanOperationNode`      |
 | `createTable(rows?, cols?)`         | `TableNode`                 |
@@ -435,6 +435,12 @@ ExportSettingsConstraints
 
 User                    ActiveUser              BaseUser                Image
 Video                   VersionHistoryResult    FindAllCriteria
+
+FigAPI                  FigDoneResult           FigQueryResult          FigPlanNode
+FigPlanStyle            FigPlanPaintStyle       FigPlanTextStyle        FigPlanEffectStyle
+FigPlanGridStyle        FigPlanVarCollection    FigPlanVariable
+FigPlanColorVar         FigPlanNumVar           FigPlanBoolVar          FigPlanStringVar
+GradientStop
 ```
 
 ---
@@ -457,9 +463,42 @@ Video                   VersionHistoryResult    FindAllCriteria
 | ----------------------------- | ----------------- | ----------- |
 | `figma.io.write(path, data)`  | `void`            | Write image/data to be returned in tool response |
 
+### `$fig` Builder API
+
+Plan-based builder — see [fig-builder.md](fig-builder.md) for details.
+
+| Method | Returns | Description |
+|---|---|---|
+| `$fig.frame` / `.rectangle` / `.ellipse` / `.polygon` / `.star` / `.line` / `.vector` / `.text` / `.section` / `.component` / `.page` / `.slice` | `FigPlanNode` | Create a plan node of the given type: `(opts?, children?)` |
+| `$fig.autoLayout(opts?, children?)` | `FigPlanNode` | `FRAME` with auto-layout pre-configured (both axes hugging content). Default direction `HORIZONTAL`; pass `layoutMode: 'VERTICAL'` in opts to switch. |
+| `$fig.svg(svgString, opts?)`  | `FigPlanNode` | Create a node tree from SVG |
+| `$fig.instance(compRef, opts?)` | `FigPlanNode` | Create an instance of a component (plan node or ID) |
+| `$fig.group` / `.union` / `.subtract` / `.intersect` / `.exclude` / `.variants` | `FigPlanNode` | Wrap children in a group, boolean op, or component set |
+| `$fig.get(id)` | `FigPlanNode` | Wrap an existing node by ID so it can be mutated |
+| `$fig.query(selector, scope?)` | `FigQueryResult` | CSS selector search — same syntax as `node.query()` |
+| `$fig.set(target, props)` | `FigPlanNode` | Update props on a plan node |
+| `$fig.delete(...nodes)` | `void` | Remove nodes |
+| `$fig.move(target, newParent, index?)` / `.clone(target, props?)` | `void` | Reparent / clone |
+| `$fig.add(parent, child)` / `.append(parent, child)` / `.addAt(parent, index, child)` | `FigPlanNode` | Insert children |
+| `$fig.replace(oldNode, newNode)` / `.reorder(parent, children)` | `FigPlanNode` | Swap / reorder |
+| `$fig.gradient(node, type, stops, transform?)` / `.image(node, hash, scaleMode?)` | `void` | Paint shortcuts |
+| `$fig.paintStyle` / `.textStyle` / `.effectStyle` / `.gridStyle` | `FigPlanPaintStyle` / `FigPlanTextStyle` / `FigPlanEffectStyle` / `FigPlanGridStyle` | Create a local style — `(opts)` with required `name`. Pass the returned handle into `fills` / `strokes` / `effects` / `layoutGrids` / `textStyle` to bind by id. |
+| `$fig.getStyle(nameOrId)` | `FigPlanStyle \| null` | Wrap an existing local style. Tries id first, then scans by name. Narrow via `handle.style?.type`. |
+| `planStyle.set(opts \| fn)` / `.remove()` / `.style` / `.id` | — | Style handle methods. Fn form receives the **live Figma `Style`** narrowed to the concrete subtype (`PaintStyle` / `TextStyle` / `EffectStyle` / `GridStyle`), not the plan handle. |
+| `$fig.varCollection(opts)` | `FigPlanVarCollection` | Create a variable collection. `opts.name` + `opts.modes` (string array) required. |
+| `$fig.getVarCollection(idOrName)` | `FigPlanVarCollection` | Wrap existing collection by id or name. Throws if not found. |
+| `$fig.getVar(id)` | `FigPlanVariable` | Wrap existing variable by real Figma id. Throws if not found. Use `coll.getVar(name)` for name-based lookup. |
+| `coll.colorVar` / `.numVar` / `.boolVar` / `.stringVar` | `FigPlanColorVar` / `FigPlanNumVar` / `FigPlanBoolVar` / `FigPlanStringVar` | Create a typed variable. `opts.name` required. `opts.values` as `{ modeName: value }`. Specify `opts.scopes` explicitly — `ALL_SCOPES` is almost never right. |
+| `coll.getVar(nameOrId)` | `FigPlanVariable` | Wrap existing variable in this collection by name or id. |
+| `planVar.value(mode, val)` / `.setValues(map \| fn)` / `.set(opts \| fn)` / `.remove()` | — | Variable handle methods. Pass another variable handle as a value to create a `VARIABLE_ALIAS`. |
+| `$fig.done()` | `Promise<FigDoneResult>` | Explicitly materialize the plan. Auto-flushes on script shutdown if not called. |
+
+Plan nodes returned by create methods are chainable — `.frame()`, `.text()`, `.set()`, `.remove()`, `.clone()`, `.moveTo()`, `.reorderChildren()`, `.replace()`, `.query()`, `.gradient()`, `.image()` operate within that subtree.
+
 ### Types
 
 | Type                | Description |
 | ------------------- | ----------- |
 | `QueryResult`       | Iterable result from `node.query()` with `.first()`, `.last()`, `.each()`, `.map()`, `.filter()`, `.values()`, `.set()`, `.query()` |
-| `ScreenshotOptions` | `{ scale?: number, contentsOnly?: boolean }` |
+| `FigQueryResult`    | Result from `$fig.query()` / `planNode.query()` with `.toArray()`, `.map()`, `.values()`, `.set()`, `.remove()`, `.moveTo()`, `.each()`, `.first()`, `.last()`, `.filter()` |
+| `ScreenshotOptions` | `{ scale?: number, contentsOnly?: boolean }` — `contentsOnly` defaults to `false` |

@@ -39,6 +39,15 @@ Note: `setBoundVariableForEffect` returns a **new** effect object — you must c
 
 Assign the style's `id` to the node's `effectStyleId`. The node's `effects` property will then reflect the style's values.
 
+### Looking up a library effect style by key
+
+When an effect style is found via `search_design_system` (`includeStyles: true` returns each result's `key`), pass that key directly into `$fig.getStyle(styleKey)` — the plan queues the library import automatically, no separate `await figma.importStyleByKeyAsync(...)` step required. The handle can then be applied via the `effects` property on any `$fig.rectangle(...)` / `$fig.frame(...)` / `$fig.query(...).set(...)` call.
+
+```js
+const shadow = $fig.getStyle(ELEVATION_200_KEY)
+$fig.frame({ name: 'Card', effects: shadow })
+```
+
 ## Common gotchas
 
 - **`effects` is read-only**: You cannot mutate the array in place. Clone it, modify the clone, then reassign: `style.effects = [...style.effects, newEffect]`.

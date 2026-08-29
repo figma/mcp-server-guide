@@ -4,169 +4,276 @@
 >
 > For design system context (aliasing strategy, mode decisions, code syntax philosophy, grouping conventions), see [wwds-variables](working-with-design-systems/wwds-variables.md).
 
+Use `$fig` for everything in this file unless you hit one of the [gaps](#current-fig-gaps--use-figma-plugin-api-instead) listed at the bottom.
+
 ## Contents
 
-- Creating Variable Collections and Modes
-- Creating Variables (All Types)
-- Binding Variables to Node Properties
-- Variable Scopes: What They Are and How to Set Them
-- Variable Aliasing (VARIABLE_ALIAS)
-- Code Syntax (setVariableCodeSyntax)
-- Importing Library Variables
-- Discovering Existing Variables in the File
-- Effect Styles (For Shadows)
+- [Creating variables with `$fig`](#creating-variables-with-fig)
+- [Binding variables to node properties with `$fig`](#binding-variables-to-node-properties-with-fig)
+- [Current `$fig` gaps — use Figma Plugin API instead](#current-fig-gaps--use-figma-plugin-api-instead)
+- [Effect Styles (For Shadows)](#effect-styles-for-shadows)
 
+---
 
-## Creating Variable Collections and Modes
+## Creating variables with `$fig`
+
+A single plan covers collection creation, variable creation, values, scopes, code syntax, and aliasing. Everything runs in `$fig.done()`.
 
 ```javascript
-const collection = figma.variables.createVariableCollection("MyCollection");
+const tokens = $fig.varCollection({ name: 'Tokens', modes: ['Light', 'Dark'] })
 
-// A new collection starts with 1 mode named "Mode 1" — always rename it
-collection.renameMode(collection.modes[0].modeId, "Light");
+// COLOR — hex strings are auto-converted to {r,g,b,a}
+const blue = tokens.colorVar({
+  name: 'color/brand',
+  values: { Light: '#3B82F6', Dark: '#60A5FA' },
+  scopes: ['SHAPE_FILL', 'FRAME_FILL', 'TEXT_FILL'],
+  codeSyntax: { WEB: 'var(--color-brand)', ANDROID: 'colorBrand', iOS: 'Color.brand' },
+})
 
-// Add additional modes (returns the new modeId)
-const darkModeId = collection.addMode("Dark");
-const lightModeId = collection.modes[0].modeId;
-```
-
-**Mode limits are plan-dependent:** Free = 1 mode, Professional = up to 4, Organization/Enterprise = 40+. If you need many modes, split across multiple collections.
-
-## Creating Variables (All Types)
-
-`figma.variables.createVariable(name, collection, resolvedType)` — the second argument accepts a collection object or ID string (object preferred).
-
-```javascript
-// COLOR — values use {r, g, b, a} (all 0–1 range, includes alpha)
-const colorVar = figma.variables.createVariable("my-color", collection, "COLOR");
-colorVar.setValueForMode(modeId, { r: 0.2, g: 0.36, b: 0.96, a: 1 });
-
-// FLOAT — for spacing, radii, sizing, numeric values
-const floatVar = figma.variables.createVariable("my-spacing", collection, "FLOAT");
-floatVar.setValueForMode(modeId, 16);
-
-// STRING — for font families, font style names, any text value
-const stringVar = figma.variables.createVariable("my-font", collection, "STRING");
-stringVar.setValueForMode(modeId, "Inter");
+// FLOAT — spacing, sizing, radius, opacity
+const spacing = tokens.numVar({
+  name: 'space/lg',
+  values: { Light: 16, Dark: 16 },
+  scopes: ['GAP', 'WIDTH_HEIGHT'],
+})
+const radius = tokens.numVar({ name: 'radius/lg', values: { Light: 8, Dark: 8 }, scopes: ['CORNER_RADIUS'] })
+const opacity = tokens.numVar({ name: 'opacity/btn', values: { Light: 1, Dark: 0.8 }, scopes: ['OPACITY'] })
 
 // BOOLEAN
-const boolVar = figma.variables.createVariable("my-flag", collection, "BOOLEAN");
-boolVar.setValueForMode(modeId, true);
+const visible = tokens.boolVar({ name: 'flag/show', values: { Light: true, Dark: false } })
+
+// STRING
+const font = tokens.stringVar({
+  name: 'font/base',
+  values: { Light: 'Inter', Dark: 'Inter' },
+  scopes: ['FONT_FAMILY'],
+})
+
+// Aliasing — pass a variable handle as a value; $fig resolves the alias at done() time
+const prims = $fig.varCollection({ name: 'Primitives', modes: ['Value'] })
+const blue500 = prims.colorVar({ name: 'blue/500', values: { Value: '#3B82F6' } })
+
+const semantic = $fig.varCollection({ name: 'Semantic', modes: ['Light', 'Dark'] })
+const bgPrimary = semantic.colorVar({
+  name: 'bg/primary',
+  values: { Light: blue500, Dark: blue500 },  // alias to primitive
+  scopes: ['SHAPE_FILL'],
+})
+
+await $fig.done()
 ```
 
-**Note:** Paint colors use `{r, g, b}` (no alpha), but COLOR variable values use `{r, g, b, a}` (with alpha). Don't mix them up.
-
-## Binding Variables to Node Properties
-
-### Color Bindings (Fills, Strokes)
-
-`setBoundVariableForPaint` returns a **NEW paint** — you must capture the return value:
+### Updating after creation
 
 ```javascript
-// Create a base paint, bind the variable, assign the result
-const basePaint = { type: 'SOLID', color: { r: 0, g: 0, b: 0 } };
-const boundPaint = figma.variables.setBoundVariableForPaint(basePaint, "color", colorVar);
-node.fills = [boundPaint];
+// Update any property — name, scopes, description, codeSyntax, etc.
+myVar.set({ codeSyntax: { WEB: 'var(--size-lg)' } })
+myVar.set({ scopes: ['WIDTH_HEIGHT', 'GAP'] })
 
-// Only SOLID paints support color variable binding — gradients/images will throw
+// Update a single mode value
+myVar.value('Dark', '#1E3A5F')
+
+// Update all mode values at once
+myVar.setValues({ Light: 16, Dark: 24 })
+// Or with an updater fn (receives the live Variable; return value is modeId-keyed)
+myVar.setValues(v => ({ ...v.valuesByMode, [darkModeId]: 24 }))
 ```
 
-### Numeric Bindings (Spacing, Radii, Sizing)
+### Scope reference
 
-`setBoundVariable` binds FLOAT/STRING/BOOLEAN variables to node properties:
-
-```javascript
-// Padding
-node.setBoundVariable("paddingTop", spacingVar);
-node.setBoundVariable("paddingBottom", spacingVar);
-node.setBoundVariable("paddingLeft", spacingVar);
-node.setBoundVariable("paddingRight", spacingVar);
-
-// Gap
-node.setBoundVariable("itemSpacing", gapVar);
-node.setBoundVariable("counterAxisSpacing", gapVar);
-
-// Corner radius — use individual corners, NOT cornerRadius
-node.setBoundVariable("topLeftRadius", radiusVar);
-node.setBoundVariable("topRightRadius", radiusVar);
-node.setBoundVariable("bottomLeftRadius", radiusVar);
-node.setBoundVariable("bottomRightRadius", radiusVar);
-
-// Size
-node.setBoundVariable("width", sizeVar);
-node.setBoundVariable("height", sizeVar);
-node.setBoundVariable("minWidth", sizeVar);
-node.setBoundVariable("maxWidth", sizeVar);
-
-// Other
-node.setBoundVariable("opacity", opacityVar);
-node.setBoundVariable("strokeWeight", strokeVar);
-```
-
-**Not bindable via setBoundVariable:** `fontSize`, `fontWeight`, `lineHeight` — set these directly on text nodes.
-
-### Effect Bindings
-
-```javascript
-const effectCopy = JSON.parse(JSON.stringify(node.effects[0]));
-const newEffect = figma.variables.setBoundVariableForEffect(effectCopy, "color", colorVar);
-// ⚠️ Returns a NEW effect — must capture return value!
-node.effects = [newEffect];
-// Valid fields: "color" (COLOR), "radius" | "spread" | "offsetX" | "offsetY" (FLOAT)
-```
-
-### Applying a Mode to a Frame
-
-```javascript
-// All bound children of this frame will resolve to the specified mode's values
-frame.setExplicitVariableModeForCollection(collection, modeId);
-```
-
-Without this, all nodes use the collection's default (first) mode.
-
-## Variable Scopes: What They Are and How to Set Them
-
-`variable.scopes` controls which Figma property pickers show the variable. The default is `["ALL_SCOPES"]` which shows it everywhere — this is almost never what you want.
-
-```javascript
-variable.scopes = ["FRAME_FILL", "SHAPE_FILL"];  // only fill pickers
-variable.scopes = ["TEXT_FILL"];                   // only text color picker
-variable.scopes = ["GAP"];                         // only gap/spacing pickers
-variable.scopes = ["CORNER_RADIUS"];               // only radius pickers
-variable.scopes = [];                              // hidden from all pickers
-```
+`variable.scopes` controls which Figma property pickers show the variable. **Always set scopes explicitly** — the default `["ALL_SCOPES"]` shows the variable everywhere, which is almost never correct.
 
 **All valid scope values:**
 `ALL_SCOPES`, `TEXT_CONTENT`, `CORNER_RADIUS`, `WIDTH_HEIGHT`, `GAP`, `ALL_FILLS`, `FRAME_FILL`, `SHAPE_FILL`, `TEXT_FILL`, `STROKE_COLOR`, `STROKE_FLOAT`, `EFFECT_FLOAT`, `EFFECT_COLOR`, `OPACITY`, `FONT_FAMILY`, `FONT_STYLE`, `FONT_WEIGHT`, `FONT_SIZE`, `LINE_HEIGHT`, `LETTER_SPACING`, `PARAGRAPH_SPACING`, `PARAGRAPH_INDENT`
 
-**Always set scopes explicitly** — `ALL_SCOPES` is the default but almost never what you want. For a comprehensive scope-to-use-case mapping table, see [token-creation.md § Variable Scopes — Complete Reference Table](../../figma-generate-library/references/token-creation.md).
+For a comprehensive scope-to-use-case mapping table, see [token-creation.md § Variable Scopes — Complete Reference Table](../../figma-generate-library/references/token-creation.md).
 
-**Always check the existing file's scope patterns before creating variables** — match whatever convention is already in use. See "Discovering Existing Variables" below.
+**Always check the existing file's scope patterns before creating variables** — match whatever convention is already in use. See [Discovering existing variables in the file](#discovering-existing-variables-in-the-file).
 
-## Variable Aliasing (VARIABLE_ALIAS)
+---
 
-A variable's value can reference another variable via alias. This is how semantic tokens reference primitive tokens:
+## Binding variables to node properties with `$fig`
+
+Pass a variable handle directly as the property value. `$fig` routes it to the correct `setBoundVariable` / `setBoundVariableForPaint` / `setBoundVariableForEffect` call at flush time.
 
 ```javascript
-// Set a variable's value as an alias to another variable
-semanticVar.setValueForMode(modeId, {
-  type: 'VARIABLE_ALIAS',
-  id: primitiveVar.id
-});
+const tokens = $fig.varCollection({ name: 'Tokens', modes: ['Light', 'Dark'] })
+const blue = tokens.colorVar({ name: 'color/brand', values: { Light: '#3B82F6', Dark: '#60A5FA' }, scopes: ['SHAPE_FILL', 'STROKE_COLOR'] })
+const w = tokens.numVar({ name: 'size/lg', values: { Light: 200, Dark: 200 }, scopes: ['WIDTH_HEIGHT'] })
+const alpha = tokens.numVar({ name: 'opacity/btn', values: { Light: 1, Dark: 0.8 }, scopes: ['OPACITY'] })
+const radius = tokens.numVar({ name: 'radius/lg', values: { Light: 8, Dark: 8 }, scopes: ['CORNER_RADIUS'] })
+const tlRadius = tokens.numVar({ name: 'radius/tl', values: { Light: 4, Dark: 4 }, scopes: ['CORNER_RADIUS'] })
+const gap = tokens.numVar({ name: 'gap/md', values: { Light: 16, Dark: 16 }, scopes: ['GAP'] })
+const shadowColor = tokens.colorVar({ name: 'shadow/color', values: { Light: '#000', Dark: '#1A1A2E' }, scopes: ['EFFECT_COLOR'] })
+const shadowBlur = tokens.numVar({ name: 'shadow/blur', values: { Light: 8, Dark: 12 }, scopes: ['EFFECT_FLOAT'] })
+
+// Scalar numeric props
+$fig.rectangle({ name: 'Card', width: w, height: w, opacity: alpha })
+
+// cornerRadius shorthand — binds all four individual corners to the same variable
+// (there is no boundVariables.cornerRadius slot; Figma exposes per-corner bindings only)
+$fig.rectangle({ name: 'Pill', cornerRadius: radius })
+
+// Individual corners override the shorthand when both are present
+$fig.rectangle({ name: 'Card', cornerRadius: radius, topLeftRadius: tlRadius })
+
+// Paint color — pass the variable handle as the `color` field of a paint object
+$fig.rectangle({
+  name: 'Chip',
+  fills: [{ type: 'SOLID', color: blue }],
+  strokes: [{ type: 'SOLID', color: blue }],
+})
+
+// Effects — variable handles in color/radius/spread/offsetX/offsetY fields
+$fig.frame({
+  name: 'Card',
+  effects: [{
+    type: 'DROP_SHADOW',
+    color: shadowColor,
+    radius: shadowBlur,
+    offset: { x: 0, y: 4 },
+    spread: 0,
+    visible: true,
+    blendMode: 'NORMAL',
+  }],
+})
+
+// Layout grids — sectionSize and count accept numVar handles
+$fig.frame({
+  name: 'Grid',
+  effects: [],
+  layoutGrids: [{
+    pattern: 'COLUMNS',
+    sectionSize: gap,
+    count: gap,
+    gutterSize: 8,
+    alignment: 'CENTER',
+    visible: true,
+  }],
+})
+
+// Padding / gap on auto-layout frames
+$fig.frame({
+  name: 'AutoLayout',
+  layoutMode: 'HORIZONTAL',
+  paddingLeft: gap, paddingRight: gap, paddingTop: gap, paddingBottom: gap,
+  itemSpacing: gap,
+})
+
+await $fig.done()
 ```
 
-When the primitive changes, the semantic variable updates automatically across all modes.
+**Not bindable via `$fig` node properties:** `fontSize`, `fontWeight`, `lineHeight` — set these directly on text nodes.
 
-## Code Syntax (setVariableCodeSyntax)
+### Applying a mode to a frame (raw API)
 
-Links a Figma variable back to its code counterpart. Call once per platform:
+`setExplicitVariableModeForCollection` is not supported by `$fig` — use the raw API after `done()`:
 
 ```javascript
-variable.setVariableCodeSyntax('WEB', 'var(--color-bg-default)');
-variable.setVariableCodeSyntax('ANDROID', 'colorBgDefault');
-variable.setVariableCodeSyntax('iOS', 'Color.bgDefault');
+await $fig.done()
+const frame = figma.getNodeById(myFrame.id)
+frame.setExplicitVariableModeForCollection(tokens.variableCollection, darkModeId)
+// All variable-bound children of this frame will now resolve to the Dark mode values.
+```
 
-// Read back: variable.codeSyntax → { WEB: '...', ANDROID: '...', iOS: '...' }
+---
+
+## Using library variables by key (preferred)
+
+`search_design_system` with `includeVariables: true` returns a `key` per variable. Pass it directly into `$fig.getVar(variableKey)` — the plan queues the library import automatically. Same call also accepts a local variable id; one call site, both shapes.
+
+```javascript
+const brand = $fig.getVar(BRAND_COLOR_VAR_KEY)
+$fig.rectangle({ fills: [{ type: 'SOLID', color: brand }] })
+
+// Scalar variable on any numeric property
+const gap = $fig.getVar(SPACING_400_KEY)
+$fig.autoLayout({ name: 'Toolbar', layoutMode: 'HORIZONTAL', itemSpacing: gap })
+```
+
+## Raw-API fallback — discovering and importing variables manually
+
+Use this when you need to enumerate a library's variables before deciding which to use, or when `$fig` genuinely cannot express the operation:
+
+```javascript
+// List available library collections
+const libCollections = await figma.teamLibrary.getAvailableLibraryVariableCollectionsAsync()
+// Each has: name, key, libraryName
+
+// Get variables in a specific library collection
+const libVars = await figma.teamLibrary.getVariablesInLibraryCollectionAsync(libCollections[0].key)
+// Each has: name, key, resolvedType
+
+// Import via raw plugin API, then use like a local variable
+const imported = await figma.variables.importVariableByKeyAsync(libVars[0].key)
+const paint = figma.variables.setBoundVariableForPaint(
+  { type: 'SOLID', color: { r: 0, g: 0, b: 0 } }, 'color', imported
+)
+node.fills = [paint]
+```
+
+**When to import vs. use local:** If `variable.remote === true`, it's from a library — pass the `key` to `$fig.getVar(key)` (or use raw `importVariableByKeyAsync` if you need the variable mid-script for some other decision). If `remote === false`, it's local — use `getVariableByIdAsync` or `$fig.getVar(id)` directly. The `$fig.getVar` call accepts both id and key.
+
+### Discovering existing variables in the file
+
+**Always inspect the file's existing variables before creating new ones.** Match naming conventions, scope patterns, and collection structures already in use.
+
+#### List collections with mode and variable details
+
+```javascript
+const collections = await figma.variables.getLocalVariableCollectionsAsync()
+const results = []
+for (const collection of collections) {
+  const vars = []
+  for (const id of collection.variableIds) {
+    const v = await figma.variables.getVariableByIdAsync(id)
+    vars.push([v.name, v.id, v.codeSyntax, v.scopes])
+  }
+  results.push({
+    name: collection.name,
+    id: collection.id,
+    modes: collection.modes.map(m => [m.name, m.modeId]),
+    variables: vars,
+  })
+}
+return results
+```
+
+#### Inspect scope patterns in use
+
+```javascript
+const collections = await figma.variables.getLocalVariableCollectionsAsync()
+const scopeGroups = {}
+for (const c of collections) {
+  for (const id of c.variableIds) {
+    const v = await figma.variables.getVariableByIdAsync(id)
+    const key = JSON.stringify(v.scopes)
+    if (!scopeGroups[key]) scopeGroups[key] = []
+    scopeGroups[key].push(v.name)
+  }
+}
+return scopeGroups
+```
+
+#### Build a name→variable lookup for reuse
+
+```javascript
+const varByName = {}
+for (const v of await figma.variables.getLocalVariablesAsync()) {
+  varByName[v.name] = v
+}
+// Only create new variables for tokens that have no match
+```
+
+### Removing code syntax
+
+`$fig` has no equivalent for removing a platform from a variable's `codeSyntax`. Use the raw API:
+
+```javascript
+const variable = await figma.variables.getVariableByIdAsync(variableId)
+variable.removeVariableCodeSyntax('WEB')    // remove one platform
+variable.removeVariableCodeSyntax('ANDROID')
+variable.removeVariableCodeSyntax('iOS')
 ```
 
 **When deriving CSS names from Figma names**, replace both slashes AND spaces with hyphens:
@@ -175,207 +282,32 @@ variable.setVariableCodeSyntax('iOS', 'Color.bgDefault');
 // WRONG — leaves spaces in CSS variable name
 `var(--${figmaName.replace(/\//g, '-').toLowerCase()})`
 
-// CORRECT — replace all whitespace and slashes
+// CORRECT
 `var(--${figmaName.replace(/[\s\/]+/g, '-').toLowerCase()})`
 
 // BEST — use the original CSS variable name from the source, not a derived one
 `var(${token.cssVar})`
 ```
 
-## Importing Library Variables
-
-For variables from **team libraries** (not the current file), use `importVariableByKeyAsync`:
-
-```javascript
-// Import a single variable by its key
-const colorVar = await figma.variables.importVariableByKeyAsync("VARIABLE_KEY");
-// Now use it like any local variable
-const paint = figma.variables.setBoundVariableForPaint(
-  { type: 'SOLID', color: { r: 0, g: 0, b: 0 } }, 'color', colorVar
-);
-node.fills = [paint];
-```
-
-To discover available library variable collections and their variables:
-
-```javascript
-// List all available library variable collections
-const libCollections = await figma.teamLibrary.getAvailableLibraryVariableCollectionsAsync();
-// Each has: name, key, libraryName
-
-// Get variables in a specific library collection
-const libVars = await figma.teamLibrary.getVariablesInLibraryCollectionAsync(libCollections[0].key);
-// Each has: name, key, resolvedType
-// Import the ones you need:
-const imported = await figma.variables.importVariableByKeyAsync(libVars[0].key);
-```
-
-**When to import vs. use local:** If `variable.remote === true`, it's from a library — you can reference it directly if already imported, or import by key. If `remote === false`, it's local to the file — use `getVariableByIdAsync` directly.
-
-## Discovering Existing Variables in the File
-
-**Always inspect the file's existing variables before creating new ones.** Different files use different naming conventions, scope patterns, and collection structures. Match what's already there.
-
-### List collections with mode info
-
-```javascript
-const collections = await figma.variables.getLocalVariableCollectionsAsync();
-const results = collections.map(c => ({
-  name: c.name,
-  id: c.id,
-  varCount: c.variableIds.length,
-  modes: c.modes.map(m => ({ name: m.name, id: m.modeId }))
-}));
-return results;
-```
-
-### Inspect scope patterns used in existing variables
-
-```javascript
-const collections = await figma.variables.getLocalVariableCollectionsAsync();
-// Batch every getVariableByIdAsync into a single Promise.all — sequential
-// awaits inside the loop would serialize one IPC round-trip per variable.
-const allIds = collections.flatMap(c => c.variableIds);
-const allVars = await Promise.all(
-  allIds.map(id => figma.variables.getVariableByIdAsync(id))
-);
-const scopeGroups = {};
-for (const v of allVars) {
-  if (!v) continue;
-  const key = JSON.stringify(v.scopes);
-  if (!scopeGroups[key]) scopeGroups[key] = [];
-  scopeGroups[key].push(v.name);
-}
-return scopeGroups;
-```
-
-### Build a name→variable lookup for reuse
-
-```javascript
-const varByName = {};
-for (const v of await figma.variables.getLocalVariablesAsync()) {
-  varByName[v.name] = v;
-}
-
-// Bind to existing variable by name — no hex values needed
-function bindFill(node, varName) {
-  const v = varByName[varName];
-  if (!v) throw new Error(`Variable not found: ${varName}`);
-  const paint = figma.variables.setBoundVariableForPaint(
-    { type: 'SOLID', color: { r: 0, g: 0, b: 0 } }, 'color', v
-  );
-  node.fills = [paint];
-}
-```
-
-**Only create new variables for tokens that have no match in the file.** After building the lookup, compare against the needed tokens and create variables only for the delta.
-
-## Listing Collections with Full Variable Details
-
-The async API returns richer data including code syntax and scopes per variable:
-
-```javascript
-/**
- * Lists all local variable collections defined in the current Figma file,
- * including metadata for their modes and variables.
- *
- * @returns {Promise<Array<{
- *   name: string,
- *   id: string,
- *   modes: Array<[name: string, modeId: string]>,
- *   variables: Array<[name: string, id: string, codeSyntax: object, scopes: string[]]>
- * }>>}
- */
-async function listVariableCollectionsAndVariables() {
-  const collections = await figma.variables.getLocalVariableCollectionsAsync();
-  // flatMap every variable ID across all collections into one Promise.all,
-  // then look up per-collection from a Map. Avoids nested Promise.all and
-  // still issues every lookup in parallel.
-  const allIds = collections.flatMap(c => c.variableIds);
-  const fetched = await Promise.all(
-    allIds.map(id => figma.variables.getVariableByIdAsync(id))
-  );
-  const byId = new Map(allIds.map((id, i) => [id, fetched[i]]));
-  return collections.map(collection => ({
-    name: collection.name,
-    id: collection.id,
-    modes: collection.modes.map(m => [m.name, m.modeId]),
-    variables: collection.variableIds
-      .map(id => byId.get(id))
-      .filter(v => v)
-      .map(v => [v.name, v.id, v.codeSyntax, v.scopes])
-  }));
-}
-```
-
-Full runnable script:
-
-```javascript
-const results = await listVariableCollectionsAndVariables();
-return results;
-```
-
-## Setting and Removing Code Syntax
-
-Must be executed in the file the variable is defined in:
-
-```javascript
-/**
- * Set the code syntax for a variable for a specific platform.
- *
- * @param {string} variableId
- * @param {'WEB'|'ANDROID'|'iOS'} platform
- * @param {string} syntax
- */
-async function setVariableCodeSyntax(variableId, platform, syntax) {
-  const variable = await figma.variables.getVariableByIdAsync(variableId);
-  variable.setVariableCodeSyntax(platform, syntax);
-}
-
-/**
- * Remove code syntax for a variable for one or more platforms.
- *
- * @param {string} variableId
- * @param {Array<'WEB'|'ANDROID'|'iOS'>} platforms — defaults to all three
- */
-async function removeVariableCodeSyntax(variableId, platforms = ["WEB", "ANDROID", "iOS"]) {
-  const variable = await figma.variables.getVariableByIdAsync(variableId);
-  for (const platform of platforms) {
-    variable.removeVariableCodeSyntax(platform);
-  }
-}
-
-/**
- * Set a value for a variable in a specific mode.
- * For aliases, value must be: { type: 'VARIABLE_ALIAS', id: '<variableId>' }
- *
- * @param {string} variableId
- * @param {string} modeId
- * @param {string|number|boolean|RGB|RGBA|{type: 'VARIABLE_ALIAS', id: string}} value
- */
-async function setVariableValueForMode(variableId, modeId, value) {
-  const variable = await figma.variables.getVariableByIdAsync(variableId);
-  variable.setValueForMode(modeId, value);
-}
-```
+---
 
 ## Effect Styles (For Shadows)
 
 Shadows can't be stored as variables. Use effect styles. For comprehensive patterns, see [effect-style-patterns.md](effect-style-patterns.md).
 
 ```javascript
-const shadow = figma.createEffectStyle();
-shadow.name = "Shadow/Subtle";
+const shadow = figma.createEffectStyle()
+shadow.name = 'Shadow/Subtle'
 shadow.effects = [{
-  type: "DROP_SHADOW",
+  type: 'DROP_SHADOW',
   color: { r: 0, g: 0, b: 0, a: 0.06 },
   offset: { x: 0, y: 2 },
   radius: 8,
   spread: 0,
   visible: true,
-  blendMode: "NORMAL"
-}];
+  blendMode: 'NORMAL',
+}]
 
 // Apply to a node
-frame.effectStyleId = shadow.id;
+frame.effectStyleId = shadow.id
 ```

@@ -4,6 +4,30 @@
 >
 > For design system context (effect types, variable bindings on effects, gotchas), see [wwds-effect-styles](working-with-design-systems/wwds-effect-styles.md).
 
+## Prefer `$fig` for creation + binding
+
+For new effect styles + binding them to nodes, reach for `$fig` first — the style and the binding go in the same plan, and the binding uses the natural `effects` property (no `*StyleId` suffix):
+
+```javascript
+const shadow = $fig.effectStyle({
+  name: "Shadow/Soft",
+  effects: [{
+    type: "DROP_SHADOW",
+    color: { r: 0, g: 0, b: 0, a: 0.3 },
+    offset: { x: 0, y: 4 },
+    radius: 8,
+    spread: 0,
+    visible: true,
+    blendMode: "NORMAL",
+  }],
+})
+$fig.rectangle({ name: "Card", effects: shadow })
+```
+
+See [fig-builder.md](fig-builder.md#styles---create-reference-apply) for the full surface.
+
+The raw Plugin API patterns below are the fallback for when you genuinely need to interleave style ops with mid-script async calls or read computed properties off the live `EffectStyle` before deciding what to do next.
+
 ## Contents
 
 - Listing Effect Styles
@@ -81,18 +105,27 @@ const style = createDropShadowStyle(
 return { id: style.id, name: style.name };
 ```
 
-## Importing Library Effect Styles
+## Using Library Effect Styles by key (preferred)
 
-For effect styles from **team libraries**, use `importStyleByKeyAsync`:
+`search_design_system` with `includeStyles: true` returns a `key` per style. Pass it directly into `$fig.getStyle(styleKey)` and apply via the `effects` property on any `$fig.rectangle(...)` / `$fig.frame(...)` / `$fig.query(...).set(...)` — the plan queues the library import automatically.
 
 ```javascript
-// Import a library effect style by key
-const shadowStyle = await figma.importStyleByKeyAsync("EFFECT_STYLE_KEY");
-// Apply to a node
-node.effectStyleId = shadowStyle.id;
+const shadow = $fig.getStyle(ELEVATION_200_KEY)
+$fig.frame({ name: 'Card', effects: shadow })
+
+// Bulk apply
+$fig.query('FRAME[name=Card]').set({ effects: shadow })
 ```
 
-`search_design_system` with `includeStyles: true` returns style keys you can import this way. Prefer importing library styles over creating new ones.
+Prefer reusing library effect styles over creating new ones.
+
+### Raw-API fallback
+
+```javascript
+// If you need the imported EffectStyle's metadata mid-script
+const shadowStyle = await figma.importStyleByKeyAsync("EFFECT_STYLE_KEY");
+node.effectStyleId = shadowStyle.id;
+```
 
 ## Applying Effect Styles to Nodes
 

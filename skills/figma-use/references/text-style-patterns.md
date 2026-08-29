@@ -2,9 +2,24 @@
 
 > Part of the [use_figma skill](../SKILL.md). How to create, apply, and inspect text styles using the Plugin API.
 >
-> Every example here assumes the [canonical text-edit recipe](gotchas.md#canonical-text-edit-recipe-font-load--await--mutate--return-ids): load font → `await` → mutate → return affected IDs. Examples use `Inter` because it's available everywhere, but the rule applies identically to any font family/style.
->
 > For design system context (when to create text styles, how they relate to tokens, `use_figma` limitations), see [wwds-text-styles](working-with-design-systems/wwds-text-styles.md).
+
+## Prefer `$fig` for creation + binding
+
+For new text styles + binding them to text nodes, reach for `$fig` first — fonts preload automatically, the style and the binding go in the same plan, and the binding uses the natural `textStyle` property (no `*StyleId` suffix to remember):
+
+```javascript
+const heading = $fig.textStyle({
+  name: "Heading/1",
+  fontName: { family: "Inter", style: "Bold" },
+  fontSize: 48,
+})
+$fig.text({ characters: "Title", textStyle: heading })
+```
+
+See [fig-builder.md](fig-builder.md#styles---create-reference-apply) for the full surface (`paintStyle` / `textStyle` / `effectStyle` / `gridStyle` / `getStyle`, the `FigPlanStyle` handle methods, and the `fills` / `strokes` / `effects` / `layoutGrids` / `textStyle` property routing).
+
+The raw Plugin API patterns below are the fallback for when you genuinely need to interleave style ops with mid-script async calls or read computed properties off the live `TextStyle` before deciding what to do next.
 
 ## Contents
 
@@ -155,43 +170,56 @@ const result = await createTypeRamp(defs);
 return result;
 ```
 
-## Importing Library Text Styles
+## Using Library Text Styles by key (preferred)
 
-For text styles from **team libraries**, use `importStyleByKeyAsync`:
+`search_design_system` with `includeStyles: true` returns a `key` per style. Pass it directly into `$fig.getStyle(styleKey)` and apply via the `textStyle` property on any `$fig.text(...)` / `$fig.query('TEXT').set(...)` — the plan queues the library import automatically.
 
 ```javascript
-// Import a library text style by key
+const heading = $fig.getStyle(HEADING_TEXT_STYLE_KEY)
+$fig.text({ characters: 'Title', textStyle: heading })
+
+// Bulk apply to existing text nodes
+$fig.query('TEXT[name=Heading]').set({ textStyle: heading })
+```
+
+Prefer reusing library text styles over creating new ones.
+
+### Raw-API fallback
+
+```javascript
+// If you need the imported TextStyle's metadata mid-script
 const headingStyle = await figma.importStyleByKeyAsync("TEXT_STYLE_KEY");
-// Apply to a text node
 await textNode.setTextStyleIdAsync(headingStyle.id);
 ```
 
-`search_design_system` with `includeStyles: true` returns style keys you can import this way. Prefer importing library styles over creating new ones.
-
 ## Applying Text Styles to Nodes
 
+Prefer `$fig.query(...).set({ textStyle })` over `findAllWithCriteria` + a manual loop — the selector matches name patterns directly, and `$fig` batches the writes and resolves the style id at flush time. The `textStyle` property accepts a `$fig.getStyle(...)` handle (local id OR library `key` from `search_design_system`) or a raw style id string.
+
 ```javascript
-/**
- * Applies a text style to all TEXT nodes on the current page that match a given name pattern.
- *
- * @param {string} styleId - The ID of a TextStyle.
- * @param {string} nodeNamePattern - Substring match against node names.
- * @returns {Promise<number>} - Number of nodes the style was applied to.
- */
-async function applyTextStyleToMatchingNodes(styleId, nodeNamePattern) {
-  const textNodes = figma.currentPage.findAllWithCriteria({ types: ['TEXT'] });
-  const matching = textNodes.filter(n => n.name.includes(nodeNamePattern));
-  // Batch the style applications with Promise.all — each setTextStyleIdAsync
-  // call is independent, so awaiting them serially in a for-loop multiplies
-  // the IPC latency by the number of matches.
-  await Promise.all(matching.map(n => n.setTextStyleIdAsync(styleId)));
-  return matching.length;
-}
+// Library style by key — $fig queues the import; no separate await needed.
+const heading = $fig.getStyle(HEADING_TEXT_STYLE_KEY)
+
+// Apply to every TEXT whose name contains 'Heading' on the current page
+const result = $fig.query('TEXT[name*=Heading]').set({ textStyle: heading })
+return { applied: result.length }
 ```
 
-Full runnable script:
+Scope to a subtree or another page via a second arg / a parent handle:
 
 ```javascript
-const applied = await applyTextStyleToMatchingNodes('STYLE_ID', 'Heading');
-return { applied };
+// Scoped to one frame
+const card = $fig.get('1:42')
+$fig.query('TEXT[name*=Heading]', card).set({ textStyle: heading })
+
+// Across the whole document (all pages)
+$fig.query('TEXT[name*=Heading]', figma.root).set({ textStyle: heading })
+```
+
+If you already have a local style id (not a key) and don't want a `$fig.getStyle` wrap, the raw setter still works:
+
+```javascript
+$fig.query('TEXT[name*=Heading]').each(async (n) => {
+  await n.node?.setTextStyleIdAsync('STYLE_ID')   // only after $fig.done() / auto-flush
+})
 ```

@@ -33,7 +33,7 @@ figma.createVector()
 figma.createPolygon()
 figma.createBooleanOperation()
 figma.createSlice()
-figma.createPage()              // Design files ONLY (figma.com/design/...). Throws "no such property 'createPage'" in both FigJam (figma.com/board/...) and Slides (figma.com/slides/...). Child persistence is limited in use_figma.
+figma.createPage()              // Page node can be created, but child persistence is limited in use_figma
 figma.createSection()
 figma.createTextPath()
 ```
@@ -50,51 +50,46 @@ figma.exclude(nodes, parent?, index?)           // Boolean exclude
 figma.combineAsVariants(components, parent?)    // Combine ComponentNodes into ComponentSet (Design/Sites only)
 ```
 
-## Library Component Import
+## Library Component / Style / Variable Lookup by Key
 
-These methods import components from **team libraries** (not the same file you're working in). For components in the current file, use `use_figma` with `figma.getNodeByIdAsync()` or `findOne()`/`findAll()` to locate them directly.
+`search_design_system` returns `componentKey` for components / component sets and `key` for styles and variables. Pass any of these straight into the unified `$fig` lookup — the plan queues the library import automatically. Same call sites also accept node IDs and real style / variable IDs for assets already in the current file.
 
 ```js
-// Import a published component from a team library by key
-const comp = await figma.importComponentByKeyAsync("COMPONENT_KEY")
-const instance = comp.createInstance()
+// Components / component sets
+const comp     = $fig.get(COMPONENT_KEY)                       // wrap a component / set
+const instance = $fig.instance(COMPONENT_SET_KEY, {            // instance + variant props
+  props: { Size: 'md', Variant: 'primary' },
+})
 
-// Import a published component set from a team library by key
-const compSet = await figma.importComponentSetByKeyAsync("COMPONENT_SET_KEY")
-const variant =
-  compSet.children.find((c) => c.type === "COMPONENT" && c.name.includes("size=md")) ||
-  compSet.defaultVariant
-const variantInstance = variant.createInstance()
+// Styles (paint / text / effect / grid)
+const fill   = $fig.getStyle(PAINT_STYLE_KEY)
+$fig.rectangle({ fills: fill })
+$fig.text({ characters: 'Title', textStyle: $fig.getStyle(TEXT_STYLE_KEY) })
+$fig.frame({ effects: $fig.getStyle(EFFECT_STYLE_KEY) })
+
+// Variables
+const brand = $fig.getVar(BRAND_COLOR_VAR_KEY)
+$fig.rectangle({ fills: [{ type: 'SOLID', color: brand }] })
+$fig.autoLayout({ itemSpacing: $fig.getVar(SPACING_400_KEY) })
 ```
 
-## Library Style Import (Team Libraries)
+For component sets, pass the variant property values in `props` — `$fig.instance` resolves them via the underlying `setProperties` after creating the instance from `defaultVariant`. You do not need to import the set, drill into `compSet.children`, or pick a variant child by hand.
 
-These methods import styles from **team libraries** (not the same file). For styles in the current file, use `figma.getLocalPaintStyles()`, `figma.getLocalTextStyles()`, etc.
+### Raw-API fallback for styles + variables (mid-script metadata)
+
+When you need an imported style's or variable's metadata before deciding what to build next, the raw plugin APIs are still legal. Use sparingly — most flows are simpler via `$fig.getStyle(key)` / `$fig.getVar(key)`.
 
 ```js
-// Import a published style from a team library by key
+// Styles
 const style = await figma.importStyleByKeyAsync("STYLE_KEY")
+await node.setFillStyleIdAsync(style.id)
+await node.setTextStyleIdAsync(style.id)
+await node.setEffectStyleIdAsync(style.id)
+await node.setGridStyleIdAsync(style.id)
 
-// Apply the imported style to a node
-await node.setFillStyleIdAsync(style.id)    // for PaintStyle as fill
-await node.setStrokeStyleIdAsync(style.id)  // for PaintStyle as stroke
-await node.setTextStyleIdAsync(style.id)    // for TextStyle
-await node.setEffectStyleIdAsync(style.id)  // for EffectStyle
-await node.setGridStyleIdAsync(style.id)    // for GridStyle
-```
-
-## Library Variable Import (Team Libraries)
-
-This imports variables from **team libraries** (not the same file). For variables in the current file, use `figma.variables.getLocalVariablesAsync()` or `figma.variables.getVariableByIdAsync()`.
-
-```js
-// Import a published variable from a team library by key
+// Variables
 const variable = await figma.variables.importVariableByKeyAsync("VARIABLE_KEY")
-
-// Bind the imported variable to node properties
-node.setBoundVariable("width", variable)           // FLOAT variable
-
-// Bind to fills/strokes (COLOR variable) — returns a NEW paint, must capture it
+node.setBoundVariable("width", variable)
 const newPaint = figma.variables.setBoundVariableForPaint(paintCopy, "color", variable)
 node.fills = [newPaint]
 ```
@@ -215,8 +210,8 @@ node.paddingRight = 8
 node.paddingTop = 4
 node.paddingBottom = 4
 node.itemSpacing = 4
-node.layoutSizingHorizontal = 'HUG'     // 'FIXED' | 'HUG' | 'FILL' — see Gotchas: HUG needs auto-layout frame or TEXT child; FILL needs an auto-layout-child that isn't absolute/immutable/grid
-node.layoutSizingVertical = 'HUG'       // 'FIXED' | 'HUG' | 'FILL' — same value rules as horizontal
+node.layoutSizingHorizontal = 'HUG'     // 'FIXED' | 'HUG' | 'FILL'
+node.layoutSizingVertical = 'HUG'       // 'FIXED' | 'HUG' | 'FILL'
 
 // Sizing
 node.resize(width, height)                     // ⚠️ Resets sizing modes to FIXED
@@ -262,38 +257,19 @@ const svgNode = figma.createNodeFromSvg('<svg>...</svg>')
 
 ## Images
 
-**`upload_assets` is the ONLY supported way to upload images into a Figma file** — Design, FigJam, and Slides all share this path. **Do NOT use `figma.createImage()` or `figma.createImageAsync()` from inside `use_figma`.** Both are unsupported as image-upload entry points and will be removed from agent flows; `use_figma` has no network access (so `createImageAsync(src)` cannot fetch URLs) and bytes inside the script are not durable assets in the file.
-
-The `upload_assets` tool is the ONLY supported way. It returns single-use upload URLs that you POST raw bytes to, and the response contains an `imageHash` plus placement details. Server-side commit and canvas placement happen automatically. Pass `nodeId` (with `count: 1`) to set the upload as a fill on an existing node directly, or omit `nodeId` to place the image on the canvas as a new layer.
-
-```text
-upload_assets({ fileKey, count: 1, nodeId, scaleMode: 'FILL' })
-  → { uploads: [{ submitUrl }], instructions: "..." }
-// Then POST the image bytes to submitUrl (multipart/form-data 'file' field
-// preferred — the filename becomes the layer name).
-```
-
-### Re-using an existing imageHash (not an upload)
-
-Once an image is in the file via `upload_assets`, you can reference its `imageHash` from another node without re-uploading. This is the only legitimate use of an `imageHash` inside `use_figma`:
-
 ```js
-// Re-using an imageHash that already exists on another node in the file
-node.fills = [{ type: 'IMAGE', scaleMode: 'FILL', imageHash: 'hash_from_existing_node' }]
+const image = figma.createImage(uint8Array)
+node.fills = [{ type: 'IMAGE', scaleMode: 'FILL', imageHash: image.hash }]
 ```
-
-For anything originating outside the file (URLs, local files, generated bytes, screenshots) — always call `upload_assets` first.
 
 ## Fonts
-
-The canonical text-edit recipe is **load font → `await` → mutate → return affected IDs** — see [gotchas.md → Canonical text-edit recipe](gotchas.md#canonical-text-edit-recipe-font-load--await--mutate--return-ids) for WRONG/CORRECT examples. The rule applies to every font, not just Inter (Inter is preloaded in most environments, which is why the bug usually surfaces with other families).
 
 ```js
 // Discover all available fonts and their exact style strings
 const allFonts = await figma.listAvailableFontsAsync()  // Font[] — each has { fontName: { family, style } }
 const interStyles = allFonts.filter(f => f.fontName.family === "Inter")
 
-// MUST load a font before any text property edit — for every font, not just Inter
+// MUST load a font before any text property edit
 await figma.loadFontAsync({ family: "Inter", style: "Regular" })
 
 // Check if the file has missing fonts
@@ -320,26 +296,13 @@ return "success message"        // Return string
 
 ## Node Traversal
 
-These properties and methods are defined on `ChildrenMixin` — they exist on container nodes only (`DocumentNode`, `PageNode`, `FrameNode`, `GroupNode`, `ComponentNode`, `ComponentSetNode`, `InstanceNode`, `SectionNode`, `BooleanOperationNode`). They do **NOT** exist on leaf nodes (`TextNode`, `RectangleNode`, `EllipseNode`, `LineNode`, `PolygonNode`, `StarNode`, `VectorNode`, `SliceNode`). Accessing `.children` on a leaf node throws `TypeError: node.children: no such property 'children' on TEXT node` (or `RECTANGLE`, etc.). The same pattern applies to many other mixin-scoped members (`fills`, `layoutMode`, `x`/`y`, text-only methods) — see [Gotchas → "no such property" errors](gotchas.md#no-such-property-errors--reading-or-calling-members-not-defined-on-the-node-type).
-
 ```js
-node.findAll(pred?)            // Find all descendants matching predicate (ChildrenMixin only)
-node.findOne(pred?)            // Find first descendant matching predicate (ChildrenMixin only)
-node.findChildren(pred?)       // Find direct children matching predicate (ChildrenMixin only)
-node.findChild(pred?)          // Find first direct child matching predicate (ChildrenMixin only)
-node.children                  // Direct children array (ChildrenMixin only)
-node.parent                    // Parent node (all nodes)
-```
-
-To safely descend an arbitrary subtree, guard with a `"children" in node` check or a type check before reading `.children`:
-
-```js
-function walk(node) {
-  // ... do work on node ...
-  if ("children" in node) {
-    for (const child of node.children) walk(child);
-  }
-}
+node.findAll(pred?)            // Find all descendants matching predicate
+node.findOne(pred?)            // Find first descendant matching predicate
+node.findChildren(pred?)       // Find direct children matching predicate
+node.findChild(pred?)          // Find first direct child matching predicate
+node.children                  // Direct children array
+node.parent                    // Parent node
 ```
 
 ---
@@ -353,5 +316,5 @@ function walk(node) {
 | `figma.openExternal()` | No-op (silently ignored) |
 | `figma.loadAllPagesAsync()` | Not implemented |
 | `figma.variables.extendLibraryCollectionByKeyAsync()` | Not implemented |
-| `figma.teamLibrary.*` | Not implemented (requires the team-library backend) |
-| `figma.getLocalComponents*()` | **Does not exist** — unlike styles, there is no `getLocalComponents()` or `getLocalComponentSetsAsync()` (or any `getLocalComponent*` variant). Use `page.findAllWithCriteria({ types: ['COMPONENT', 'COMPONENT_SET'] })` to locate components in the current file (avoid the slower `findAll(n => n.type === '…')` predicate scan). |
+| `figma.teamLibrary.*` | Not implemented (requires LiveGraph) |
+| `figma.getLocalComponents*()` | **Does not exist** — unlike styles, there is no `getLocalComponents()` or `getLocalComponentSetsAsync()` (or any `getLocalComponent*` variant). Use `findAll(n => n.type === 'COMPONENT')` / `findAll(n => n.type === 'COMPONENT_SET')` to locate components in the current file. |

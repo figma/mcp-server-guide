@@ -1653,11 +1653,11 @@ interface PluginAPI {
         ).then(async (image: Image) => {
           // Create node
           const node = figma.createRectangle()
-  
+
           // Resize the node to match the image's width and height
           const { width, height } = await image.getSizeAsync()
           node.resize(width, height)
-  
+
           // Set the fill on the node
           node.fills = [
             {
@@ -1666,7 +1666,7 @@ interface PluginAPI {
               scaleMode: 'FILL'
             }
           ]
-  
+
           figma.closePlugin()
         }).catch((error: any) => {
           console.log(error)
@@ -11248,10 +11248,22 @@ interface QueryResult {
   map<T>(callback: (node: SceneNode, index: number) => T): T[]
   /** Filter to new QueryResult */
   filter(callback: (node: SceneNode, index: number) => boolean): QueryResult
-  /** Extract property values from all matched nodes */
-  values(keys: string[]): Record<string, unknown>[]
-  /** Set properties on all matched nodes */
-  set(props: Record<string, unknown>): QueryResult
+  /**
+   * Project property paths into a structured shape for every matched node.
+   * Supports the same dot/index/`*` grammar as `node.query()` predicates —
+   * `'fills.0.color.r'` projects through array indexing, `'children.*.type'`
+   * projects through every element. See `SceneNode.values()`.
+   */
+  values(paths: string[]): Record<string, unknown>[]
+  /**
+   * Set properties on every matched node. Accepts a plain props object or
+   * an updater fn `(node) => ({...newProps})` for read-modify-write —
+   * each match runs the fn against itself so you can derive new values
+   * from current state (e.g. `n => ({ effects: [...n.effects, shadow] })`).
+   */
+  set(
+    propsOrFn: Record<string, unknown> | ((node: SceneNode) => Record<string, unknown>),
+  ): QueryResult
   /** Sub-query within matched nodes */
   query(selector: string): QueryResult
   [Symbol.iterator](): Iterator<SceneNode>
@@ -11274,10 +11286,16 @@ interface BaseNodeMixin {
    * Priority keys (e.g. layoutMode) are applied first regardless of object key order.
    * width/height are routed through resize() automatically.
    *
+   * Also accepts an updater fn `(node) => ({...newProps})` for
+   * read-modify-write — fn is invoked synchronously with `this`, so you
+   * can derive new values from current state. Returning `undefined` or
+   * `null` is a no-op.
+   *
    * @example
    * node.set({ opacity: 0.5, cornerRadius: 8, name: "Card" })
+   * node.set(n => ({ effects: [...n.effects, shadow] }))
    */
-  set(props: Record<string, unknown>): this
+  set(propsOrFn: Record<string, unknown> | ((node: this) => Record<string, unknown>)): this
 
   /**
    * CSS-like selector query within this node's subtree.
@@ -11293,6 +11311,24 @@ interface BaseNodeMixin {
    * Test if this node matches a CSS-like selector.
    */
   matches(selector: string): boolean
+
+  /**
+   * Project property paths into a structured shape. Supports the same
+   * dot/index/`*` grammar as `query()` predicates — `'fills.0.color.r'`
+   * projects through array indexing, `'children.*.type'` projects through
+   * every element. Per-path failures are swallowed so a broken getter on
+   * one path doesn't drop the rest of the row.
+   *
+   * @example
+   * node.values(['name', 'absoluteBoundingBox.x', 'fills.0.color.r', 'children.*.type'])
+   * // → {
+   * //   name: 'Hero',
+   * //   absoluteBoundingBox: { x: 0 },
+   * //   fills: [{ color: { r: 1 } }],
+   * //   children: [{ type: 'FRAME' }, { type: 'TEXT' }],
+   * // }
+   */
+  values(paths: string[]): Record<string, unknown>
 
   /**
    * Capture a PNG screenshot of this node and return it inline in the response.
@@ -11323,6 +11359,859 @@ interface PluginAPI {
      */
     write(path: string, data: Uint8Array | string): void
   }
+}
+
+/**
+ * Picks only non-function writable properties from an object so
+ * we can block invalid writes to node properties
+ */
+type NonFunctionWritableProperties<Type> = {
+  [
+    Key in keyof Type as Type[Key] extends Function
+      ? never
+      : (<T>() => T extends { [K in Key]: Type[K] } ? 1 : 2) extends <T>() => T extends Readonly<{
+            [K in Key]: Type[K]
+          }>
+            ? 1
+            : 2
+        ? never
+        : Key
+  ]: Type[Key]
+}
+
+/**
+ * `$fig` creator / `.set` opts for a node `T`. Same shape as
+ * `FigCreatorOpts<T>` plus two affordances for binding
+ * styles directly off the node's natural property names:
+ *
+ * - `fills` / `strokes` also accept a `FigPlanPaintStyle`,
+ *   `effects` accepts a `FigPlanEffectStyle`,
+ *   `layoutGrids` accepts a `FigPlanGridStyle`.
+ *   `$fig` reroutes those values through the corresponding `*StyleId` setter
+ *   at flush time; plain paint/effect/grid arrays still apply verbatim.
+ * - `textStyle?: FigPlanTextStyle` is added as a synthetic property for nodes
+ *   that carry a `textStyleId` (i.e. `TextNode`). The underlying scene node
+ *   has no `textStyle` field; `$fig` routes this to `textStyleId`.
+ *
+ * Distributive over `T` so unions like `SceneNode` map to a union of
+ * per-member opts (each member keeps its own property keys).
+ */
+type FigCreatorOpts<T> = T extends unknown
+  ? Partial<{
+      [K in keyof NonFunctionWritableProperties<T>]: K extends 'fills' | 'strokes'
+        ? NonFunctionWritableProperties<T>[K] | FigPlanPaintStyle
+        : K extends 'effects'
+          ? NonFunctionWritableProperties<T>[K] | FigPlanEffectStyle
+          : K extends 'layoutGrids'
+            ? NonFunctionWritableProperties<T>[K] | FigPlanGridStyle
+            : NonFunctionWritableProperties<T>[K]
+    }> &
+      (T extends { textStyleId: unknown } ? { textStyle?: FigPlanTextStyle } : {})
+  : never
+
+/**
+ * The `$fig` builder API.
+ *
+ * All node-creation and mutation calls are recorded into a plan; call
+ * `await $fig.done()` to materialize every queued operation in one batch.
+ */
+interface FigAPI {
+  /**
+   * Creates a top-level frame on the current page.
+   * @param name Node name shown in Figma.
+   * @param opts Frame properties (layoutMode, fills, padding, cornerRadius, etc.).
+   * @param children Existing plan nodes to reparent into the new frame.
+   */
+  frame(opts?: FigCreatorOpts<FrameNode>, children?: FigPlanNode[]): FigPlanNode
+  /**
+   * Creates a top-level frame with auto-layout pre-configured (both axes
+   * hugging content). Default `layoutMode` is `'HORIZONTAL'`; pass
+   * `layoutMode: 'VERTICAL'` in `opts` to switch.
+   */
+  autoLayout(opts?: FigCreatorOpts<FrameNode>, children?: FigPlanNode[]): FigPlanNode
+  text(opts?: FigCreatorOpts<TextNode>): FigPlanNode
+  rect(opts?: FigCreatorOpts<RectangleNode>, children?: FigPlanNode[]): FigPlanNode
+  ellipse(opts?: FigCreatorOpts<EllipseNode>, children?: FigPlanNode[]): FigPlanNode
+  component(opts?: FigCreatorOpts<ComponentNode>, children?: FigPlanNode[]): FigPlanNode
+  section(opts?: FigCreatorOpts<SectionNode>, children?: FigPlanNode[]): FigPlanNode
+  line(opts?: FigCreatorOpts<LineNode>, children?: FigPlanNode[]): FigPlanNode
+  star(opts?: FigCreatorOpts<StarNode>, children?: FigPlanNode[]): FigPlanNode
+  page(opts?: FigCreatorOpts<PageNode>, children?: FigPlanNode[]): FigPlanNode
+  vector(opts?: FigCreatorOpts<VectorNode>, children?: FigPlanNode[]): FigPlanNode
+  polygon(opts?: FigCreatorOpts<PolygonNode>, children?: FigPlanNode[]): FigPlanNode
+  sticky(opts?: FigCreatorOpts<StickyNode>, children?: FigPlanNode[]): FigPlanNode
+  connector(opts?: FigCreatorOpts<ConnectorNode>, children?: FigPlanNode[]): FigPlanNode
+  shapeWithText(opts?: FigCreatorOpts<ShapeWithTextNode>, children?: FigPlanNode[]): FigPlanNode
+  codeBlock(opts?: FigCreatorOpts<CodeBlockNode>, children?: FigPlanNode[]): FigPlanNode
+  table(opts?: FigCreatorOpts<TableNode>, children?: FigPlanNode[]): FigPlanNode
+  slide(opts?: FigCreatorOpts<SlideNode>, children?: FigPlanNode[]): FigPlanNode
+
+  /**
+   * Creates a top-level node from an SVG string. The SVG is parsed into a frame containing
+   * a vector child.
+   * @param name Node name shown in Figma.
+   * @param svgStr Valid SVG markup to import.
+   * @param opts Additional properties applied to the resulting frame.
+   */
+  svg(svgStr: string, opts?: FigCreatorOpts<FrameNode>): FigPlanNode
+
+  /**
+   * Creates a top-level component instance on the current page.
+   * @param compRef ID string of the main component, or a plan node representing it.
+   * @param opts Instance properties (`props` key is applied via `setProperties`).
+   */
+  instance(compRef: string | FigPlanNode, opts?: FigCreatorOpts<InstanceNode>): FigPlanNode
+
+  /**
+   * Groups component plan nodes into a component set.
+   * @param name Name for the resulting component set.
+   * @param opts Component set properties
+   * @param components Component plan nodes to include as variants.
+   */
+  variants(opts?: FigCreatorOpts<ComponentSetNode>, children?: FigPlanNode[]): FigPlanNode
+
+  /**
+   * Creates a group out of an array of nodes
+   * @param name Name for the resulting group.
+   * @param opts Group properties
+   * @param components Plan nodes to include as group children.
+   */
+  group(opts?: FigCreatorOpts<GroupNode>, children?: FigPlanNode[]): FigPlanNode
+  union(opts?: FigCreatorOpts<BooleanOperationNode>, children?: FigPlanNode[]): FigPlanNode
+  intersect(opts?: FigCreatorOpts<BooleanOperationNode>, children?: FigPlanNode[]): FigPlanNode
+  subtract(opts?: FigCreatorOpts<BooleanOperationNode>, children?: FigPlanNode[]): FigPlanNode
+  exclude(opts?: FigCreatorOpts<BooleanOperationNode>, children?: FigPlanNode[]): FigPlanNode
+
+  /**
+   * Looks up a plan node by its plan ID (e.g. `"__plan_0"`), or wraps a real Figma node ID
+   * in a lightweight `_existing` plan node so it can be passed to other `$fig` methods.
+   * @param id A plan ID returned by a previous creator call, or any real Figma node ID.
+   */
+  get(id: string): FigPlanNode
+
+  /**
+   * Queries the scene for nodes matching `selector`, starting from `scope`
+   * (or the current page if omitted).
+   * @param selector CSS-like type/attribute selector (e.g. `"RECTANGLE[name=Foo]"`, `"*"`),
+   *   or a predicate function `(node) => boolean`.
+   * @param scope Optional root node to restrict the search.
+   * @returns A `FigQueryResult` wrapping the matched nodes.
+   */
+  query(selector: string | ((node: SceneNode) => boolean), scope?: FigPlanNode): FigQueryResult
+
+  /**
+   * Queues a property update on an existing or plan node, applied when `$fig.done()` is called.
+   * Accepts a plain props object or an updater fn `(node) => ({...newProps})`
+   * for read-modify-write. The fn runs at flush time against the materialized
+   * `SceneNode`, so you can derive values from current state. Returning
+   * `undefined` or `null` from the fn makes that node a no-op.
+   * @param target The node to update.
+   * @param optsOrFn Properties to set, or a fn returning props derived from the live node.
+   * @returns The target plan node, for chaining.
+   */
+  set(
+    target: FigPlanNode,
+    optsOrFn: FigCreatorOpts<SceneNode> | ((node: SceneNode) => FigCreatorOpts<SceneNode>),
+  ): FigPlanNode
+
+  /**
+   * Queues one or more nodes for deletion, applied when `$fig.done()` is called.
+   * @param targets Nodes to delete.
+   */
+  delete(...targets: FigPlanNode[]): void
+
+  /**
+   * Queues a replacement for the existing target node.
+   * @param target The node to replace.
+   * @param newPlan The replacement node.
+   * @returns The replacement node, for chaining.
+   */
+  replace(target: FigPlanNode, newPlan: FigPlanNode): FigPlanNode
+
+  /**
+   * Creates a new plan node that is a copy of `target`, optionally overriding properties.
+   * `target` may be a plan node or the ID string of an existing Figma node.
+   * @param target Source plan node or Figma node ID to copy.
+   * @param opts Property overrides applied to the clone.
+   * @returns The new cloned plan node.
+   */
+  clone(target: FigPlanNode | string, opts?: FigCreatorOpts<SceneNode>): FigPlanNode
+
+  /**
+   * Queues `target` to be moved into `newParent`, applied when `$fig.done()` is called.
+   * @param target Node to move.
+   * @param newParent Destination parent node.
+   * @param index Insertion index within `newParent.children`; appends if omitted.
+   */
+  move(target: FigPlanNode, newParent: FigPlanNode, index?: number): void
+
+  /**
+   * Queues a reorder of `parent`'s children, applied when `$fig.done()` is called.
+   * @param parent Node whose children should be reordered.
+   * @param children Desired child order as an array of plan nodes.
+   */
+  reorder(parent: FigPlanNode, children: FigPlanNode[]): void
+
+  /**
+   * Appends `child` as a child of `parent` within the plan tree.
+   * @returns `parent`, for chaining.
+   */
+  add(parent: FigPlanNode, child: FigPlanNode): FigPlanNode
+
+  /**
+   * Alias for `add()`. Appends `child` as a child of `parent` within the plan tree.
+   * @returns `parent`, for chaining.
+   */
+  append(parent: FigPlanNode, child: FigPlanNode): FigPlanNode
+
+  /**
+   * Inserts `child` at `index` within `parent`'s children.
+   * @param parent Destination parent node.
+   * @param index Zero-based insertion position.
+   * @param child Node to insert.
+   * @returns `parent`, for chaining.
+   */
+  addAt(parent: FigPlanNode, index: number, child: FigPlanNode): FigPlanNode
+
+  /**
+   * Queues a page switch by name, applied when `$fig.done()` is called. Subsequent creators
+   * called before `done()` will be placed on the new page.
+   * @param name Exact name of the target page.
+   */
+  page(name: string): void
+
+  /**
+   * Queues a gradient fill on `node`, applied when `$fig.done()` is called.
+   * @param node Target node.
+   * @param type Gradient style: `"LINEAR"`, `"RADIAL"`, `"ANGULAR"`, or `"DIAMOND"`.
+   * @param stops Color stops defining the gradient.
+   * @param transform Optional 2×3 affine transform matrix for the gradient.
+   */
+  gradient(node: FigPlanNode, type: string, stops: GradientStop[], transform?: unknown): void
+
+  /**
+   * Queues an image fill on `node`, applied when `$fig.done()` is called.
+   * @param node Target node.
+   * @param hash Figma image hash (40-character hex string).
+   * @param scaleMode Fill scale mode: `"FILL"`, `"FIT"`, `"CROP"`, or `"TILE"`. Defaults to `"FILL"`.
+   */
+  image(node: FigPlanNode, hash: string, scaleMode?: string): void
+
+  /**
+   * Queues a paint style creation. `opts.name` is required. Returns a
+   * `FigPlanPaintStyle` handle that can be passed directly into the `fills` or
+   * `strokes` property of any node creator (or `node.set()`) — `$fig` reroutes
+   * the property to `fillStyleId` / `strokeStyleId` at flush time.
+   */
+  paintStyle(
+    opts: { name: string } & Partial<NonFunctionWritableProperties<PaintStyle>>,
+  ): FigPlanPaintStyle
+
+  /**
+   * Queues a text style creation. `opts.name` is required. Fonts referenced via
+   * `fontName` are loaded automatically before the style is materialized. Pass the
+   * returned handle in a `TextNode`'s `textStyle` property to bind by id.
+   */
+  textStyle(
+    opts: { name: string } & Partial<NonFunctionWritableProperties<TextStyle>>,
+  ): FigPlanTextStyle
+
+  /**
+   * Queues an effect style creation. `opts.name` is required. Pass the returned
+   * handle in a node's `effects` property to bind by id.
+   */
+  effectStyle(
+    opts: { name: string } & Partial<NonFunctionWritableProperties<EffectStyle>>,
+  ): FigPlanEffectStyle
+
+  /**
+   * Queues a grid style creation. `opts.name` is required. Pass the returned handle
+   * in a frame's `layoutGrids` property to bind by id.
+   */
+  gridStyle(
+    opts: { name: string } & Partial<NonFunctionWritableProperties<GridStyle>>,
+  ): FigPlanGridStyle
+
+  /**
+   * Wraps an existing local style as a `FigPlanStyle`. Tries the argument as a real
+   * style id first (via `figma.getStyleById`), then falls back to scanning local
+   * paint / text / effect / grid style lists by name. Returns `null` if neither
+   * lookup hits. The returned handle is one of the per-style subtypes (paint /
+   * text / effect / grid) — narrow via `style?.type` when reading.
+   * @param nameOrId Real style id (e.g. `"S:abc123,"`) or local style name.
+   */
+  getStyle(nameOrId: string): FigPlanStyle | null
+
+  /**
+   * Queues a new variable collection creation. `opts.name` and `opts.modes`
+   * (non-empty string array of mode names) are required. Returns a
+   * `FigPlanVarCollection` handle whose `.colorVar` / `.numVar` / `.boolVar` /
+   * `.stringVar` methods create variables inside this collection.
+   */
+  varCollection(
+    opts: { name: string; modes: string[] } & Partial<
+      NonFunctionWritableProperties<VariableCollection>
+    >,
+  ): FigPlanVarCollection
+
+  /**
+   * Wraps an existing variable collection as a `FigPlanVarCollection`. Tries
+   * the argument as a real collection id first, then falls back to scanning
+   * local collections by name. Throws if neither lookup hits.
+   * @param idOrName Real collection id or local collection name.
+   */
+  getVarCollection(idOrName: string): FigPlanVarCollection
+
+  /**
+   * Wraps an existing variable as a `FigPlanVariable` handle. Accepts a real
+   * Figma variable id (e.g. `"VariableID:123:456"`). Throws if not found.
+   * To look up by name within a specific collection, use `coll.getVar(name)`.
+   * @param id Real Figma variable id.
+   */
+  getVar(id: string): FigPlanVariable
+
+  /**
+   * Materializes all queued operations — node creations, property updates, deletions, moves,
+   * page switches, and fills — in a single batch. Resets plan state afterward so
+   * the next `done()` starts with a clean slate.
+   * @returns A promise resolving to a `FigDoneResult` describing what changed.
+   */
+  done(): Promise<FigDoneResult>
+}
+
+/**
+ * A plan node returned by `$fig` creator methods and `$fig.get()`. Plan nodes describe
+ * Figma nodes that will be created, mutated, or deleted when `$fig.done()` is awaited.
+ *
+ * Before `done()` resolves, `.id` returns a temporary `"__plan_N"` string. Afterward it
+ * reflects the real Figma node ID, so you can pass it to `figma.getNodeById()`.
+ */
+interface FigPlanNode {
+  /** Logical node type as registered in the plan, e.g. `"FRAME"`, `"TEXT"`, `"_existing"`. */
+  readonly _type: string
+  /**
+   * Figma node ID. Returns the temporary plan ID (e.g. `"__plan_0"`) before `done()` is
+   * awaited, and the real Figma node ID afterward.
+   */
+  readonly id: string
+  /** Node name as it will appear in Figma. */
+  readonly name?: string
+  /** Parent plan node in the plan tree, or `null` for root-level nodes. */
+  readonly parent: FigPlanNode | null
+  /** Ordered list of child plan nodes added to this node before `done()`. */
+  readonly children: FigPlanNode[]
+
+  /**
+   * The materialized Figma `SceneNode` for this plan node, or `null` if the plan node
+   * has not been built yet (pre-`done()`) or the real node was deleted. Use this to
+   * call any `SceneNode` API not exposed as a plan step (`exportAsync`,
+   * `setBoundVariable`, `getStyledTextSegments`, etc.). The null return doubles as a
+   * materialization probe (`if (!rect.node) await $fig.done()`). `$fig.get(realId)`
+   * pre-populates this at construction, so `.node` works without `done()` on wrapped
+   * existing nodes.
+   */
+  readonly node: SceneNode | null
+
+  /**
+   * Queues a screenshot of this node, applied when `$fig.done()` is called. Image
+   * bytes flow through the `figma.io` side channel into the tool response — unlike
+   * `SceneNode.screenshot()`, this does NOT return a Promise (do not `await` — `await`
+   * on a non-Promise resolves to the value but is misleading; bytes still arrive at
+   * flush time). Take one shot per node: `done()` processes mutations before any
+   * screenshot fires, so multiple shots of the same node capture the same post-flush
+   * state, and `figma.io.write`'s caption-keyed registry collides identical-caption
+   * outputs so only the last one survives.
+   * @param opts `scale` defaults to `0.5x` capped so the largest output dimension
+   *   stays ≤ 1024 px. `contentsOnly` defaults to `false`.
+   * @returns `this`, for chaining.
+   */
+  screenshot(opts?: { scale?: number; contentsOnly?: boolean }): FigPlanNode
+
+  /**
+   * Appends a new child frame to this node.
+   * @param name Node name shown in Figma.
+   * @param opts Frame properties (layout, fills, padding, etc.).
+   * @param children Existing plan nodes to reparent into the new frame.
+   */
+  frame(opts?: FigCreatorOpts<FrameNode>, children?: FigPlanNode[]): FigPlanNode
+  /**
+   * Appends a new child frame with auto-layout pre-configured (both axes
+   * hugging content). Default `layoutMode` is `'HORIZONTAL'`; pass
+   * `layoutMode: 'VERTICAL'` in `opts` to switch.
+   */
+  autoLayout(opts?: FigCreatorOpts<FrameNode>, children?: FigPlanNode[]): FigPlanNode
+  text(opts?: FigCreatorOpts<TextNode>): FigPlanNode
+  rect(opts?: FigCreatorOpts<RectangleNode>, children?: FigPlanNode[]): FigPlanNode
+  ellipse(opts?: FigCreatorOpts<EllipseNode>, children?: FigPlanNode[]): FigPlanNode
+  component(opts?: FigCreatorOpts<ComponentNode>, children?: FigPlanNode[]): FigPlanNode
+  section(opts?: FigCreatorOpts<SectionNode>, children?: FigPlanNode[]): FigPlanNode
+  line(opts?: FigCreatorOpts<LineNode>, children?: FigPlanNode[]): FigPlanNode
+  star(opts?: FigCreatorOpts<StarNode>, children?: FigPlanNode[]): FigPlanNode
+  page(opts?: FigCreatorOpts<PageNode>, children?: FigPlanNode[]): FigPlanNode
+  vector(opts?: FigCreatorOpts<VectorNode>, children?: FigPlanNode[]): FigPlanNode
+  polygon(opts?: FigCreatorOpts<PolygonNode>, children?: FigPlanNode[]): FigPlanNode
+  sticky(opts?: FigCreatorOpts<StickyNode>, children?: FigPlanNode[]): FigPlanNode
+  connector(opts?: FigCreatorOpts<ConnectorNode>, children?: FigPlanNode[]): FigPlanNode
+  shapeWithText(opts?: FigCreatorOpts<ShapeWithTextNode>, children?: FigPlanNode[]): FigPlanNode
+  codeBlock(opts?: FigCreatorOpts<CodeBlockNode>, children?: FigPlanNode[]): FigPlanNode
+  table(opts?: FigCreatorOpts<TableNode>, children?: FigPlanNode[]): FigPlanNode
+  slide(opts?: FigCreatorOpts<SlideNode>, children?: FigPlanNode[]): FigPlanNode
+
+  /**
+   * Appends a child node created from an SVG string to this node. The SVG is parsed into a
+   * frame containing one or more vector children.
+   * @param name Node name shown in Figma.
+   * @param svgStr Valid SVG markup to import.
+   * @param opts Additional properties applied to the resulting frame.
+   */
+  svg(svgStr: string, opts?: FigCreatorOpts<FrameNode>): FigPlanNode
+
+  /**
+   * Appends a child component instance to this node.
+   * @param compRef ID string of the main component, or a plan node representing it.
+   * @param opts Instance properties (`props` key is applied via `setProperties`).
+   */
+  instance(compRef: string | FigPlanNode, opts?: FigCreatorOpts<InstanceNode>): FigPlanNode
+
+  /**
+   * Adds a `TEXT` component property to the component this node belongs to, bound to this
+   * layer's `characters` (the current text becomes the default). Must be called on a node
+   * inside a `$fig.component(...)` definition (or a variant component) — throws otherwise.
+   * If the component is part of a set, the property lands on the set, and the same property
+   * name across variants is de-duplicated into one definition.
+   * @param name Property name (e.g. `"Label"`).
+   * @returns `this`, for chaining.
+   */
+  textProp(name: string): FigPlanNode
+  /**
+   * Adds a `BOOLEAN` component property bound to this layer's `visible` (current visibility
+   * is the default). Same placement / de-dup rules as {@link textProp}.
+   * @param name Property name (e.g. `"Show Icon"`).
+   * @returns `this`, for chaining.
+   */
+  booleanProp(name: string): FigPlanNode
+  /**
+   * Adds an `INSTANCE_SWAP` component property bound to this layer's `mainComponent` — this
+   * node must be an instance; its main component becomes the default. Same placement / de-dup
+   * rules as {@link textProp}.
+   * @param name Property name (e.g. `"Icon"`).
+   * @returns `this`, for chaining.
+   */
+  instanceSwapProp(name: string): FigPlanNode
+
+  /**
+   * Queues a property update on this node, applied when `$fig.done()` is called.
+   * Accepts a plain props object or an updater fn `(node) => ({...newProps})`
+   * for read-modify-write. The fn runs at flush time against the materialized
+   * `SceneNode`. Returning `undefined` or `null` is a no-op for this node.
+   * @param optsOrFn Properties to set, or a fn returning props derived from the live node.
+   * @returns `this`, for chaining.
+   */
+  set(
+    optsOrFn: FigCreatorOpts<SceneNode> | ((node: SceneNode) => FigCreatorOpts<SceneNode>),
+  ): FigPlanNode
+
+  /**
+   * Queues this node for deletion, applied when `$fig.done()` is called.
+   * @returns `this`, for chaining.
+   */
+  remove(): FigPlanNode
+
+  /**
+   * Creates a new plan node that is a copy of this node, optionally overriding properties.
+   * @param opts Property overrides to apply to the clone.
+   * @returns The new cloned plan node.
+   */
+  clone(opts?: FigCreatorOpts<SceneNode>): FigPlanNode
+
+  /**
+   * Queues this node to be moved to `newParent`, applied when `$fig.done()` is called.
+   * @param newParent Destination parent node.
+   * @param index Insertion index within `newParent.children`; appends if omitted.
+   * @returns `this`, for chaining.
+   */
+  moveTo(newParent: FigPlanNode, index?: number): FigPlanNode
+
+  /**
+   * Queues a reorder of this node's children by ID, applied when `$fig.done()` is called.
+   * @param children Desired child order as an array of plan nodes.
+   * @returns `this`, for chaining.
+   */
+  reorderChildren(children: FigPlanNode[]): FigPlanNode
+
+  /**
+   * Queues a replacement of this node with `newPlan` in the scene tree, applied when
+   * `$fig.done()` is called. The new node is inserted at the same position.
+   * @param newPlan Plan node to substitute in place of this one.
+   * @returns The replacement plan node.
+   */
+  replace(newPlan: FigPlanNode): FigPlanNode
+
+  /**
+   * Appends `child` as a child of this node within the plan tree.
+   * @returns `this`, for chaining.
+   */
+  add(child: FigPlanNode): FigPlanNode
+
+  /**
+   * Alias for `add()`. Appends `child` as a child of this node within the plan tree.
+   * @returns `this`, for chaining.
+   */
+  append(child: FigPlanNode): FigPlanNode
+
+  /**
+   * Inserts `child` at the given `index` within this node's children.
+   * @param index Zero-based insertion position.
+   * @returns `this`, for chaining.
+   */
+  addAt(index: number, child: FigPlanNode): FigPlanNode
+
+  /**
+   * Queues a gradient fill on this node, applied when `$fig.done()` is called.
+   * @param type Gradient style: `"LINEAR"`, `"RADIAL"`, `"ANGULAR"`, or `"DIAMOND"`.
+   * @param stops Color stops defining the gradient.
+   * @param transform Optional 2×3 affine transform matrix for the gradient.
+   * @returns `this`, for chaining.
+   */
+  gradient(type: string, stops: GradientStop[], transform?: unknown): FigPlanNode
+
+  /**
+   * Queues an image fill on this node, applied when `$fig.done()` is called.
+   * @param hash Figma image hash (40-character hex string).
+   * @param scaleMode Fill scale mode: `"FILL"`, `"FIT"`, `"CROP"`, or `"TILE"`. Defaults to `"FILL"`.
+   * @returns `this`, for chaining.
+   */
+  image(hash: string, scaleMode?: string): FigPlanNode
+
+  /**
+   * Queries descendants of this node. Before `done()`, only function selectors are supported
+   * (string selectors require a materialized node). After `done()`, all selector forms work.
+   * @param selector CSS-like type/attribute selector string, or a predicate function.
+   * @returns A `FigQueryResult` wrapping the matched nodes.
+   */
+  query(selector: string | ((node: FigPlanNode) => boolean)): FigQueryResult
+}
+
+/**
+ * A plan handle representing a paint, text, effect, or grid style. Returned by
+ * `$fig.paintStyle` / `textStyle` / `effectStyle` / `gridStyle` (for new styles)
+ * and by `$fig.getStyle()` (for existing styles).
+ *
+ * The handle can be passed directly into any style-bindable property on a node —
+ * `fills`, `strokes`, `effects`, `layoutGrids`, or `textStyle`. `$fig` reroutes
+ * the property through the corresponding `*StyleId` setter at flush time, so the
+ * node binds by id rather than receiving a literal array. The property names (not
+ * the `*StyleId` form) are the canonical entry: plain paint/effect/grid arrays
+ * still apply verbatim in the same property, so routing only fires when the value
+ * is a `FigPlanStyle`.
+ *
+ * `FigPlanStyle` is the discriminated union of the per-style subtypes. Each
+ * subtype tightens `.style` and the `.set` fn arg to the concrete style type
+ * (`PaintStyle` / `TextStyle` / `EffectStyle` / `GridStyle`) so you can read
+ * type-specific fields (e.g. `paints`, `fontName`, `effects`, `layoutGrids`)
+ * without `as` casts. For handles returned by `$fig.getStyle()`, narrow via
+ * `handle.style?.type` to recover the concrete subtype.
+ */
+type FigPlanStyle = FigPlanPaintStyle | FigPlanTextStyle | FigPlanEffectStyle | FigPlanGridStyle
+
+interface FigPlanPaintStyle {
+  /** Real Figma style id once materialized, or the temporary plan id before `done()`. For `$fig.getStyle()` wraps this is the real id immediately. */
+  readonly id: string
+  /** The live Figma `PaintStyle` once materialized, or `null` before `done()`. */
+  readonly style: PaintStyle | null
+  /**
+   * Queues a property update on this paint style, applied when `$fig.done()` is
+   * called. Accepts a plain props object or an updater fn receiving the live
+   * Figma `PaintStyle`: `s => ({ paints: invertColors(s.paints) })`.
+   * @returns `this`, for chaining.
+   */
+  set(
+    optsOrFn: FigCreatorOpts<PaintStyle> | ((style: PaintStyle) => FigCreatorOpts<PaintStyle>),
+  ): FigPlanPaintStyle
+  /** Queues deletion of this style. @returns `this`, for chaining. */
+  remove(): FigPlanPaintStyle
+}
+
+interface FigPlanTextStyle {
+  readonly id: string
+  readonly style: TextStyle | null
+  /**
+   * Updater fn receives the live Figma `TextStyle` — read `s.fontName`,
+   * `s.fontSize`, `s.lineHeight`, etc. directly.
+   */
+  set(
+    optsOrFn: FigCreatorOpts<TextStyle> | ((style: TextStyle) => FigCreatorOpts<TextStyle>),
+  ): FigPlanTextStyle
+  remove(): FigPlanTextStyle
+}
+
+interface FigPlanEffectStyle {
+  readonly id: string
+  readonly style: EffectStyle | null
+  /** Updater fn receives the live Figma `EffectStyle` — read `s.effects` directly. */
+  set(
+    optsOrFn: FigCreatorOpts<EffectStyle> | ((style: EffectStyle) => FigCreatorOpts<EffectStyle>),
+  ): FigPlanEffectStyle
+  remove(): FigPlanEffectStyle
+}
+
+interface FigPlanGridStyle {
+  readonly id: string
+  readonly style: GridStyle | null
+  /** Updater fn receives the live Figma `GridStyle` — read `s.layoutGrids` directly. */
+  set(
+    optsOrFn: FigCreatorOpts<GridStyle> | ((style: GridStyle) => FigCreatorOpts<GridStyle>),
+  ): FigPlanGridStyle
+  remove(): FigPlanGridStyle
+}
+
+/** A single color stop in a gradient fill. */
+interface GradientStop {
+  /** CSS hex string (e.g. `"#06F"`) or an RGBA object with components in [0, 1]. */
+  color: string | { r: number; g: number; b: number; a?: number }
+  /** Position of the stop along the gradient axis, in [0, 1]. */
+  pos: number
+}
+
+/**
+ * A plan handle representing a Figma variable. Returned by `coll.colorVar` /
+ * `coll.numVar` / `coll.boolVar` / `coll.stringVar` (new variables) and by
+ * `$fig.getVar(id)` / `coll.getVar(nameOrId)` (existing variables).
+ *
+ * Pass a `FigPlanNumVar` directly as any numeric node property (`width`,
+ * `height`, `opacity`, `cornerRadius`, `paddingLeft`, `itemSpacing`, etc.) in
+ * `$fig` creators, `planNode.set`, `$fig.set`, or `queryResult.set` — `$fig`
+ * routes it through `setBoundVariable(field, id)` at flush time.
+ *
+ * Pass a `FigPlanColorVar` as the `color` field of a paint (in `fills` /
+ * `strokes`) or as the `color` field of an effect — `$fig` binds it via
+ * `setBoundVariableForPaint` / `setBoundVariableForEffect` at flush.
+ *
+ * Same-plan variable handles (planId before `done()`) only work through the
+ * `$fig` plan path. Handles from `$fig.getVar` / `coll.getVar` (real id
+ * already set) also work in raw `node.set`.
+ */
+type FigPlanVariable = FigPlanColorVar | FigPlanNumVar | FigPlanBoolVar | FigPlanStringVar
+
+/** Opts accepted by `variable.set()` — writable Variable properties plus `codeSyntax`. */
+type FigPlanVariableSetOpts = Partial<NonFunctionWritableProperties<Variable>> & {
+  codeSyntax?: Partial<Record<CodeSyntaxPlatform, string>>
+}
+
+interface FigPlanColorVar {
+  /** Real variable id after `done()`, or temporary planId before. */
+  readonly id: string
+  /** Always `'COLOR'`. */
+  readonly resolvedType: 'COLOR'
+  /** The live Figma `Variable` after `done()`, `null` before. */
+  readonly variable: Variable | null
+  /** Update variable properties (name, scopes, description, codeSyntax, etc.). Fn receives the live `Variable`. */
+  set(optsOrFn: FigPlanVariableSetOpts | ((v: Variable) => FigPlanVariableSetOpts)): FigPlanColorVar
+  /** Set a single mode value. `value` may be a hex string or another `FigPlanColorVar` (alias). */
+  value(modeName: string, value: string | FigPlanColorVar): FigPlanColorVar
+  /** Set all mode values at once. Fn receives the live `Variable`. */
+  setValues(
+    mapOrFn:
+      | Record<string, string | FigPlanColorVar>
+      | ((v: Variable) => Record<string, string | FigPlanColorVar>),
+  ): FigPlanColorVar
+  /** Queue deletion. */
+  remove(): FigPlanColorVar
+}
+
+interface FigPlanNumVar {
+  readonly id: string
+  readonly resolvedType: 'FLOAT'
+  readonly variable: Variable | null
+  set(optsOrFn: FigPlanVariableSetOpts | ((v: Variable) => FigPlanVariableSetOpts)): FigPlanNumVar
+  /** Set a single mode value. `value` may be a number or another `FigPlanNumVar` (alias). */
+  value(modeName: string, value: number | FigPlanNumVar): FigPlanNumVar
+  setValues(
+    mapOrFn:
+      | Record<string, number | FigPlanNumVar>
+      | ((v: Variable) => Record<string, number | FigPlanNumVar>),
+  ): FigPlanNumVar
+  remove(): FigPlanNumVar
+}
+
+interface FigPlanBoolVar {
+  readonly id: string
+  readonly resolvedType: 'BOOLEAN'
+  readonly variable: Variable | null
+  set(optsOrFn: FigPlanVariableSetOpts | ((v: Variable) => FigPlanVariableSetOpts)): FigPlanBoolVar
+  value(modeName: string, value: boolean | FigPlanBoolVar): FigPlanBoolVar
+  setValues(
+    mapOrFn:
+      | Record<string, boolean | FigPlanBoolVar>
+      | ((v: Variable) => Record<string, boolean | FigPlanBoolVar>),
+  ): FigPlanBoolVar
+  remove(): FigPlanBoolVar
+}
+
+interface FigPlanStringVar {
+  readonly id: string
+  readonly resolvedType: 'STRING'
+  readonly variable: Variable | null
+  set(
+    optsOrFn: FigPlanVariableSetOpts | ((v: Variable) => FigPlanVariableSetOpts),
+  ): FigPlanStringVar
+  value(modeName: string, value: string | FigPlanStringVar): FigPlanStringVar
+  setValues(
+    mapOrFn:
+      | Record<string, string | FigPlanStringVar>
+      | ((v: Variable) => Record<string, string | FigPlanStringVar>),
+  ): FigPlanStringVar
+  remove(): FigPlanStringVar
+}
+
+/**
+ * A plan handle representing a variable collection. Returned by
+ * `$fig.varCollection(opts)` (new) and `$fig.getVarCollection(idOrName)` (existing).
+ */
+interface FigPlanVarCollection {
+  /** Real collection id after `done()`, or temporary planId before. */
+  readonly id: string
+  /** The live Figma `VariableCollection` after `done()`, `null` before. */
+  readonly variableCollection: VariableCollection | null
+  /** Create a COLOR variable in this collection. `opts.name` required; `opts.values` as `{ modeName: hexString }`. */
+  colorVar(
+    opts: {
+      name: string
+      values?: Record<string, string | FigPlanColorVar>
+      scopes?: VariableScope[]
+      codeSyntax?: Partial<Record<CodeSyntaxPlatform, string>>
+    } & Partial<NonFunctionWritableProperties<Variable>>,
+  ): FigPlanColorVar
+  /** Create a FLOAT variable. `opts.values` as `{ modeName: number }`. */
+  numVar(
+    opts: {
+      name: string
+      values?: Record<string, number | FigPlanNumVar>
+      scopes?: VariableScope[]
+      codeSyntax?: Partial<Record<CodeSyntaxPlatform, string>>
+    } & Partial<NonFunctionWritableProperties<Variable>>,
+  ): FigPlanNumVar
+  /** Create a BOOLEAN variable. `opts.values` as `{ modeName: boolean }`. */
+  boolVar(
+    opts: {
+      name: string
+      values?: Record<string, boolean | FigPlanBoolVar>
+      scopes?: VariableScope[]
+      codeSyntax?: Partial<Record<CodeSyntaxPlatform, string>>
+    } & Partial<NonFunctionWritableProperties<Variable>>,
+  ): FigPlanBoolVar
+  /** Create a STRING variable. `opts.values` as `{ modeName: string }`. */
+  stringVar(
+    opts: {
+      name: string
+      values?: Record<string, string | FigPlanStringVar>
+      scopes?: VariableScope[]
+      codeSyntax?: Partial<Record<CodeSyntaxPlatform, string>>
+    } & Partial<NonFunctionWritableProperties<Variable>>,
+  ): FigPlanStringVar
+  /** Wrap an existing variable in this collection by name or real id. Throws if not found. */
+  getVar(nameOrId: string): FigPlanVariable
+  /** Update collection properties (name, etc.). Fn receives the live `VariableCollection`. */
+  set(
+    optsOrFn:
+      | Partial<NonFunctionWritableProperties<VariableCollection>>
+      | ((c: VariableCollection) => Partial<NonFunctionWritableProperties<VariableCollection>>),
+  ): FigPlanVarCollection
+  /** Queue deletion. */
+  remove(): FigPlanVarCollection
+}
+
+/** Return value of `$fig.done()`. `created`/`updated`/`deleted` map node IDs to names. */
+interface FigDoneResult {
+  /** Nodes created during this plan cycle — `{ [nodeId]: nodeName }`. */
+  created?: Record<string, string>
+  /** Nodes whose properties were updated — `{ [nodeId]: nodeName }`. */
+  updated?: Record<string, string>
+  /** Nodes that were removed — `{ [nodeId]: nodeName }`. */
+  deleted?: Record<string, string>
+}
+
+/**
+ * The result of `$fig.query()` or a plan node's `.query()`. Wraps a collection of matched
+ * nodes and provides bulk-mutation helpers.
+ *
+ * When querying real Figma nodes (post-`done()`), `first()` and `last()` return the
+ * underlying Figma node handle, which carries all standard Figma node properties in addition
+ * to the `FigPlanNode` interface.
+ */
+interface FigQueryResult {
+  /** Number of nodes matched by the query. */
+  readonly length: number
+
+  /**
+   * Returns every matched node as a regular array.
+   */
+  toArray(): SceneNode[]
+
+  /**
+   * Projects every matched node into a regular array.
+   * @param fn Callback receiving the node and its zero-based index.
+   */
+  map<T>(fn: (node: SceneNode, index: number) => T): T[]
+
+  /**
+   * Project property paths from every matched node into a structured shape.
+   * Supports the same dot/index/`*` grammar as `$fig.query()` predicates —
+   * `'fills.0.color.r'` projects through array indexing, `'children.*.type'`
+   * projects through every element. See `SceneNode.values()`.
+   * @param paths Dot/index/`*` paths to project from each node.
+   * @returns One record per matched node, shaped to mirror the requested paths.
+   */
+  values(paths: string[]): Array<Record<string, unknown>>
+
+  /**
+   * Queues a property update on every matched node, applied when `$fig.done()` is called.
+   * Accepts a plain props object or an updater fn `(node) => ({...newProps})`
+   * for read-modify-write — each match runs the fn against itself at flush
+   * time. Returning `undefined` or `null` is a no-op for that node.
+   * @param optsOrFn Properties to set, or a fn returning props derived from the live node.
+   * @returns `this`, for chaining.
+   */
+  set(
+    optsOrFn: FigCreatorOpts<SceneNode> | ((node: SceneNode) => FigCreatorOpts<SceneNode>),
+  ): FigQueryResult
+
+  /**
+   * Queues a deletion of every matched node, applied when `$fig.done()` is called.
+   * @returns `this`, for chaining.
+   */
+  remove(): FigQueryResult
+
+  /**
+   * Queues a move of every matched node into `newParent`, applied when `$fig.done()` is called.
+   * @param newParent Destination parent node.
+   * @param index Insertion index within `newParent.children`; appends if omitted.
+   * @returns `this`, for chaining.
+   */
+  moveTo(newParent: FigPlanNode, index?: number): FigQueryResult
+
+  /**
+   * Calls `fn` for every matched node in order.
+   * @param fn Callback receiving the node and its zero-based index.
+   * @returns `this`, for chaining.
+   */
+  each(fn: (node: SceneNode, index: number) => void): FigQueryResult
+
+  /**
+   * Returns the first matched node, or `null` if the result set is empty.
+   */
+  first(): SceneNode | null
+
+  /**
+   * Returns the last matched node, or `null` if the result set is empty.
+   */
+  last(): SceneNode | null
+
+  /**
+   * Returns a new `FigQueryResult` containing only the nodes for which `fn` returns `true`.
+   * @param fn Predicate receiving the node and its zero-based index.
+   */
+  filter(fn: (node: SceneNode, index: number) => boolean): FigQueryResult
 }
 
 // prettier-ignore
