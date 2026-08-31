@@ -458,9 +458,9 @@ Compare what was found in code vs what already exists in Figma:
 - **Conflict:** same name, different value → escalate to user (see section 5)
 - **Figma-only:** exists in Figma but not in code → flag for user, likely skip
 
-### User-Facing Checkpoint Message Template
+### User-Facing Discovery Summary Template
 
-Present this message before proceeding. Never begin Phase 1 without explicit user approval.
+Present this message before proceeding, then continue automatically into Phase 1 unless an unresolved conflict requires a user decision.
 
 ```
 Here's what I found and what I plan to build:
@@ -490,9 +490,7 @@ GAPS / CONFLICTS NEEDING DECISIONS
 
 WHAT I WON'T BUILD (and why)
   - {item}: already exists in Figma with matching conventions
-  - {item}: not supported as a Figma variable (e.g. z-index, animation timing)
-
-Shall I proceed?
+  - {item}: not supported as a Figma variable (e.g. z-index)
 ```
 
 ---

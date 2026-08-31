@@ -23,7 +23,6 @@ Before starting a phase:
 - Include every task/subtask that will be attempted in that phase.
 - Include the phase exit criteria.
 - Do not begin mutating work for the phase until this checklist has been posted.
-- If the phase requires explicit approval, ask for approval after the checklist and wait.
 
 During execution:
 - Before each major subsection, post a short update naming the exact section being worked on, using this format:
@@ -39,7 +38,6 @@ At the end of each phase:
   - Decisions or conflicts resolved
   - Remaining risks or follow-ups
 - Then show the required phase artifact for that phase and continue automatically.
-- Only ask for explicit approval after Phase 0 or if a genuine decision fork arises (see [Section 6](#6-decision-forks)). For Phases 1–4, the default is to continue automatically after the summary.
 
 ### Stable Task IDs
 
@@ -305,7 +303,6 @@ Collection: "Spacing"       modes: ["Value"]
 ## 9. Per-Phase Anti-Patterns
 
 **Phase 0 anti-patterns:**
-- ❌ Starting to create anything before scope is locked with user
 - ❌ Ignoring existing file conventions and imposing new ones
 - ❌ Skipping `search_design_system` before planning component creation
 

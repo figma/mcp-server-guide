@@ -112,7 +112,7 @@ collection.renameMode(modeId, "Light")
 // Variables
 const variable = figma.variables.createVariable("name", collection, "COLOR")
 //                                                       ^ must be a collection object (passing an ID string is deprecated)
-// resolvedType: "COLOR" | "FLOAT" | "STRING" | "BOOLEAN"
+// resolvedType: "COLOR" | "FLOAT" | "STRING" | "BOOLEAN" | "TIMING" | "EASING"
 variable.setValueForMode(modeId, value)
 
 // Scopes — controls where variable appears in property pickers
@@ -264,10 +264,10 @@ const svgNode = figma.createNodeFromSvg('<svg>...</svg>')
 
 **`upload_assets` is the ONLY supported way to upload images into a Figma file** — Design, FigJam, and Slides all share this path. **Do NOT use `figma.createImage()` or `figma.createImageAsync()` from inside `use_figma`.** Both are unsupported as image-upload entry points and will be removed from agent flows; `use_figma` has no network access (so `createImageAsync(src)` cannot fetch URLs) and bytes inside the script are not durable assets in the file.
 
-The `upload_assets` tool is the ONLY supported way. It returns single-use upload URLs that you POST raw bytes to, and the response contains an `imageHash` plus placement details. Server-side commit and canvas placement happen automatically. Pass `nodeId` (with `count: 1`) to set the upload as a fill on an existing node directly, or omit `nodeId` to place the image on the canvas as a new layer.
+The `upload_assets` tool is the ONLY supported way. It returns single-use upload URLs that you POST raw bytes to, and the response contains an `imageHash` plus placement details. Server-side commit and canvas placement happen automatically. Pass `nodeIds` (with one entry per upload) to set uploads as fills on existing nodes directly, or omit `nodeIds` to place the images on the canvas as new layers.
 
 ```text
-upload_assets({ fileKey, count: 1, nodeId, scaleMode: 'FILL' })
+upload_assets({ fileKey, count: 1, nodeIds: [targetNodeId], scaleMode: 'FILL' })
   → { uploads: [{ submitUrl }], instructions: "..." }
 // Then POST the image bytes to submitUrl (multipart/form-data 'file' field
 // preferred — the filename becomes the layer name).
