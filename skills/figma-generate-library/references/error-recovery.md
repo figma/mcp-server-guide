@@ -8,21 +8,12 @@ Protocol for handling failures and incomplete runs across a 20–100+ call desig
 
 ---
 
-## 1. Core Protocol: STOP → Inspect → Fix → Retry
+## 1. Core Protocol
 
-**`use_figma` is atomic — a failed script does not execute.** If a script errors, no changes are made to the file. There are no partial nodes or half-built state from the failed call itself. Retrying after a fix is safe.
+- If `safeToRetryWithoutCanvasRead` is `true`, fix the error and retry.
+- If `false`, stop writes, read the canvas, determine what changed, then make changes.
 
 However, in multi-step workflows (20–100+ calls), **previously successful calls** will have created state that persists. If a workflow is abandoned mid-way, nodes from earlier successful calls remain in the file. The cleanup and idempotency patterns in this document handle that scenario.
-
-The recovery sequence for a failed script:
-
-```
-1. STOP    — Do not run any more use_figma writes.
-2. INSPECT — Read the error message carefully. Optionally call get_metadata or get_screenshot to understand the current file state.
-3. FIX     — Correct the script that failed.
-4. RETRY   — Re-run the corrected script.
-5. PERSIST — Update the state ledger with the outcome.
-```
 
 For **abandoned multi-step workflows** (where you need to roll back nodes from previous *successful* calls), use the cleanup protocol in Section 2.
 
@@ -308,7 +299,7 @@ These can be fixed and retried without affecting already-created entities:
 | Variable binding omission | A fill was hardcoded instead of bound | Resolve the node by its state-ledger ID and re-bind the fill |
 | Wrong variable bound | Bound to wrong variable ID | Re-bind with correct variable ID |
 | Text not visible | Font not loaded before text write | Call `listAvailableFontsAsync()` to verify the font exists, then re-run text creation with `loadFontAsync` |
-| Script timeout | Script exceeded time limit before completing | Script is atomic — nothing was created. Reduce scope (fewer nodes per call) and retry |
+| Script timeout | Script exceeded time limit before completing | Follow `safeToRetryWithoutCanvasRead`; if `false`, inspect before reducing scope and retrying |
 
 ### Structural Corruption (Requires Rollback or Restart)
 
@@ -351,14 +342,8 @@ These errors leave the file in a state where continuing forward is unreliable:
 
 ### Phase 1 fails (variable creation)
 
-Since `use_figma` is atomic, a failed call creates nothing. The most common scenario is that some calls in Phase 1 succeeded (creating some variables) while a later call failed.
-
-Recovery steps:
-1. Run the inventory helper and scope variables by their expected collection and deterministic names
-2. Compare against the plan to identify which variables were successfully created and which are still missing
-3. If a successfully created variable has wrong values, call `variable.remove()` and recreate it
-4. Fix the failed script and retry — it's safe since the failed call created nothing
-5. Do NOT proceed to Phase 2 until ALL planned variables exist with correct scopes and code syntax
+- If `safeToRetryWithoutCanvasRead` is `true`, fix the error and retry.
+- If `false`, inventory variables, determine what changed, then resume idempotently. Do not proceed to Phase 2 until all planned variables are correct.
 
 **The most common Phase 1 failure:** script timeout when creating many variables. Fix: batch variable creation — create at most 20–30 variables per call.
 
@@ -375,34 +360,7 @@ Phase 2 failures rarely require Phase 1 rollback unless the page structure itsel
 
 ### Phase 3 fails (component creation)
 
-This is the most common failure mode in long builds. Since `use_figma` is atomic, a failed call creates nothing — but previous successful calls in the component creation sequence will have created state. Handle by which call in the sequence failed:
-
-```
-If failure in Call 1 (page creation):
-  → Nothing was created. Fix the script and retry.
-
-If failure in Call 2 (doc frame):
-  → Call 1's page exists. Fix Call 2 and retry — idempotency check handles it.
-
-If failure in Call 3 (base component):
-  → Calls 1-2 succeeded. Fix Call 3 and retry.
-
-If failure in Call 4 (variant creation):
-  → Call 3's base component exists. Fix Call 4 and retry.
-  → If you need to restart from Call 3, clean up Call 3's nodes first
-    using cleanupOrphans scoped to the component page.
-
-If failure in Call 5 (combineAsVariants + layout):
-  → Variant ComponentNodes from Call 4 exist but aren't combined yet.
-  → Fix Call 5 and retry.
-  → If the component set was already created by a prior attempt of Call 5
-    that succeeded, remove it first, then re-run.
-If failure in Call 6 (component properties):
-  → The component set already exists and is structurally sound.
-  → Fix Call 6 and retry — addComponentProperty is safe to retry if
-    you first resolve the COMPONENT_SET and check componentPropertyDefinitions there.
-  → Idempotency check: if a UID-suffixed `Label#...` property already exists, skip addComponentProperty.
-```
+This is the most common failure mode in long builds. Previous successful calls persist. If `safeToRetryWithoutCanvasRead` is `false`, inspect the component page and state ledger before resuming idempotently.
 
 **Idempotency for component properties (Call 6 retry):**
 
