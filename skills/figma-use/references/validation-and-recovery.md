@@ -55,14 +55,9 @@ ComponentSet node to verify all 120 children exist with correct names, sizes, an
 
 ## Error Recovery After Failed `use_figma`
 
-**`use_figma` is atomic — failed scripts do not execute.** If a script errors, no changes are made to the file. The file remains in exactly the same state as before the call. There are no partial nodes, no orphaned elements, and retrying after a fix is safe.
-
 **Recovery steps when `use_figma` returns an error:**
-1. **STOP — do NOT immediately fix the code and retry.** Read the error message carefully first.
-2. **Understand the error.** Most errors are caused by wrong API usage, missing font loads, invalid property values, or referencing nodes that don't exist.
-3. **If the error is unclear**, call `get_metadata` or `get_screenshot` to understand the current file state and confirm nothing has changed.
-4. **Fix the script** based on the error message.
-5. **Retry** the corrected script.
+- If `safeToRetryWithoutCanvasRead` is `true`, fix the error and retry.
+- If `false`, read the canvas, determine what changed, then make changes.
 
 ## Recommended Workflow
 
@@ -75,8 +70,6 @@ ComponentSet node to verify all 120 children exist with correct names, sizes, an
 6. get_screenshot   →  Visual check after each major milestone
 
 ⚠️ ON ERROR at any step:
-   a. Read the error message carefully
-   b. get_metadata / get_screenshot  →  If the error is unclear, inspect file state
-   c. Fix the script based on the error
-   d. Retry the corrected script (safe — failed scripts don't modify the file)
+   a. safeToRetryWithoutCanvasRead=true  →  Fix the error and retry
+   b. safeToRetryWithoutCanvasRead=false →  Read the canvas, determine changes, then change
 ```

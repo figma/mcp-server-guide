@@ -325,7 +325,7 @@ Collection: "Spacing"       modes: ["Value"]
 - ❌ Importing remote components then immediately detaching them
 
 **General anti-patterns:**
-- ❌ Retrying a failed script without understanding the error first
+- ❌ Retrying when `safeToRetryWithoutCanvasRead` is `false` before reading the canvas
 - ❌ Using name-prefix matching for cleanup (deletes user-owned nodes)
 - ❌ Building on unvalidated work from the previous step
 - ❌ Parallelizing use_figma calls (always sequential)

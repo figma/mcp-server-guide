@@ -46,4 +46,8 @@ Never stop after `create_generative_plugin`: the starter must be replaced with t
 
 ## Completion
 
-Report the plugin name and id, plus the returned version when present and a short description of its UI and primary action.
+Report the plugin name and id, plus the returned version when present and a short description of its UI and primary action. Construct and include a clickable URL that opens a new Design file with the unpublished plugin ready to try, using the exact plugin id as `try-tool-resource-content-id`:
+
+`https://www.figma.com/file/new?try-tool-resource-content-id=<id>&try-tool-resource-type=gen_tool&type=design&mode=design`
+
+After presenting the new-file link, ask whether the user wants to open the plugin in an existing Figma Design file instead. If yes, reuse a file URL already provided or ask for one, then add the same `try-tool-resource-content-id` and `try-tool-resource-type` query parameters to that URL. Never guess the file URL.

@@ -454,13 +454,10 @@ For detailed API patterns and gotchas, load these from the [figma-use](../figma-
 
 ## Error Recovery
 
-Follow the error recovery process from [figma-use](../figma-use/SKILL.md#6-error-recovery--self-correction):
+Follow [figma-use error recovery](../figma-use/SKILL.md#7-error-recovery--self-correction):
 
-1. **STOP** on error — do not retry immediately.
-2. **Read the error message carefully** to understand what went wrong.
-3. If the error is unclear, call `get_metadata` or `get_screenshot` to inspect the current file state.
-4. **Fix the script** based on the error message.
-5. **Retry** the corrected script — this is safe because failed scripts are atomic (nothing is created if a script errors).
+- If `safeToRetryWithoutCanvasRead` is `true`, fix the error and retry.
+- If `false`, read the canvas, determine what changed, then make changes.
 
 Because this skill works incrementally (one section per call), errors are naturally scoped to a single section. Previous sections from successful calls remain intact.
 

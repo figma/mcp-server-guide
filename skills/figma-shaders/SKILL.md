@@ -47,4 +47,10 @@ Never stop after `create_shader`: the starter scaffold is only a structural star
 
 ## Completion
 
-Report the shader name, kind, and id, plus the returned version when present. Briefly identify the controls or behavior that were added.
+Report the shader name, kind, and id, plus the returned version when present. Briefly identify the controls or behavior that were added. Construct and include a clickable URL that opens a new Design file with the unpublished shader ready to try, using the exact shader id as `try-tool-resource-content-id`. Set `try-tool-resource-type` from the shader kind: `gen_effect` for an effect and `gen_fill` for a fill.
+
+`https://www.figma.com/file/new?try-tool-resource-content-id=<id>&try-tool-resource-type=<gen_effect|gen_fill>&type=design&mode=design`
+
+After presenting the new-file link, ask whether the user wants to open the shader in an existing Figma Design file instead. If yes, reuse a file URL already provided or ask for one, then add the same `try-tool-resource-content-id` and resolved `try-tool-resource-type` query parameters to that URL. Never guess the file URL.
+
+Replace the type placeholder with exactly one value; do not include angle brackets or the pipe in the returned URL.
