@@ -123,14 +123,14 @@ get_libraries({ fileKey })
 // }
 
 // Step 2: Search within a specific library using its libraryKey
-search_design_system({ query: "button", fileKey, includeLibraryKeys: ["lk-abc123..."] })
+search_design_system({ queries: [{ entity: "component", query: "button" }], fileKey, includeLibraryKeys: ["lk-abc123..."] })
 ```
 
 Org libraries in `libraries_available_to_add` are paginated (20 per page). When `libraries_available_to_add_next_offset` is non-null, more org libraries are available — call `get_libraries` again with `offset` set to that value to fetch the next page. Community UI kits only appear on the first page. If the user names a specific library you don't see in the current page, page further before giving up.
 
 This is especially useful when the file has many libraries and you want targeted results (e.g. searching only within "iOS 26" or "Material 3" instead of getting matches from every library).
 
-**Search broadly, but one intent per query** — `search_design_system` does NOT apply OR semantics, so never pack alternatives or synonyms into a single string ("Button IconButton icon" matches nothing useful). Issue a separate call per term and run them in parallel: "button", "input", "nav", "card", "accordion", "header", "footer", "tag", "avatar", "toggle", "icon", etc. Multi-word names and phrases are fine when they name one thing ("Material Design Icons"). Use `includeComponents: true` to focus on components.
+**Search broadly, but one intent per query** — `search_design_system` does NOT apply OR semantics, so never pack alternatives or synonyms into a single string ("Button IconButton icon" matches nothing useful). Pass each term as a component entry in one `queries` call: `{ entity: "component", query: "button" }`, `{ entity: "component", query: "input" }`, `{ entity: "component", query: "nav" }`, etc. Multi-word names and phrases are fine when they name one thing ("Material Design Icons").
 
 **Include component properties** in your map — you need to know which TEXT properties each component exposes for text overrides. Create a temporary instance, read its `componentProperties` (and those of nested instances), then remove the temp instance.
 
@@ -148,16 +148,16 @@ Component Map:
 
 #### 2b: Discover variables (colors, spacing, radii)
 
-**Inspect existing screens first** (same as components). Or use `search_design_system` with `includeVariables: true`.
+**Inspect existing screens first** (same as components). Or use `search_design_system` with `queries` entries whose `entity` is `"variable"`.
 
 > **WARNING: Two different variable discovery methods — do not confuse them.**
 >
 > - `use_figma` with `figma.variables.getLocalVariableCollectionsAsync()` — returns **only local variables defined in the current file**. If this returns empty, it does **not** mean no variables exist. Remote/published library variables are invisible to this API.
-> - `search_design_system` with `includeVariables: true` — searches across **all linked libraries**, including remote and published ones. This is the correct tool for discovering design system variables.
+> - `search_design_system` with `entity: "variable"` query entries — searches across **all linked libraries**, including remote and published ones. This is the correct tool for discovering design system variables.
 >
-> **Never conclude "no variables exist" based solely on `getLocalVariableCollectionsAsync()` returning empty.** Always also run `search_design_system` with `includeVariables: true` to check for library variables before deciding to create your own.
+> **Never conclude "no variables exist" based solely on `getLocalVariableCollectionsAsync()` returning empty.** Always also run `search_design_system` with variable query entries to check for library variables before deciding to create your own.
 
-**Query strategy:** `search_design_system` matches against **variable names** (e.g., "Gray/gray-9", "core/gray/100", "space/400"), not categories. Run multiple short, simple queries in parallel rather than one compound query:
+**Query strategy:** `search_design_system` matches against **variable names** (e.g., "Gray/gray-9", "core/gray/100", "space/400"), not categories. Put multiple short, simple queries in one `queries` call rather than one compound query:
 
 - **Primitive colors:** "gray", "red", "blue", "green", "white", "brand"
 - **Semantic colors:** "background", "foreground", "border", "surface", "text"
@@ -195,7 +195,7 @@ See [variable-patterns.md](../figma-use/references/variable-patterns.md) for bin
 
 #### 2c: Discover styles (text styles, effect styles)
 
-Search for styles using `search_design_system` with `includeStyles: true` and terms like "heading", "body", "shadow", "elevation". Or inspect what an existing screen uses:
+Search for styles using `search_design_system` with `entity: "style"` query entries and terms like "heading", "body", "shadow", "elevation". Or inspect what an existing screen uses:
 
 ```js
 const frame = figma.currentPage.findOne(n => n.name === "Existing Screen");
@@ -464,7 +464,7 @@ Because this skill works incrementally (one section per call), errors are natura
 ## Best Practices
 
 - **Always search before building.** The design system likely has the component, variable, or style you need. Manual construction and hardcoded values should be the exception, not the rule.
-- **Search broadly, one intent per query.** Try synonyms and partial terms as *separate* parallel searches, never combined into one string — a "NavigationPill" might be found under "pill", "nav", "tab", or "chip", so run those as four queries. For variables, search "color", "spacing", "radius", etc.
+- **Search broadly, one intent per query.** Try synonyms and partial terms as separate `{ entity, query }` entries in one `queries` call, never combined into one string — a "NavigationPill" might be found under "pill", "nav", "tab", or "chip", so pass those as four component entries. For variables, use `entity: "variable"` with queries like "color", "spacing", "radius", etc.
 - **Prefer design system tokens over hardcoded values.** Use variable bindings for colors, spacing, and radii. Use text styles for typography. Use effect styles for shadows. This keeps the screen linked to the design system.
 - **Prefer component instances over manual builds.** Instances stay linked to the source component and update automatically when the design system evolves.
 - **Componentize by default.** Build repeated or reusable elements as a component once, then place instances. Do not ship a flat tree of one-off frames that needs a second "make it componentized" pass.
