@@ -212,10 +212,17 @@ If `libraries_available_to_add_next_offset` is non-null, more org libraries are 
 
 ```
 // Search across all libraries (default)
-search_design_system({ query, fileKey, includeComponents: true, includeVariables: true, includeStyles: true })
+search_design_system({
+  queries: [
+    { entity: "component", query },
+    { entity: "variable", query },
+    { entity: "style", query }
+  ],
+  fileKey
+})
 
 // Search within a specific library only
-search_design_system({ query, fileKey, includeLibraryKeys: ["lk-abc123..."], includeComponents: true })
+search_design_system({ queries: [{ entity: "component", query }], fileKey, includeLibraryKeys: ["lk-abc123..."] })
 ```
 
 **Reuse if** all of these are true:
