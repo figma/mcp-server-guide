@@ -16,6 +16,6 @@
     "ui",
     "code-connect"
   ],
-  "skills": "./skills/",
+  "skills": "./skills-figquery/",
   "mcpServers": "./.mcp.json"
 }

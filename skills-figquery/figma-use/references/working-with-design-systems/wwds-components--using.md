@@ -1,0 +1,17 @@
+# Working with design systems: Using Components
+
+When using Figma components, you need to start by understanding the state of the source and the state of Figma.
+
+For the source, you need to know what component is being referenced. This could come from a component key, a node ID, a name, or a Code Connect mapping. If you have a component key from a design system library, pass it straight into `$fig.get(componentKey)` or `$fig.instance(componentKey, opts)` — preferred over finding by name, since names are not unique. If you only have a name, search the page or use `search_design_system` to find the right match; `search_design_system` returns each result's `componentKey`, which you can hand directly to `$fig`.
+
+For Figma, you need to know whether the component is local or in a library. Local components can be accessed directly by node ID. Published library components are looked up the same way — pass the `componentKey` into `$fig.get(...)` or `$fig.instance(...)` and the plan queues the library import automatically; no separate `importComponentByKeyAsync` / `importComponentSetByKeyAsync` step is required. For component sets, pass the variant property values in `props` (`$fig.instance(setKey, { props: { Size: 'md' } })`) — `$fig` resolves the variant via `setProperties` after the instance is created. You do not need to fetch the set, drill into `compSet.children`, or pick a variant child by hand.
+
+Before setting properties on an instance, identify the node that owns its property definitions: use the main component's parent when that parent is a `COMPONENT_SET`; otherwise use the main component itself. Read `componentPropertyDefinitions` only from that node. Reading it directly from a variant component throws. Property names are not simple strings — TEXT, BOOLEAN, and INSTANCE_SWAP properties have a `#uid` suffix (e.g. `"Label#1234"`). Only VARIANT properties are plain names (e.g. `"Size"`). Using the wrong key in `setProperties` will silently do nothing.
+
+A component might have multiple text properties, which are not possible to derive from text node layer names. Look to the properties to help you understand what values to set, rather than thinking of setting text node characters directly.
+
+When you need to set a nested instance swap (e.g. an icon property), you need the component key of the swap target, not just its name. The simplest path is `$fig.get(swapTargetComponentKey)` and pass that handle as the swap value — `$fig` resolves the import behind the scenes.
+
+Be aware that instances inside other instances are nested and changes made to a nested instance may be treated as overrides. If the intent is to change the default appearance, you need to modify the main component, not the instance.
+
+When selecting which variant to use, read `componentProperties` on the instance for its current state and `componentPropertyDefinitions` on the property-owning component set or non-variant component for the available options.
