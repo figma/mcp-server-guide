@@ -1,23 +1,3 @@
-// https://raw.githubusercontent.com/figma/plugin-typings/refs/heads/master/plugin-api-standalone.d.ts
-
-/* plugin-typings are auto-generated. Do not update them directly. See developer-docs/ for instructions. */
-/**
- * NOTE: This file is useful if you want to import specific types eg.
- * import type { SceneNode } from "@figma/plugin-typings/plugin-api-standalone"
- */
-/**
- * @see https://developers.figma.com/docs/plugins/api/properties/figma-on
- */
-declare type ArgFreeEventType =
-  | 'selectionchange'
-  | 'currentpagechange'
-  | 'close'
-  | 'timerstart'
-  | 'timerstop'
-  | 'timerpause'
-  | 'timerresume'
-  | 'timeradjust'
-  | 'timerdone'
 /**
  * @see https://developers.figma.com/docs/plugins/api/figma
  */
@@ -34,42 +14,6 @@ interface PluginAPI {
    * The current editor type this plugin is running in. See also [Setting editor type](https://developers.figma.com/docs/plugins/setting-editor-type).
    */
   readonly editorType: 'figma' | 'figjam' | 'dev' | 'slides' | 'buzz'
-  /**
-   * Return the context the plugin is current running in.
-   *
-   * - `default` - The plugin is running as a normal plugin.
-   * - `textreview` - The plugin is running to provide text review functionality.
-   * - `inspect` - The plugin is running in the Inspect panel in Dev Mode.
-   * - `codegen` - The plugin is running in the Code section of the Inspect panel in Dev Mode.
-   * - `linkpreview` - The plugin is generating a link preview for a [Dev resource](https://help.figma.com/hc/en-us/articles/15023124644247#Add_external_links_and_resources_for_developers) in Dev Mode.
-   * - `auth` - The plugin is running to authenticate a user in Dev Mode.
-   *
-   * Caution: The `linkpreview` and `auth` modes are only available to partner and Figma-owned plugins.
-   *
-   * @remarks
-   * Here’s a simplified example where you can create an if statement in a plugin that has one set of functionality when it is run in `Dev Mode`, and another set of functionality when run in Figma design:
-   * ```ts title="Code sample to determine editorType and mode"
-   * if (figma.editorType === "dev") {
-   *   // Read the document and listen to API events
-   *   if (figma.mode === "inspect") {
-   *     // Running in inspect panel mode
-   *   } else if (figma.mode === "codegen") {
-   *     // Running in codegen mode
-   *   }
-   * } else if (figma.editorType === "figma") {
-   *   // If the plugin is run in Figma design, edit the document
-   *   if (figma.mode === 'textreview') {
-   *     // Running in text review mode
-   *   }
-   * } else if (figma.editorType === "figjam") {
-   *   // Do FigJam only operations
-   *   if (figma.mode === 'textreview') {
-   *     // Running in text review mode
-   *   }
-   * }
-   * ```
-   */
-  readonly mode: 'default' | 'textreview' | 'inspect' | 'codegen' | 'linkpreview' | 'auth'
   /**
    * The value specified in the `manifest.json` "id" field. This only exists for Plugins.
    */
@@ -115,61 +59,11 @@ interface PluginAPI {
    */
   skipInvisibleInstanceChildren: boolean
   /**
-   * Note: This API is only available in FigJam
-   *
-   * This property contains methods used to read, set, and modify the built in FigJam timer.
-   *
-   * Read more in the [timer section](https://developers.figma.com/docs/plugins/api/figma-timer).
-   */
-  readonly timer?: TimerAPI
-  /**
    * This property contains methods used to read and set the viewport, the user-visible area of the current page.
    *
    * Read more in the [viewport section](https://developers.figma.com/docs/plugins/api/figma-viewport).
    */
   readonly viewport: ViewportAPI
-  /**
-   * Note: `currentuser` must be specified in the permissions array in `manifest.json` to access this property.
-   *
-   * This property contains details about the current user.
-   */
-  readonly currentUser: User | null
-  /**
-   * Note: This API is only available in FigJam.
-   *
-   * `activeusers` must be specified in the permissions array in `manifest.json` to access this property.
-   *
-   * This property contains details about the active users in the file. `figma.activeUsers[0]` will match `figma.currentUser` for the `id`, `name`, `photoUrl`, `color`, and `sessionId` properties.
-   */
-  readonly activeUsers: ActiveUser[]
-  /**
-   * Note: `textreview` must be specified in the capabilities array in `manifest.json` to access this property.
-   *
-   * This property contains methods that enable text review features in your plugin.
-   */
-  readonly textreview?: TextReviewAPI
-  /**
-   * This property contains methods used to integrate with the Dev Mode codegen functionality.
-   *
-   * Read more in the [codegen section](https://developers.figma.com/docs/plugins/api/figma-codegen).
-   */
-  readonly codegen: CodegenAPI
-  /**
-   * This property contains methods used to integrate with the Figma for VS Code extension. If `undefined`, the plugin is not running in VS Code.
-   *
-   * Read more in [Dev Mode plugins in Visual Studio Code](https://developers.figma.com/docs/plugins/working-in-dev-mode#dev-mode-plugins-in-visual-studio-code)
-   */
-  readonly vscode?: VSCodeAPI
-  /**
-   * Caution: This is a private API only available to [Figma partners](https://www.figma.com/partners/)
-   */
-  readonly devResources?: DevResourcesAPI
-  /**
-   * Note: `payments` must be specified in the permissions array in `manifest.json` to access this property.
-   *
-   * This property contains methods for plugins that require payment.
-   */
-  readonly payments?: PaymentsAPI
   /**
    * Closes the plugin. You should always call this function once your plugin is done running. When called, any UI that's open will be closed and any `setTimeout` or `setInterval` timers will be cancelled.
    *
@@ -231,211 +125,29 @@ interface PluginAPI {
    */
   closePlugin(message?: string): void
   /**
-   * Shows a notification on the bottom of the screen.
-   *
-   * @param message - The message to show. It is limited to 100 characters. Longer messages will be truncated.
-   * @param options - An optional argument with the following optional parameters:
-   *
-   * ```ts
-   * interface NotificationOptions {
-   *   timeout?: number;
-   *   error?: boolean;
-   *   onDequeue?: (reason: NotifyDequeueReason) => void
-   *   button?: {
-   *     text: string
-   *     action: () => boolean | void
-   *   }
-   * }
-   * ```
-   *
-   * - `timeout`: How long the notification stays up in milliseconds before closing. Defaults to 3 seconds when not specified. Set the timeout to `Infinity` to make the notification show indefinitely until the plugin is closed.
-   * - `error`: If true, display the notification as an error message, with a different color.
-   * - `onDequeue`: A function that will run when the notification is dequeued. This can happen due to the timeout being reached, the notification being dismissed by the user or Figma, or the user clicking the notification's `button`.
-   *   - The function is passed a `NotifyDequeueReason`, which is defined as the following:
-   * ```ts
-   *  type NotifyDequeueReason = 'timeout' | 'dismiss' | 'action_button_click'
-   *  ```
-   * - `button`: An object representing an action button that will be added to the notification.
-   *    - `text`: The message to display on the action button.
-   *    - `action`: The function to execute when the user clicks the button. If this function returns `false`, the message will remain when the button is clicked. Otherwise, clicking the action button dismisses the notify message.
-   *
-   * @remarks
-   *
-   * The `notify` API is a convenient way to show a message to the user. These messages can be queued.
-   *
-   * If the message includes a custom action button, it will be closed automatically when the plugin closes.
-   *
-   * Calling `figma.notify` returns a `NotificationHandler` object. This object contains a single `handler.cancel()` method that can be used to remove the notification before it times out by itself. This is useful if the notification becomes no longer relevant.
-   *
-   * ```ts
-   * interface NotificationHandler {
-   *   cancel: () => void
-   * }
-   * ```
-   *
-   * An alternative way to show a message to the user is to pass a message to the {@link PluginAPI.closePlugin} function.
-   */
-  notify(message: string, options?: NotificationOptions): NotificationHandler
-  /**
-   * Commits actions to undo history. This does not trigger an undo.
-   *
-   * @remarks
-   *
-   * By default, plugin actions are not committed to undo history. Call `figma.commitUndo()` so that triggered
-   * undos can revert a subset of plugin actions.
-   *
-   * For example, after running the following plugin code, the first triggered undo will undo both the rectangle and the ellipse:
-   * ```ts
-   * figma.createRectangle();
-   * figma.createEllipse();
-   * figma.closePlugin();
-   * ```
-   * Whereas if we call `commitUndo()` in our plugin, the first triggered undo will only undo the ellipse:
-   * ```ts
-   * figma.createRectangle();
-   * figma.commitUndo();
-   * figma.createEllipse();
-   * figma.closePlugin();
-   * ```
-   */
-  commitUndo(): void
-  /**
-   * Triggers an undo action. Reverts to the last `commitUndo()` state.
-   */
-  triggerUndo(): void
-  /**
-   * Saves a new version of the file and adds it to the version history of the file. Returns the new version id.
-   * @param title - The title of the version. This must be a non-empty string.
-   * @param description - An optional argument to describe the version.
-   *
-   * Calling `saveVersionHistoryAsync` returns a promise that resolves to `null` or an instance of `VersionHistoryResult`:
-   *
-   * ```ts
-   * interface VersionHistoryResult {
-   *   id: string
-   * }
-   * ```
-   *
-   * - `id`: The version id of this newly saved version.
-   *
-   * @remarks
-   *
-   * It is not guaranteed that all changes made before this method is used will be saved to version history.
-   * For example,
-   *  ```ts title="Changes may not all be saved"
-   *  async function example() {
-   *    await figma.createRectangle();
-   *    await figma.saveVersionHistoryAsync('v1');
-   *    figma.closePlugin();
-   *  }
-   *  example().catch((e) => figma.closePluginWithFailure(e))
-   *  ```
-   * The newly created rectangle may not be included in the v1 version. As a work around, you can wait before calling `saveVersionHistoryAsync()`. For example,
-   *  ```ts title="Wait to save"
-   *  async function example() {
-   *    await figma.createRectangle();
-   *    await new Promise(r => setTimeout(r, 1000)); // wait for 1 second
-   *    await figma.saveVersionHistoryAsync('v1');
-   *    figma.closePlugin();
-   *  }
-   * ```
-   * Typically, manual changes that precede the execution of `saveVersionHistoryAsync()` will be included. If you want to use `saveVersionHistoryAsync()` before the plugin makes
-   * additional changes, make sure to use the method with an async/await or a Promise.
-   */
-  saveVersionHistoryAsync(title: string, description?: string): Promise<VersionHistoryResult>
-  /**
-   * Open a url in a new tab.
-   *
-   * @remarks
-   *
-   * In the VS Code Extension, this API is required to open a url in the browser. Read more in [Dev Mode plugins in Visual Studio Code](https://developers.figma.com/docs/plugins/working-in-dev-mode#dev-mode-plugins-in-visual-studio-code).
-   */
-  openExternal(url: string): void
-  /**
-   * Enables you to render UI to interact with the user, or simply to access browser APIs. This function creates a modal dialog with an `<iframe>` containing the HTML markup in the `html` argument.
-   *
-   * @param html - The HTML to insert into the iframe. You can pass in the HTML code as a string here, but this will often be the global value [`__html__`](https://developers.figma.com/docs/plugins/api/global-objects#html).
-   * @param options - An object that may contain the following optional parameters:
-   * - `visible`: Whether the UI starts out displayed to the user. Defaults to `true`. You can use `figma.ui.show()` and `figma.ui.hide()` to change the visibility later.
-   * - `width`: The width of the UI. Defaults to 300. Minimum is 70. Can be changed later using `figma.ui.resize(width, height)`
-   * - `height`: The height of the UI. Defaults to 200. Minimum is 0. Can be changed later using `figma.ui.resize(width, height)`
-   * - `title`: The title of the UI window. Defaults to the plugin name.
-   * - `position`: The position of the UI window. Defaults to the last position of the iframe or the center of the viewport. If specified, expects an X/Y coordinate in the canvas space (i.e matches x/y values returned by `<PluginNode>.x` and `<PluginNode>.y`)
-   * - `themeColors`: Defaults to `false`. When enabled, CSS variables will be added to the plugin iframe to allow [support for light and dark themes](https://developers.figma.com/docs/plugins/css-variables).
-   *
-   * Note: If the position specified is outside of the user's viewport, the iframe will be moved so that it remains in the user's viewport.
-   *
-   * @remarks
-   *
-   * The easiest way to use this API is to load the HTML file defined in the manifest. This enables writing a separate HTML file which can be accessed through the [`__html__`](https://developers.figma.com/docs/plugins/api/global-objects#html) global variable.
-   *
-   * If the `<iframe>` UI is already showing when this function is called, the previous UI will be closed before the new one is displayed.
-   *
-   * ## Usage Examples
-   *
-   * ```js title="Example usage"
-   * figma.showUI(
-   *   "<b>Hello from Figma</b>",
-   *   { width: 400, height: 200, title: "My title" }
-   * )
-   *
-   * figma.showUI(
-   *   "<b>Hello from Figma</b>",
-   *   { width: 400, height: 200, title: "My title", position: { x: 100, y: 100 } }
-   * )
-   *
-   * figma.showUI(__html__)
-   * ```
-   */
-  showUI(html: string, options?: ShowUIOptions): void
-  /**
-   * This property contains methods used to modify and communicate with the UI created via `figma.showUI(...)`.
-   *
-   * Read more in the [UI section](https://developers.figma.com/docs/plugins/api/figma-ui).
-   */
-  readonly ui: UIAPI
-  /**
    * This property contains convenience functions for common operations.
    *
    * Read more in the [util section](https://developers.figma.com/docs/plugins/api/figma-util).
    */
   readonly util: UtilAPI
   /**
-   * This property contains constants that can be accessed by the plugin API.
-   *
-   * Read more in the [constants section](https://developers.figma.com/docs/plugins/api/figma-constants).
-   */
-  readonly constants: ConstantsAPI
-  /**
-   * This property contains methods to store persistent data on the user's local machine.
-   *
-   * Read more in the [client storage section](https://developers.figma.com/docs/plugins/api/figma-clientStorage).
-   */
-  readonly clientStorage: ClientStorageAPI
-  /**
    * This property contains methods to handle user inputs when a plugin is launched in query mode. See [Accepting Parameters as Input](https://developers.figma.com/docs/plugins/plugin-parameters) for more details.
    */
   readonly parameters: ParametersAPI
+  /**
+   * This property contains methods for reading Motion animation styles available in the current document.
+   *
+   * Read more in the [Motion section](https://developers.figma.com/docs/plugins/api/figma-motion).
+   */
+  readonly motion: MotionAPI
   /**
    * Finds a node by its id in the current document. Every node has an `id` property, which is unique within the document. If the id is invalid, or the node cannot be found (e.g. removed), returns a promise containing null.
    */
   getNodeByIdAsync(id: string): Promise<BaseNode | null>
   /**
-   * @deprecated Use {@link PluginAPI.getNodeByIdAsync} instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   *
-   * Finds a node by its id in the current document. Every node has an `id` property, which is unique within the document. If the id is invalid, or the node cannot be found (e.g. removed), returns null.
-   */
-  getNodeById(id: string): BaseNode | null
-  /**
    * Finds a style by its id in the current document. If not found, returns a promise containing null.
    */
   getStyleByIdAsync(id: string): Promise<BaseStyle | null>
-  /**
-   * @deprecated Use {@link PluginAPI.getStyleByIdAsync} instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   *
-   * Finds a style by its id in the current document. If not found, returns null.
-   */
-  getStyleById(id: string): BaseStyle | null
   /**
    * This property contains methods to work with Variables and Variable Collections within Figma.
    *
@@ -445,17 +157,8 @@ interface PluginAPI {
   readonly teamLibrary: TeamLibraryAPI
   /**
    * This property contains methods to work with annotations.
-   *
    */
   readonly annotations: AnnotationsAPI
-  /**
-   *
-   * This API is only available in Buzz.
-   *
-   * This property contains methods to work in Buzz.
-   *
-   */
-  readonly buzz: BuzzAPI
   /**
    * The root of the entire Figma document. This node is used to access other pages. Each child is a {@link PageNode}.
    */
@@ -470,404 +173,6 @@ interface PluginAPI {
    * Switch the active page to the specified {@link PageNode}.
    */
   setCurrentPageAsync(page: PageNode): Promise<void>
-  /**
-   * Registers an callback that will be called when an event happens in the editor. Current supported events are:
-   * - The selection on the current page changed.
-   * - The current page changed.
-   * - The document has changed.
-   * - An object from outside Figma is dropped onto the canvas
-   * - The plugin has started running.
-   * - The plugin closed.
-   * - The plugin has started running.
-   * - The timer has started running.
-   * - The timer has paused.
-   * - The timer has stopped.
-   * - The timer is done.
-   * - The timer has resumed.
-   *
-   *
-   * @param type - A string identifying the type of event that the callback will be called on.
-   *
-   * This is either an `ArgFreeEventType`, `run`, `drop`, or `documentchange`. The `run` event callback will be passed a `RunEvent`. The `drop` event callback will be passed a `DropEvent`. The `documentchange` event callback will be passed a `DocumentChangeEvent`.
-   *
-   * ```ts
-   * type ArgFreeEventType =
-   *   "selectionchange" |
-   *   "currentpagechange" |
-   *   "close" |
-   *   "timerstart" |
-   *   "timerstop" |
-   *   "timerpause" |
-   *   "timerresume" |
-   *   "timeradjust" |
-   *   "timerdone"
-   * ```
-   *
-   * @param callback - A function that will be called when the event happens.
-   * If `type` is 'run', then this function will be passed a `RunEvent`.
-   * If `type` is 'drop', then this function will be passed a `DropEvent`.
-   * If `type` is 'documentchange', then this function will be passed a `DocumentChangeEvent`.
-   *
-   * Otherwise nothing will be passed in.
-   *
-   * @remarks
-   *
-   * This API tries to match Node.js conventions around similar `.on` APIs.
-   *
-   * It's important to understand that the `.on` API runs the callbacks **asynchronously**. For example:
-   *
-   * ```ts
-   * figma.on("selectionchange", () => { console.log("changed") })
-   * console.log("before")
-   * figma.currentPage.selection = []
-   * console.log("after")
-   *
-   * // Output:
-   * // "before"
-   * // "after"
-   * // "changed"
-   * ```
-   *
-   * The asynchronous nature of these APIs have a few other implications.
-   *
-   * The callback will not necessarily be called each time the event happens. For example, this will only trigger the event once:
-   *
-   * ```ts
-   * figma.currentPage.selection = [figma.createRectangle()]
-   * figma.currentPage.selection = [figma.createFrame()]
-   * ```
-   *
-   * Nor will the ordering of the event trigger and event registration affect whether the callback is called.
-   *
-   * ```ts
-   * figma.currentPage.selection = [figma.createFrame()]
-   * figma.on("selectionchange", () => { "this will get called!" })
-   * ```
-   *
-   * ## Available event types
-   *
-   * ### `"currentpagechange"`
-   *
-   * This event will trigger when the user navigates to a different page, or when the plugin changes the value of `figma.currentPage`.
-   *
-   * ### `"selectionchange"`
-   *
-   * This event will trigger when the selection of the **current page** changes. This can happen:
-   * - By user action.
-   * - Due to plugin code.
-   * - When the current page changes (a `"currentpagechange"` event always triggers a `"selectionchange"` event).
-   * - When a selected node is deleted.
-   * - When a selected node becomes the child of another selected node (in which case it is considered indirectly selected, and is no longer in `figma.currentPage.selection`)
-   *
-   * Note also that changing the selection via the plugin API, then changing it back to its previous value immediately still triggers the event.
-   *
-   * ### `"documentchange"`
-   *
-   * If the plugin manifest contains `"documentAccess": "dynamic-page"`, you must first call {@link PluginAPI.loadAllPagesAsync} to access this event. Because this may introduce a loading delay, consider using more granular alternatives, such as the `"stylechange"` event, or using {@link PageNode.on | PageNode.on} with the `"nodechange"` event.
-   *
-   * This event will trigger when a change is made to the currently open file. The event will be called when nodes/styles are either added, removed, or changed in a document.
-   *
-   * The callback will be passed with a DocumentChangeEvent with the below interface:
-   *
-   * ```ts
-   * interface DocumentChangeEvent {
-   *   documentChanges: DocumentChange[]
-   * }
-   * ```
-   *
-   * Note: Note that `DocumentChangeEvent` has a `documentChanges` property with an array of `DocumentChange`s. Figma will not call the 'documentchange' callback synchronously and will instead batch the updates and send them to the callback periodically.
-   *
-   * There are 6 different {@link DocumentChange} types that we currently notify on and we might add more in the future. Each of these changes has a `type` property to distinguish them:
-   *
-   * | Change                                                           | `type` property           | Description                                                                                                                                                                                                        |
-   * |------------------------------------------------------------------|---------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-   * | [`CreateChange`](https://developers.figma.com/docs/plugins/api/DocumentChange#createchange)               | `'CREATE'`                | A node has been created in the document. If a node with nested children is being added to the document a `CreateChange` will only be made for the highest level parent that was added to the document.             |
-   * | [`DeleteChange`](https://developers.figma.com/docs/plugins/api/DocumentChange#deletechange)               | `'DELETE'`                | A node has been removed from the document. If a node with nested children is being removed from the document a  `DeleteChange`  will only be made for the highest level parent that was removed from the document. |
-   * | [`PropertyChange`](https://developers.figma.com/docs/plugins/api/DocumentChange#propertychange)           | `'PROPERTY_CHANGE'`       | A property of a node has changed.                                                                                                                                                                                  |
-   * | [`StyleCreateChange`](https://developers.figma.com/docs/plugins/api/DocumentChange#stylecreatechange)     | `'STYLE_CREATE'`          | A style has been added to the document.                                                                                                                                                                            |
-   * | [`StyleDeleteChange`](https://developers.figma.com/docs/plugins/api/DocumentChange#styledeletechange)     | `'STYLE_DELETE'`          | A style has been removed from the document.                                                                                                                                                                        |
-   * | [`StylePropertyChange`](https://developers.figma.com/docs/plugins/api/DocumentChange#stylepropertychange) | `'STYLE_PROPERTY_CHANGE'` | A style has had a property changed.                                                                                                                                                                                |
-   *
-   *
-   * #### Special cases
-   *
-   * We currently never notify a `'documentchange'` listener in the following scenarios:
-   * - if the change was caused directly by your plugin in a `documentchange` callback
-   * - if an instance sublayer was updated by a change to a main component
-   * - if a node was updated as a result of a style changing
-   *
-   * #### Example
-   * Here is an example of exhaustively checking changes to the document and logging them to the console.
-   *
-   * ```ts
-   * figma.on("documentchange", (event) => {
-   * for (const change of event.documentChanges) {
-   *   switch (change.type) {
-   *     case "CREATE":
-   *       console.log(
-   *         `Node ${change.id} created by a ${change.origin.toLowerCase()} user`
-   *       );
-   *       break;
-   *
-   *     case "DELETE":
-   *       console.log(
-   *         `Node ${change.id} deleted by a ${change.origin.toLowerCase()} user`
-   *       );
-   *       break;
-   *
-   *     case "PROPERTY_CHANGE":
-   *       for (const prop of change.properties) {
-   *         console.log(
-   *           `Node ${
-   *             change.id
-   *           } had ${prop} changed by a ${change.origin.toLowerCase()} user`
-   *         );
-   *       }
-   *       break;
-   *
-   *     case "STYLE_CREATE":
-   *       console.log(
-   *         `Style ${change.id} created by a ${change.origin.toLowerCase()} user`
-   *       );
-   *       break;
-   *
-   *     case "STYLE_DELETE":
-   *       console.log(
-   *         `Style ${change.id} deleted by a ${change.origin.toLowerCase()} user`
-   *       );
-   *       break;
-   *
-   *      case "STYLE_PROPERTY_CHANGE":
-   *        for (const prop of change.properties) {
-   *          console.log(
-   *             `Style ${
-   *               change.id
-   *             } had ${prop} changed by a ${change.origin.toLowerCase()} user`
-   *           );
-   *        }
-   *        break;
-   *     }
-   *   }
-   * });
-   * ```
-   *
-   * For a more involved example see our [plugin samples on GitHub](https://github.com/figma/plugin-samples/tree/master/document-change).
-   *
-   * ### `"textreview"`
-   *
-   * Note: This event is only available to plugins that have the `"textreview"` capability in their `manifest.json` and the plugin is running in text review mode.
-   *
-   * `"textreview"` events allow plugins to review text in a document and act as either a replacement or a supplement to native spell check.
-   *
-   * This event is triggered periodically when the user is typing in a text node. The callback will be passed with a TextReviewEvent with the below interface:
-   * ```ts
-   * interface TextReviewEvent {
-   *   text: string
-   * }
-   * ```
-   *
-   * The `text` property is the text that the user has currently typed into the node.
-   *
-   * A `"textreview"` event listener should return a promise that resolves to an array of `TextReviewRange` objects. Each `TextReviewRange` object represents a single range of text that should be marked as either an error or a suggestion. The `TextReviewRange` interface is defined as:
-   * ```ts
-   * type TextReviewRange = {
-   *   start: number
-   *   end: number
-   *   suggestions: string[]
-   *   color?: 'RED' | 'GREEN' | 'BLUE'
-   * }
-   * ```
-   *
-   * The `start` property is the index of the first character in the range. The `end` property is the index of the last character in the range. The `suggestions` property is an array of strings that represent the suggestions for the range. The `color` property is optional and can be used to change the color of the underline that is drawn under the range. If no color is specified the underline will be red.
-   *
-   * For more information read our in depth guide on [text review plugins](https://developers.figma.com/docs/plugins/textreview-plugins).
-   *
-   * ### `"drop"`
-   *
-   * This event will trigger when objects outside Figma (such as elements from other browser windows, or files from the local filesystem) are dropped onto the canvas.
-   *
-   * It can also be triggered by a special `pluginDrop` message sent from the UI. See the [Triggering drop events from the UI](https://developers.figma.com/docs/plugins/creating-ui#triggering-drop-events-from-the-ui) section for more details.
-   *
-   * The callback will be passed a `DropEvent` with the below interface. It should return `false` if it wants to handle the particular drop and stop Figma from performing the default drop behavior.
-   * ```ts
-   * interface DropEvent {
-   *   node: BaseNode | SceneNode
-   *   x: number
-   *   y: number
-   *   absoluteX: number
-   *   absoluteY: number
-   *   items: DropItem[]
-   *   files: DropFile[]
-   *   dropMetadata?: any
-   * }
-   * ```
-   *
-   * - The `node` property contains the node where the drop landed. This will sometimes be the page node if the drop didn't land on anything in the canvas, or if target node is locked or cannot be a parent of another node.
-   * - The `x` and `y` properties are coordinates relative to the node drop target
-   * - The `absoluteX` and `absoluteY` properties are absolute canvas coordinates
-   * - The `items` property is an array of `DropItem` objects. You will see multiple objects if a drop contains multiple, non-file data types. If there are no data items, this array will be empty.
-   * - The `files` property is an array of dropped files represented as `DropFile` objects. If no files are present, this array will be empty.
-   * - The `dropMetadata` property comes from drop events [explicitly triggered by the UI](https://developers.figma.com/docs/plugins/creating-ui#triggering-drop-events-from-the-ui).
-   *
-   * Items and files will conform to the below interfaces:
-   *
-   * ```ts
-   * interface DropItem {
-   *   type: string // e.g. "text/html", "text/uri-list", etc...
-   *   data: string
-   * }
-   *
-   * interface DropFile {
-   *   name: string // file name
-   *   type: string // e.g. "image/png"
-   *   getBytesAsync(): Promise<Uint8Array> // get raw file bytes
-   *   getTextAsync(): Promise<string> // get text assuming file is UTF8-encoded
-   * }
-   * ```
-   *
-   * See the Icon Drag-and-Drop and PNG Crop examples in the [figma/plugin-samples](https://github.com/figma/plugin-samples) repository for plugins that implement this API.
-   *
-   * #### UI Recommendations
-   *
-   * When the plugin registers a drop callback, it should give the user instructions with either text in the plugin UI or [`figma.notify()`](https://developers.figma.com/docs/plugins/api/properties/figma-notify) (if the plugin does not show a UI) telling them what to do.
-   *
-   * [`figma.notify()`](https://developers.figma.com/docs/plugins/api/properties/figma-notify) can be called with the `timeout` option set to `Infinity` to make the notification show for as long as the plugin is open.
-   *
-   * ### `"close"`
-   *
-   * This event will trigger when the plugin is about to close, either from a call to `figma.closePlugin()` or the user closing the plugin via the UI.
-   *
-   * This is a good place to run cleanup actions. For example, some plugins add UI elements in the canvas by creating nodes. These UI elements should be deleted when the plugin is closed. Note that you don't need to call `figma.closePlugin()` again in this function.
-   *
-   * **You should use this API only if strictly necessary, and run as little code as possible in the callback when doing so**. When a user closes a plugin, they expect it to be closed immediately. Having long-running actions in the closing callback prevents the plugin for closing promptly.
-   *
-   * This is also not the place to run any asynchronous actions (e.g. register callbacks, using `await`, etc). The plugin execution environment will be destroyed immediately when all the callbacks have returned, and further callbacks will not be called.
-   *
-   * ### `"run"`
-   *
-   * This event is triggered when a plugin is run. For plugins with parameters, this happens after all parameters have been enter by the user in the quick action UI. For all other plugins this happens immediately after launch.
-   *
-   * The callback will be passed a `RunEvent` that looks like:
-   * ```ts
-   * interface RunEvent {
-   *   parameters?: ParameterValues
-   *   command: string
-   * }
-   * ```
-   *
-   * - The `parameters` property is of type [`ParameterValues`](https://developers.figma.com/docs/plugins/api/figma-parameters#parametervalues), and contains the value entered for each parameter.
-   * - The `command` argument is the same as [`figma.command`](https://developers.figma.com/docs/plugins/api/figma#command), but provided here again for convenience.
-   *
-   * Handling the `run` event is only required for plugins with parameters. For all plugins it can still be a convenient spot to put your top level code, since it is called
-   * on every plugin run.
-   *
-   * ### `"stylechange"`
-   *
-   * Triggered when any styles in the document change.
-   *
-   * The callback will receive a StyleChangeEvent with the below interface:
-   *
-   * ```ts
-   * interface StyleChangeEvent {
-   *   styleChanges: StyleChange[]
-   * }
-   * ```
-   *
-   * There are 3 different {@link StyleChange} types. Each of these changes has a `type` property to distinguish them:
-   *
-   * | Change | `type` property | Description |
-   * | --- | --- | --- |
-   * | [`StyleCreateChange`](https://developers.figma.com/docs/plugins/api/StyleChange#stylecreatechange) | `'STYLE_CREATE'` | A style has been added to the document. |
-   * | [`StyleDeleteChange`](https://developers.figma.com/docs/plugins/api/StyleChange#styledeletechange) | `'STYLE_DELETE'` | A style has been removed from the document. |
-   * | [`StylePropertyChange`](https://developers.figma.com/docs/plugins/api/StyleChange#stylepropertychange) | `'STYLE_PROPERTY_CHANGE'` | A style has had a property changed. |
-   *
-   * ### `"timerstart"`
-   *
-   * This event will trigger when somebody starts a timer in the document. This can happen either by a user (either the current user or a multiplayer user) starting the timer from the UI, or triggered by plugin code. To inspect the current state of the timer when this event fires, use the `figma.timer` interface. For example:
-   * ```ts
-   * figma.on("timerstart", () => console.log(figma.timer.remaining))
-   * figma.timer.start(300)
-   *
-   * // Output:
-   * // 300
-   * ```
-   *
-   * ### `"timerpause"`
-   *
-   * Triggered when a timer that is running is paused.
-   *
-   * ### `"timerstop"`
-   *
-   * Triggered when the timer is stopped.
-   *
-   * ### `"timerdone"`
-   *
-   * Triggered when the timer is running and reaches 0 time remaining.
-   *
-   * ### `"timerresume"`
-   *
-   * Triggered when a timer that is paused is resumed.
-   *
-   * ### `"timeradjust"`
-   *
-   * Triggered when the total time on the timer changes. From the UI, it is only possible to add time to the timer. However, plugin code can both add and remove time from a running timer.
-   */
-  on(type: ArgFreeEventType, callback: () => void): void
-  on(type: 'run', callback: (event: RunEvent) => void): void
-  on(type: 'drop', callback: (event: DropEvent) => boolean): void
-  on(type: 'documentchange', callback: (event: DocumentChangeEvent) => void): void
-  on(type: 'slidesviewchange', callback: (event: SlidesViewChangeEvent) => void): void
-  on(type: 'canvasviewchange', callback: (event: CanvasViewChangeEvent) => void): void
-  on(
-    type: 'textreview',
-    callback: (event: TextReviewEvent) => Promise<TextReviewRange[]> | TextReviewRange[],
-  ): void
-  on(type: 'stylechange', callback: (event: StyleChangeEvent) => void): void
-  /**
-   * Same as `figma.on`, but the callback will only be called once, the first time the specified event happens.
-   */
-  once(type: ArgFreeEventType, callback: () => void): void
-  once(type: 'run', callback: (event: RunEvent) => void): void
-  once(type: 'drop', callback: (event: DropEvent) => boolean): void
-  once(type: 'documentchange', callback: (event: DocumentChangeEvent) => void): void
-  once(type: 'slidesviewchange', callback: (event: SlidesViewChangeEvent) => void): void
-  once(type: 'canvasviewchange', callback: (event: CanvasViewChangeEvent) => void): void
-  once(
-    type: 'textreview',
-    callback: (event: TextReviewEvent) => Promise<TextReviewRange[]> | TextReviewRange[],
-  ): void
-  once(type: 'stylechange', callback: (event: StyleChangeEvent) => void): void
-  /**
-   * Removes a callback added with `figma.on` or `figma.once`.
-   *
-   * @remarks
-   *
-   * The callback needs to be the same object that was originally added. For example, you can do this:
-   *
-   * ```ts title="Correct way to remove a callback"
-   * let fn = () => { console.log("selectionchanged") }
-   * figma.on("selectionchange", fn)
-   * figma.off("selectionchange", fn)
-   * ```
-   *
-   * whereas the following won't work, because the function objects are different:
-   *
-   * ```ts title="Incorrect way to remove a callback"
-   * figma.on("selectionchange", () => { console.log("selectionchanged") })
-   * figma.off("selectionchange", () => { console.log("selectionchanged") })
-   * ```
-   */
-  off(type: ArgFreeEventType, callback: () => void): void
-  off(type: 'run', callback: (event: RunEvent) => void): void
-  off(type: 'drop', callback: (event: DropEvent) => boolean): void
-  off(type: 'documentchange', callback: (event: DocumentChangeEvent) => void): void
-  off(type: 'slidesviewchange', callback: (event: SlidesViewChangeEvent) => void): void
-  off(type: 'canvasviewchange', callback: (event: CanvasViewChangeEvent) => void): void
-  off(
-    type: 'textreview',
-    callback: (event: TextReviewEvent) => Promise<TextReviewRange[]> | TextReviewRange[],
-  ): void
-  off(type: 'stylechange', callback: (event: StyleChangeEvent) => void): void
   /**
    * This a constant value that some node properties return when they are a mix of multiple values. An example might be font size: a single text node can use multiple different font sizes for different character ranges. For those properties, you should always compare against `figma.mixed`.
    *
@@ -1126,15 +431,13 @@ interface PluginAPI {
    */
   createComponentFromNode(node: SceneNode): ComponentNode
   /**
-   * Note: This API is only available in Figma Design
-   *
    * Creates a new page, appended to the document's list of children.
    *
    * @remarks
    *
    * A page node can be the parent of all types of nodes except for the document node and other page nodes.
    *
-   * Files in a Starter team are limited to three pages. When a plugin tries to create more than three pages in a Starter team file, it triggers the following error:
+   * Files in a Starter team are limited to three pages in Figma Design files and one page in FigJam files. When a plugin tries to exceed this limit, it triggers the following error:
    *
    * ```text title="Page limit error"
    * The Starter plan only comes with 3 pages. Upgrade to
@@ -1363,103 +666,6 @@ interface PluginAPI {
    */
   createTextPath(node: VectorNode, startSegment: number, startPosition: number): TextPathNode
   /**
-   * This API creates a new node using the JSX API used by widgets.
-   *
-   * @remarks
-   *
-   * This API is a convenient and ergonomic way to bulk create nodes:
-   *
-   * ```tsx
-   * const {Image, AutoLayout} = figma.widget;
-   *
-   * const node = await figma.createNodeFromJSXAsync(
-   *  <AutoLayout fill="#F00" padding={20}>
-   *    <Image src="https://picsum.photos/200" width={200} height={200}/>
-   *  </AutoLayout>
-   * )
-   * ```
-   *
-   * Note: The JSX API does not support all features that exist on the equivalent SceneNode.
-   * For example we don't support setting style ids or rendering instances via JSX.
-   * You can always use `createNodeFromJSXAsync` to create a node and then set the properties you need on the created nodes.
-   *
-   * Note that to use this API you must configure your build system to compile tsx.
-   *
-   * There are 3 steps that you need to do to use this API in your plugin.
-   *
-   * 1. Install the `@figma/widget-typings` package.
-   * 2. Add the appropriate compiler options to your `tsconfig.json` file
-   * 3. Make sure that the file name for you code ends with the `.tsx` extension
-   *
-   * Note: If you are building a widget these should already be done for you.
-   *
-   * ### Install the widget typings
-   *
-   * In the directory of your plugin run the following command to install the widget typings:
-   *
-   * ```bash
-   * npm i --save-dev @figma/widget-typings
-   * ```
-   *
-   * ### Add compiler options to your `tsconfig.json` file
-   *
-   * You need to make sure that you add the following properties to your `tsconfig.json` file.
-   * This configures typescript to transpile any jsx that you use into a way that our plugin runtime understands.
-   *
-   * ```json
-   * "jsx": "react",
-   * "jsxFactory": "figma.widget.h",
-   * "jsxFragmentFactory": "figma.widget.Fragment",
-   * ```
-   *
-   * Here is an example completed `tsconfig.json` file with the appropriate properties
-   * added.
-   *
-   * ```json
-   * {
-   *   "compilerOptions": {
-   *     "jsx": "react",
-   *     "jsxFactory": "figma.widget.h",
-   *     "jsxFragmentFactory": "figma.widget.Fragment",
-   *     "target": "es6",
-   *     "lib": [
-   *       "es6"
-   *     ],
-   *     "strict": true,
-   *     "typeRoots": [
-   *       "./node_modules/@types",
-   *       "./node_modules/@figma"
-   *     ]
-   *   }
-   * }
-   *
-   * ```
-   * Note: If you are using a build system (ex babel, vite, esbuild). You might have to configure the jsx options for your build system.
-   *
-   * ### Change file extension
-   *
-   * For plugins our default template puts your code in a `code.ts` file. You should rename this to `code.tsx` so that you can use jsx in your plugin.
-   */
-  createNodeFromJSXAsync(jsx: any): Promise<SceneNode>
-  /**
-   * @remarks
-   *
-   * Using this function is not recommended because empty boolean operation nodes can have surprising, unpredictable behavior. It will eventually be remove. Use one of the functions listed above instead.
-   *
-   * Creates a new, empty boolean operation node. The particular kind of operation is set via `.booleanOperation`. By default, the value is `"UNION"`.
-   *
-   * This snippet, for example, creates a boolean operation node that is a union of a rectangle and an ellipse.
-   *
-   * ```ts title="Create a boolean operation node"
-   * const node = figma.createBooleanOperation()
-   * node.appendChild(figma.createRectangle())
-   * node.appendChild(figma.createEllipse())
-   * ```
-   *
-   * @deprecated Use {@link PluginAPI.union}, {@link PluginAPI.subtract}, {@link PluginAPI.intersect}, {@link PluginAPI.exclude} instead.
-   */
-  createBooleanOperation(): BooleanOperationNode
-  /**
    * Note: This API is only available in Figma Design
    *
    * Creates a new Paint style. This might be referred to as a Color style, or Fill style more colloquially. However, since this type of style may contain images, and may be used for backgrounds, strokes, and fills, it is called a Paint.
@@ -1488,59 +694,17 @@ interface PluginAPI {
    */
   getLocalPaintStylesAsync(): Promise<PaintStyle[]>
   /**
-   * @deprecated Use {@link PluginAPI.getLocalPaintStylesAsync} instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   *
-   * Returns the list of local paint styles.
-   */
-  getLocalPaintStyles(): PaintStyle[]
-  /**
    * Returns the list of local text styles.
    */
   getLocalTextStylesAsync(): Promise<TextStyle[]>
-  /**
-   * @deprecated Use {@link PluginAPI.getLocalTextStylesAsync} instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   *
-   * Returns the list of local text styles.
-   */
-  getLocalTextStyles(): TextStyle[]
   /**
    * Returns the list of local effect styles.
    */
   getLocalEffectStylesAsync(): Promise<EffectStyle[]>
   /**
-   * @deprecated Use {@link PluginAPI.getLocalEffectStylesAsync} instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   *
-   * Returns the list of local effect styles.
-   */
-  getLocalEffectStyles(): EffectStyle[]
-  /**
    * Returns the list of local grid styles.
    */
   getLocalGridStylesAsync(): Promise<GridStyle[]>
-  /**
-   * Returns the list of local grid styles.
-   *
-   * @deprecated Use {@link PluginAPI.getLocalGridStylesAsync} instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   */
-  getLocalGridStyles(): GridStyle[]
-  /**
-   * Returns all of the colors in a user’s current selection. This
-   * returns the same values that are shown in Figma's native selection
-   * colors feature. This can be useful for getting a list of colors and
-   * styles in the current selection and converting them into a different
-   * code format (like CSS variables for a user’s codebase).
-   *
-   * If there are colors in a selection it will return an object with a
-   * `paints` property, which is an array of `Paint[]`, and a `styles`
-   * property, which is an array of `PaintStyle[]`.
-   *
-   * Note: `getSelectionColors()` returns `null` if there is no selection, or
-   * if there are too many colors in the selection (>1000).
-   */
-  getSelectionColors(): null | {
-    paints: Paint[]
-    styles: PaintStyle[]
-  }
   /**
    * Note: This API is only available in Figma Design
    *
@@ -1602,6 +766,37 @@ interface PluginAPI {
    */
   importStyleByKeyAsync(key: string): Promise<BaseStyle>
   /**
+   * Lists every shader available to the current file: shaders already in the file, shaders from subscribed libraries, and the user's owned shaders.
+   *
+   * @remarks
+   *
+   * A shader applies either as an effect (`node.effects`) or as a fill (`node.fills` / `node.strokes`), depending on its `type`. Owned or subscribed shaders that aren't materialized in the file yet are returned with `imported: false` — call {@link PluginAPI.importShaderById} on the shader's `id` before applying it (this mirrors `loadFontAsync` for fonts).
+   *
+   * ```ts
+   * const shaders = await figma.listAvailableShaders()
+   * for (const shader of shaders) {
+   *   console.log(shader.name, shader.type, shader.imported)
+   * }
+   * ```
+   */
+  listAvailableShaders(): Promise<Shader[]>
+  /**
+   * Materializes a shader into the current file by `id` and returns it with `imported: true` and its `propertyDefinitions` populated. The `id` is one returned by {@link PluginAPI.listAvailableShaders}. This is idempotent for a shader that is already imported, and mirrors {@link PluginAPI.importComponentByKeyAsync}.
+   *
+   * @remarks
+   *
+   * A shader must be imported before it can be applied. Applying an unloaded shader id throws `Shader not imported. Call figma.importShaderById(id) first.`
+   *
+   * ```ts
+   * const [shader] = await figma.listAvailableShaders()
+   * if (shader && !shader.imported) {
+   *   const imported = await figma.importShaderById(shader.id)
+   *   console.log(imported.propertyDefinitions)
+   * }
+   * ```
+   */
+  importShaderById(id: string): Promise<Shader>
+  /**
    * Returns the lists of currently available fonts. This should be the same list as the one you'd see if you manually used the font picker.
    */
   listAvailableFontsAsync(): Promise<Font[]>
@@ -1621,8 +816,54 @@ interface PluginAPI {
    * A common question is whether a plugin needs to be careful about calling `loadFontAsync(font)` for the same font multiple times. The answer is somewhat nuanced. The result of loading a font is cached, so calling `loadFontAsync` won't re-fetch the same font from disk. Therefore, calling `loadFontAsync` on every frame would be perfectly ok.
    *
    * However, note that `loadFontAsync` returns a Promise. Even a Promise resolves immediately, it still needs to round-trip to the JavaScript event loop. So you probably shouldn't call `loadFontAsync` on the same font repeatedly inside a loop.
+   *
+   * **Variable fonts**
+   *
+   * You can pass a {@link FontNameInput} and omit `style` to load every style of the family in one call. This works for both variable and static families, and is convenient when you plan to drive the font with {@link FontName.variationSettings} rather than enumerating named instances. {@link FontName.variationSettings} on the argument is ignored — variation values affect what gets rendered, not what gets loaded — so you can pass the same object you later assign to `node.fontName`.
+   *
+   * ```ts title="Loading and applying a variable font"
+   * (async () => {
+   *   await figma.loadFontAsync({ family: 'Inter' })
+   *
+   *   const text = figma.createText()
+   *   text.fontName = {
+   *     family: 'Inter',
+   *     style: 'Regular',
+   *     variationSettings: { wght: 550 },
+   *   }
+   *   text.characters = 'Hello, world'
+   * })()
+   * ```
    */
-  loadFontAsync(fontName: FontName): Promise<void>
+  loadFontAsync(fontName: FontNameInput): Promise<void>
+  /**
+   * Returns the [OpenType variation axis](https://fonts.google.com/knowledge/glossary/axis_in_variable_fonts) tags a variable font family exposes, or `null` for a static family. These are the tags accepted by {@link FontName.variationSettings}.
+   *
+   * @remarks
+   *
+   * The family has to be available in the editor but does not have to be loaded, so this can be called before {@link PluginAPI.loadFontAsync} to decide what to load. Throws for an unknown family, so `null` always means the family is static.
+   *
+   * Each tag is a 4-character OpenType axis tag such as `"wght"` (weight), `"wdth"` (width), `"slnt"` (slant), `"opsz"` (optical size), or a custom tag defined by the font designer.
+   *
+   * ```ts title="Discovering variation axes, then applying one"
+   * (async () => {
+   *   const family = 'Inter'
+   *   const axes = figma.getFontFamilyVariationAxes(family)
+   *   if (axes === null) {
+   *     console.log(`${family} is a static font`)
+   *     return
+   *   }
+   *
+   *   await figma.loadFontAsync({ family })
+   *   const text = figma.createText()
+   *   if (axes.includes('wght')) {
+   *     text.fontName = { family, style: 'Regular', variationSettings: { wght: 550 } }
+   *   }
+   *   text.characters = 'Variable!'
+   * })()
+   * ```
+   */
+  getFontFamilyVariationAxes(family: string): string[] | null
   /**
    * Returns true if the document contains text with missing fonts.
    */
@@ -1640,91 +881,9 @@ interface PluginAPI {
    */
   createImage(data: Uint8Array): Image
   /**
-     * Creates an `Image` object from a src URL. Note that `Image` objects **are not nodes**. They are handles to images stored by Figma. Frame backgrounds, or fills of shapes (e.g. a rectangle) may contain images.
-     *
-     * @remarks
-     *
-     * The `src` passed in must be a URL to a PNG, JPEG, or GIF. Images have a maximum size of 4096 pixels (4K) in width and height. Invalid images will reject and log the reason in the console.
-     *
-     * ```ts title="Example usage of createImageAsync"
-     *
-      figma.createImageAsync(
-          'https://picsum.photos/200'
-        ).then(async (image: Image) => {
-          // Create node
-          const node = figma.createRectangle()
-  
-          // Resize the node to match the image's width and height
-          const { width, height } = await image.getSizeAsync()
-          node.resize(width, height)
-  
-          // Set the fill on the node
-          node.fills = [
-            {
-              type: 'IMAGE',
-              imageHash: image.hash,
-              scaleMode: 'FILL'
-            }
-          ]
-  
-          figma.closePlugin()
-        }).catch((error: any) => {
-          console.log(error)
-          figma.closePlugin()
-        })
-     * ```
-     */
-  createImageAsync(src: string): Promise<Image>
-  /**
    * This gets the corresponding `Image` object for a given image hash, which can then be used to obtain the bytes of the image. This hash is found in a node's fill property as part of the ImagePaint object. If there is no image with this hash, returns null.
    */
   getImageByHash(hash: string): Image | null
-  /**
-   * Creates a `Video` object from the raw bytes of a file content. Like `Image` objects, `Video` objects **are not nodes**. They are handles to images stored by Figma. Frame backgrounds, or fills of shapes (e.g. a rectangle) may contain videos.
-   * @remarks
-   *
-   * The `data` passed in must be encoded as a .MP4, .MOV, or .WebM. Videos have a maximum size of 100MB. Invalid videos will throw an error.
-   *
-   * Video can only be added to files in a paid Education, Professional, and Organization team. Plugins running on files in free Starter teams can edit existing video in a file but not upload video to it.
-   */
-  createVideoAsync(data: Uint8Array): Promise<Video>
-  /**
-   * Note: This API is only available in FigJam.
-   *
-   * Resolves link metadata from a URL, and inserts either an embed or a unfurled preview of the link into the document
-   * An embed will be inserted if the URL is a valid OEmbed provider (has a `<link type="application/json+oembed" ... />` tag). The returned `<iframe>` source will be converted into an EmbedNode.
-   *
-   * Otherwise, the title, description, thumbnail, and favicon will be parsed from the HTML markup of the URL using standard `og` or `twitter` meta tags. This information will be converted into a LinkUnfurlNode.
-   *
-   * @remarks
-   *
-   * This API is only available in FigJam
-   *
-   * ```ts title="Creating embeds and link unfurl nodes"
-   * (async () => {
-   *   // Creates an EmbedNode
-   *   const youtubeEmbed = await figma.createLinkPreviewAsync('https://www.youtube.com/watch?v=4G9RHt2OyuY')
-   *
-   *   // Creates a LinkUnfurlNode
-   *   const unfurledLink = await figma.createLinkPreviewAsync('https://www.figma.com/community/plugins')
-   * })()
-   * ```
-   *
-   * @param url
-   */
-  createLinkPreviewAsync(url: string): Promise<EmbedNode | LinkUnfurlNode>
-  /**
-   * Note: This API is only available in FigJam
-   *
-   * Creates a new GIF with the given `Image` hash.
-   *
-   * @remarks
-   *
-   * This API is only available in FigJam
-   *
-   * @param hash
-   */
-  createGif(hash: string): MediaNode
   /**
    * Note: This API is only available in Figma Design
    *
@@ -1862,89 +1021,6 @@ interface PluginAPI {
    */
   base64Decode(data: string): Uint8Array
   /**
-   * Gets the node that is currently being used for file thumbnail, or null if the default thumbnail is used.
-   */
-  getFileThumbnailNodeAsync(): Promise<
-    FrameNode | ComponentNode | ComponentSetNode | SectionNode | null
-  >
-  /**
-   * @deprecated Use {@link PluginAPI.getFileThumbnailNodeAsync} instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   *
-   * Gets the node that is currently being used for file thumbnail, or null if the default thumbnail is used.
-   */
-  getFileThumbnailNode(): FrameNode | ComponentNode | ComponentSetNode | SectionNode | null
-  /**
-   * Set `node` to be the thumbnail for the file. If `node` is null, then use the default thumbnail.
-   */
-  setFileThumbnailNodeAsync(
-    node: FrameNode | ComponentNode | ComponentSetNode | SectionNode | null,
-  ): Promise<void>
-  /**
-   * Loads all pages of the document into memory. This enables the use of the following features:
-   *
-   * - The `documentchange` event for {@link PluginAPI.on}
-   * - {@link DocumentNode.findAll}
-   * - {@link DocumentNode.findOne}
-   * - {@link DocumentNode.findAllWithCriteria}
-   * - {@link DocumentNode.findWidgetNodesByWidgetId}
-   *
-   * Calling this method may be slow for large documents, and should be avoided unless absolutely necessary.
-   *
-   * This method is only necessary if the plugin manifest contains `"documentAccess": "dynamic-page"`. Without this manifest setting, the full document is loaded automatically when the plugin or widget runs.
-   */
-  loadAllPagesAsync(): Promise<void>
-  /**
-   * Note: This API is only available in Figma Slides
-   *
-   * @remarks
-   *
-   * The slide grid provides structure to both single slide view and grid view.
-   * The order of Slides within a presentation is a key part of updating and editing a deck.
-   * To visualize the slide nodes in a 2D array, you can call this function.
-   *
-   * ```ts
-   * const grid = figma.getSlideGrid()
-   * ```
-   *
-   * The returned grid is a 2D array of SlideNodes. For example:
-   *
-   * ```ts
-   * [
-   *   [SlideNode, SlideNode],
-   *   [SlideNode, SlideNode, SlideNode, SlideNode, SlideNode],
-   *   [SlideNode, SlideNode, SlideNode, SlideNode, SlideNode],
-   *   [SlideNode, SlideNode, SlideNode],
-   * ]
-   * ```
-   *
-   * @deprecated Use {@link PluginAPI.getCanvasGrid} instead.
-   */
-  getSlideGrid(): Array<Array<SlideNode>>
-  /**
-   * Note: This API is only available in Figma Slides
-   *
-   * @remarks
-   *
-   * The order of Slides within a presentation is a key part of updating and editing a deck.
-   * Using this method you can manipulate and reorder the grid.
-   *
-   * For example:
-   *
-   * ```ts
-   * const grid = figma.getSlideGrid()
-   * const [firstRow, ...rest] = grid
-   *
-   * // move the first row to the end
-   * figma.setSlideGrid([...rest, firstRow])
-   * ```
-   *
-   * So long as all the Slides in the current grid are passed back to `setSlideGrid` the update will succeed.
-   * Meaning, you can change the amount of rows as you please - flatten all to one row, explode to many rows, etc, and the method will handle all updates for you.
-   *
-   * @deprecated Use {@link PluginAPI.setCanvasGrid} instead.
-   */
-  setSlideGrid(slideGrid: Array<Array<SlideNode>>): void
-  /**
    * Gets the current canvas grid layout as a 2D array of nodes.
    *
    * Note: This API is only available in Figma Slides and Figma Buzz
@@ -1959,7 +1035,6 @@ interface PluginAPI {
    * ```ts
    * const grid = figma.getCanvasGrid()
    * ```
-   *
    */
   getCanvasGrid(): Array<Array<SceneNode>>
   /**
@@ -1996,26 +1071,8 @@ interface PluginAPI {
    * @remarks
    *
    * If no row index is provided, the row will be added at the end of the grid.
-   *
    */
   createCanvasRow(rowIndex?: number): SceneNode
-  /**
-   * Moves the specified nodes to a specific coordinate in the canvas grid.
-   *
-   * Note: This API is only available in Figma Slides and Figma Buzz
-   *
-   * This function allows precise positioning of multiple nodes within the
-   * canvas grid system used in Slides and Buzz.
-   *
-   * @param nodeIds - Array of node IDs to move
-   * @param rowIndex - The target row index in the canvas grid (optional)
-   * @param columnIndex - The target column index in the canvas grid (optional)
-   *
-   * @remarks
-   *
-   * Calling this function without rowIndex and columnIndex will move the node to the end of the grid
-   */
-  moveNodesToCoord(nodeIds: string[], rowIndex?: number, columnIndex?: number): void
   /**
    * Makes all built-in brushes of the specified type available for use in the plugin. This function must be called before
    * setting the stroke of a node to a brush of the specified type.
@@ -2031,12 +1088,6 @@ interface PluginAPI {
   loadBrushesAsync(brushType: 'STRETCH' | 'SCATTER'): Promise<void>
 }
 /**
- * @see https://developers.figma.com/docs/plugins/api/properties/figma-saveversionhistoryasync
- */
-interface VersionHistoryResult {
-  id: string
-}
-/**
  * @see https://developers.figma.com/docs/plugins/api/figma-variables
  */
 interface VariablesAPI {
@@ -2047,25 +1098,11 @@ interface VariablesAPI {
    */
   getVariableByIdAsync(id: string): Promise<Variable | null>
   /**
-   * Finds a variable by ID. If not found or the provided ID is invalid, returns `null`.
-   *
-   * @deprecated Use {@link VariablesAPI.getVariableByIdAsync} instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   * @param id - The variable ID to search for, which represents a unique identifier for the variable.
-   */
-  getVariableById(id: string): Variable | null
-  /**
    * Finds a variable collection by ID. If not found or the provided ID is invalid, returns a promise containing `null`.
    *
    * @param id - The variable collection ID to search for, which represents a unique identifier for the variable collection.
    */
   getVariableCollectionByIdAsync(id: string): Promise<VariableCollection | null>
-  /**
-   * Finds a variable collection by ID. If not found or the provided ID is invalid, returns `null`.
-   *
-   * @deprecated Use {@link VariablesAPI.getVariableCollectionByIdAsync} instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   * @param id - The variable collection ID to search for, which represents a unique identifier for the variable collection.
-   */
-  getVariableCollectionById(id: string): VariableCollection | null
   /**
    * Returns all local variables in the current file, optionally filtering by resolved type.
    *
@@ -2073,36 +1110,9 @@ interface VariablesAPI {
    */
   getLocalVariablesAsync(type?: VariableResolvedDataType): Promise<Variable[]>
   /**
-   * Returns all local variables in the current file, optionally filtering by resolved type.
-   *
-   * @deprecated Use {@link VariablesAPI.getLocalVariablesAsync} instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   * @param type - Filters the returned variables to only be of the given resolved type.
-   */
-  getLocalVariables(type?: VariableResolvedDataType): Variable[]
-  /**
    * Returns all local variable collections in the current file.
    */
   getLocalVariableCollectionsAsync(): Promise<VariableCollection[]>
-  /**
-   * Returns all local variable collections in the current file.
-   *
-   * @deprecated Use {@link VariablesAPI.getLocalVariableCollectionsAsync} instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   */
-  getLocalVariableCollections(): VariableCollection[]
-  /**
-   * Creates a variable with a given name and resolved type inside a collection.
-   *
-   * @deprecated Use `createVariable(string, VariableCollection, VariableResolvedDataType)` instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   *
-   * @param name - The name of the newly created variable
-   * @param collectionId - The ID of a collection object
-   * @param resolvedType - The resolved type of this variable
-   */
-  createVariable(
-    name: string,
-    collectionId: string,
-    resolvedType: VariableResolvedDataType,
-  ): Variable
   /**
    * Creates a variable with a given name and resolved type inside a collection.
    *
@@ -2232,74 +1242,6 @@ interface AnnotationsAPI {
   }): Promise<AnnotationCategory>
 }
 /**
- * @see https://developers.figma.com/docs/plugins/api/figma-buzz
- */
-interface BuzzAPI {
-  /**
-   * Creates a new frame in Buzz, optionally positioned at specific canvas coordinates.
-   *
-   * @param rowIndex - The row position on the canvas grid (optional)
-   * @param columnIndex - The column position on the canvas grid (optional)
-   * @returns A newly created FrameNode
-   *
-   * @remarks
-   *
-   * If no rowIndex and columnIndex are specified, the new frame will be created at the end of the canvas grid.
-   *
-   */
-  createFrame(rowIndex?: number, columnIndex?: number): FrameNode
-  /**
-   * Creates an instance of a component in Buzz, optionally positioned at specific canvas coordinates.
-   *
-   *
-   * @param component - The ComponentNode to create an instance from
-   * @param rowIndex - The row position on the canvas grid (optional)
-   * @param columnIndex - The column position on the canvas grid (optional)
-   * @returns A newly created InstanceNode
-   *
-   * @remarks
-   *
-   * If no rowIndex and columnIndex are specified, the new instance will be created at the end of the canvas grid.
-   */
-  createInstance(component: ComponentNode, rowIndex: number, columnIndex?: number): InstanceNode
-  /**
-   * Gets the Buzz asset type for a given node.
-   *
-   * @param node - The SceneNode to check
-   * @returns The BuzzAssetType of the node, or null if not set
-   */
-  getBuzzAssetTypeForNode(node: SceneNode): BuzzAssetType | null
-  /**
-   * Sets the Buzz asset type for a given node.
-   *
-   * @param node - The SceneNode to modify
-   * @param assetType - The BuzzAssetType to assign to the node
-   */
-  setBuzzAssetTypeForNode(node: SceneNode, assetType: BuzzAssetType): void
-  /**
-   * Extracts all text content fields from a node for dynamic content management.
-   *
-   * @param node - The SceneNode to extract text content from
-   * @returns An array of BuzzTextField objects containing text content
-   */
-  getTextContent(node: SceneNode): BuzzTextField[]
-  /**
-   * Extracts all media content fields from a node for dynamic content management.
-   *
-   * @param node - The SceneNode to extract media content from
-   * @returns An array of BuzzMediaField objects containing media content
-   */
-  getMediaContent(node: SceneNode): BuzzMediaField[]
-  /**
-   * Performs intelligent resizing of a node while maintaining layout integrity and aspect ratios.
-   *
-   * @param node - The SceneNode to resize
-   * @param width - The target width in pixels
-   * @param height - The target height in pixels
-   */
-  smartResize(node: SceneNode, width: number, height: number): void
-}
-/**
  * Represents a text field within a Buzz media asset that can be dynamically updated.
  * BuzzTextField objects are returned by {@link BuzzAPI.getTextContent} and provide access
  * to both the current text content and the underlying text node.
@@ -2341,57 +1283,6 @@ interface BuzzMediaField {
    */
   setMediaAsync(paint: ImagePaint | VideoPaint): Promise<void>
 }
-/**
- * Represents the different types of media assets and formats supported in Figma Buzz.
- * These asset types correspond to specific platform requirements and dimensions, ensuring
- * content is optimized for each social media platform.
- *
- * Used with {@link BuzzAPI.setBuzzAssetTypeForNode} and {@link BuzzAPI.getBuzzAssetTypeForNode}
- * to manage content categorization.
- */
-type BuzzAssetType =
-  | 'CUSTOM'
-  | 'TWITTER_POST'
-  | 'LINKEDIN_POST'
-  | 'INSTA_POST_SQUARE'
-  | 'INSTA_POST_PORTRAIT'
-  | 'INSTA_STORY'
-  | 'INSTA_AD'
-  | 'FACEBOOK_POST'
-  | 'FACEBOOK_COVER_PHOTO'
-  | 'FACEBOOK_EVENT_COVER'
-  | 'FACEBOOK_AD_PORTRAIT'
-  | 'FACEBOOK_AD_SQUARE'
-  | 'PINTEREST_AD_PIN'
-  | 'TWITTER_BANNER'
-  | 'LINKEDIN_POST_SQUARE'
-  | 'LINKEDIN_POST_PORTRAIT'
-  | 'LINKEDIN_POST_LANDSCAPE'
-  | 'LINKEDIN_PROFILE_BANNER'
-  | 'LINKEDIN_ARTICLE_BANNER'
-  | 'LINKEDIN_AD_LANDSCAPE'
-  | 'LINKEDIN_AD_SQUARE'
-  | 'LINKEDIN_AD_VERTICAL'
-  | 'YOUTUBE_THUMBNAIL'
-  | 'YOUTUBE_BANNER'
-  | 'YOUTUBE_AD'
-  | 'TWITCH_BANNER'
-  | 'GOOGLE_LEADERBOARD_AD'
-  | 'GOOGLE_LARGE_AD'
-  | 'GOOGLE_MED_AD'
-  | 'GOOGLE_MOBILE_BANNER_AD'
-  | 'GOOGLE_SKYSCRAPER_AD'
-  | 'CARD_HORIZONTAL'
-  | 'CARD_VERTICAL'
-  | 'PRINT_US_LETTER'
-  | 'POSTER'
-  | 'BANNER_STANDARD'
-  | 'BANNER_WIDE'
-  | 'BANNER_ULTRAWIDE'
-  | 'NAME_TAG_PORTRAIT'
-  | 'NAME_TAG_LANDSCAPE'
-  | 'INSTA_REEL_COVER'
-  | 'ZOOM_BACKGROUND'
 /**
  * @see https://developers.figma.com/docs/plugins/api/figma-teamlibrary
  */
@@ -2435,281 +1326,44 @@ interface TeamLibraryAPI {
   getVariablesInLibraryCollectionAsync(libraryCollectionKey: string): Promise<LibraryVariable[]>
 }
 /**
- * @see https://developers.figma.com/docs/plugins/api/figma-payments
+ * The Motion API is available in Beta. This API is subject to change.
+ *
+ * @see https://developers.figma.com/docs/plugins/api/figma-motion
  */
-type PaymentStatus = {
-  type: 'UNPAID' | 'PAID' | 'NOT_SUPPORTED'
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/figma-payments
- */
-interface PaymentsAPI {
+interface MotionAPI {
   /**
-   * An object describing the user’s payment status. Right now, the only
-   * attribute on this object is whether the user has paid. In the future, we
-   * might add more attributes here to provide more information.
-   *
-   * ```ts
-   * type PaymentStatus = {
-   *   type: "UNPAID" | "PAID" | "NOT_SUPPORTED"
-   * }
-   * ```
-   * A status type of `NOT_SUPPORTED` indicates that an internal error has occurred
-   * and the user's payment status could not be determined at that time. Plugins
-   * should treat `NOT_SUPPORTED` as an error and not grant access to paid features.
-   *
-   * In development, you’ll be able to test out the entire checkout flow without
-   * having to input any actual payment information. Doing so will update your
-   * payment status accordingly. Any changes to payment status in development is
-   * local and not persisted, and will be reset when restarting your client or
-   * using a different machine.
-   *
-   * Note: To test out your plugin or widget with payment statuses other than `UNPAID`
-   * while developing, use the {@link PaymentsAPI.setPaymentStatusInDevelopment}
-   * function.
-   *
-   * For published resources, this always returns `PAID` for the creator.
-   */
-  readonly status: PaymentStatus
-  /**
-   * Warning: This method can only be used in development.
-   *
-   * This sets your payment status to the value of the `status` argument in this
-   * method. This is a global setting that will impact your payment status for
-   * all plugins or widgets you run in development.
-   */
-  setPaymentStatusInDevelopment(status: PaymentStatus): void
-  /**
-   * When the plugin was first run by the current user.
-   *
-   * This is defined as the number of seconds since the current user ran the
-   * plugin or widget for the first time. This will return 0 the very first time
-   * a user runs your plugin, and will always return 0 when running a plugin in
-   * development.
-   */
-  getUserFirstRanSecondsAgo(): number
-  /**
-   * This triggers a checkout flow in the Figma UI for the user to purchase your
-   * plugin or widget. The user will be prompted to enter their payment
-   * information and purchase your resource. This function resolves either when
-   * the user has completed the checkout flow, or they’ve dismissed it.
-   *
-   * Warning: This function will throw an exception in certain cases:
-   * 1. While in query mode and accepting plugin parameters.
-   * 2. During widget rendering. Instead, put calls to this function inside your widget event handlers.
-   *
-   * See [our guide](https://developers.figma.com/docs/plugins/requiring-payment#when-to-call-initiatecheckoutasync) for more information.
-   *
-   * This function takes an `options` argument that controls the behavior of the
-   * checkout flow.
-   *
-   * ```ts
-   * type CheckoutOptions = {
-   *   // This option controls the behavior and copy of the
-   *   // interstitial checkout modal.
-   *   //
-   *   // * PAID_FEATURE:  This is the default. Use this option if
-   *   //                  you're asking the user to pay for a
-   *   //                  certain premium feature.
-   *   //
-   *   // * TRIAL_ENDED:   Use this option if the user's free trial
-   *   //                  has ended.
-   *   //
-   *   // * SKIP:          Use this option if you want to skip the
-   *   //                  interstitial entirely. This is useful if
-   *   //                  you have your own upgrade CTA in your
-   *   //                  plugin's UI.
-   *   interstitial?: "PAID_FEATURE" | "TRIAL_ENDED" | "SKIP"
-   * }
-   *
-   * ```
-   *
-   * After `initiateCheckoutAsync` resolves, use `figma.payments.status` to check
-   * the user’s payment status.
-   */
-  initiateCheckoutAsync(options?: {
-    interstitial?: 'PAID_FEATURE' | 'TRIAL_ENDED' | 'SKIP'
-  }): Promise<void>
-  /**
-   * This is useful for [text review plugins](https://developers.figma.com/docs/plugins/textreview-plugins). Since these
-   * plugins can only run in query mode, they cannot call
-   * `initiateCheckoutAsync` while a user is editing text as that will throw an
-   * exception.
-   *
-   * if you are building a text review plugin, call `requestCheckout` to
-   * indicate that the user needs to checkout in order to continue using the
-   * plugin. When the user exits text editing, they will be prompted to
-   * checkout. If the user dismisses the checkout flow, the text review plugin
-   * will automatically be disabled.
-   */
-  requestCheckout(): void
-  /**
-   * This method generates a token that can be used to securely communicate the
-   * identity of the current user on the current plugin or widget. You can
-   * provide its returned value as the `plugin_payment_token` query parameter to
-   * the [payments REST API](https://developers.figma.com/docs/rest-api/payments) endpoint.
-   */
-  getPluginPaymentTokenAsync(): Promise<string>
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/figma-clientStorage
- */
-interface ClientStorageAPI {
-  /**
-   * Retrieves a value from client storage with the given `key`. If no value has been stored for that key, this function will asynchronously return `undefined`.
-   */
-  getAsync(key: string): Promise<any | undefined>
-  /**
-   * Sets a value to client storage with the given `key`. The returned promise will resolve if storage is successful, or reject with an error message if storage failed.
-   */
-  setAsync(key: string, value: any): Promise<void>
-  /**
-   * Removes the stored key/value pair from client storage with the given `key`. If no such key is stored, this function will return normally but will otherwise do nothing.
-   */
-  deleteAsync(key: string): Promise<void>
-  /**
-   * Retrieves a list of all keys stored to client storage. Use this to enumerate the full contents of the clientStorage API.
-   */
-  keysAsync(): Promise<string[]>
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/properties/figma-notify
- */
-interface NotificationOptions {
-  timeout?: number
-  error?: boolean
-  onDequeue?: (reason: NotifyDequeueReason) => void
-  button?: {
-    text: string
-    action: () => boolean | void
-  }
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/properties/figma-notify
- */
-type NotifyDequeueReason = 'timeout' | 'dismiss' | 'action_button_click'
-/**
- * @see https://developers.figma.com/docs/plugins/api/properties/figma-notify
- */
-interface NotificationHandler {
-  cancel: () => void
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/properties/figma-showui
- */
-interface ShowUIOptions {
-  visible?: boolean
-  title?: string
-  width?: number
-  height?: number
-  position?: {
-    x: number
-    y: number
-  }
-  themeColors?: boolean
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/properties/figma-ui-postmessage
- */
-interface UIPostMessageOptions {
-  origin?: string
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/properties/figma-ui-onmessage
- */
-interface OnMessageProperties {
-  origin: string
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/properties/figma-ui-onmessage
- */
-type MessageEventHandler = (pluginMessage: any, props: OnMessageProperties) => void
-/**
- * @see https://developers.figma.com/docs/plugins/api/figma-ui
- */
-interface UIAPI {
-  /**
-   * Makes the plugin's UI visible. Use this to show the UI if it was created using `figma.showUI(..., { visible: false })`, or after a call to `figma.ui.hide()`.
-   */
-  show(): void
-  /**
-   * Hides the current UI. The UI will still continue to run code and be able to send and receive messages. However, it is not rendered to the user.
-   */
-  hide(): void
-  /**
-   * Changes the size of the UI, after it has been created. Note that the size can also be set in the initial options. The minimum size is 70x0.
-   */
-  resize(width: number, height: number): void
-  /**
-   * Changes the position of the UI, after it has been created. Note that the position can also be set in the initial options.
-   */
-  reposition(x: number, y: number): void
-  /**
-   * Fetches the position of the UI in window space and canvas space. Throws an error when no UI is available.
-   */
-  getPosition(): {
-    windowSpace: Vector
-    canvasSpace: Vector
-  }
-  /**
-   * Destroys the UI and its containing `<iframe>`. Once this has been called, the code inside the iframe will be stopped and you can no longer send messages to and from it.
-   */
-  close(): void
-  /**
-   * Sends a message to the UI's `<iframe>` window.
-   *
-   * @param pluginMessage - This can be almost any data type or plain object, as long as it's a serializable object.
-   *
-   * This is similar to saying that it should be possible to send the object over a network if it were necessary. You can send objects, arrays, numbers, strings, booleans, null, undefined, Date objects and Uint8Array objects. However, functions and prototype chains of objects will not be sent.
-   *
-   * These restrictions are the same as the browser's `postMessage`: [click here](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) for more details.
-   *
-   * @param options - An object that may contain the following optional parameters:
-   * - `origin`: An advanced option, mainly used for implementing OAuth. If the `origin` option is provided, the message will only be delivered to the iframe if the origin of the document inside the iframe matches the `origin`. This defaults to `'*'`, which allows the message to be passed to any document.
+   * Returns the Motion animation styles available in the current document.
    *
    * @remarks
    *
-   * Read more about how to use this API in the [Creating a User Interface](https://developers.figma.com/docs/plugins/creating-ui) tutorial.
-   */
-  postMessage(pluginMessage: any, options?: UIPostMessageOptions): void
-  /**
-   * Register a handler for incoming messages from the UI's `<iframe>` window.
-   *
-   * @param onmessage
+   * The returned styles describe animation templates that can be applied to nodes with {@link MotionNodeMixin.applyAnimationStyle}.
+   * Their `props` values are type/default descriptions for each configurable property.
    *
    * ```ts
-   * type MessageEventHandler = (pluginMessage: any, props: OnMessageProperties) => void;
-   *
-   * interface OnMessageProperties {
-   *   origin: string,
+   * const styles = figma.motion.figmaAnimationStyles()
+   * for (const style of styles) {
+   *   console.log(style.name, style.styleId, style.props)
    * }
    * ```
+   */
+  figmaAnimationStyles(): AvailableAnimationStyle[]
+  /**
+   * Converts physical spring parameters to Motion's normalized `bounce` value from 0 to 1.
+   *
+   * @param spring - Positive finite physical spring values.
    *
    * @remarks
+   * The returned value is the normalized `bounce` scalar used by {@link NormalizedSpring}.
    *
-   * The `pluginMessage` argument contains the message passed by the call to `postMessage` on the UI side.
-   *
-   * The `props` argument contains a `origin` property contains the origin of the document that sent the message. It is an advanced feature, mainly used for implementing OAuth.
+   * ```ts
+   * const bounce = figma.motion.physicalSpringToNormalized({
+   *   mass: 1,
+   *   stiffness: 100,
+   *   damping: 10,
+   * })
+   * ```
    */
-  onmessage: MessageEventHandler | undefined
-  /**
-   * Register a handler for incoming messages from the UI's `<iframe>` window.
-   *
-   * @remarks
-   *
-   * The `pluginMessage` argument contains the message passed by the call to `postMessage` on the UI side.
-   *
-   * The `props` argument contains a `origin` property contains the origin of the document that sent the message. It is an advanced feature, mainly used for implementing OAuth.
-   */
-  on(type: 'message', callback: MessageEventHandler): void
-  /**
-   * Register a handler for incoming messages from the UI's `<iframe>` window. Same as `figma.ui.on("message")`, but only gets called the first time.
-   */
-  once(type: 'message', callback: MessageEventHandler): void
-  /**
-   * Removes a handler added via `figma.ui.on`.
-   */
-  off(type: 'message', callback: MessageEventHandler): void
+  physicalSpringToNormalized(spring: PhysicalSpring): number
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/figma-util
@@ -2818,293 +1472,22 @@ interface UtilAPI {
    * @param markdown - A markdown string to normalize.
    */
   normalizeMarkdown(markdown: string): string
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/ColorPalette
- */
-interface ColorPalette {
-  [key: string]: string
-}
-interface ColorPalettes {
-  figJamBase: ColorPalette
-  figJamBaseLight: ColorPalette
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/figma-constants
- */
-interface ConstantsAPI {
   /**
-   * Holds color palettes, which maps color names to hex codes.
+   * Returns the single-character Private Use Area string for an Apple SF Symbol, given the symbol's canonical name (e.g. `'square.and.arrow.up'`). Assigning the returned character to a text node's `characters` — after loading the SF Pro font — causes the symbol to render in the text layer.
    *
-   * ```js title="Example usage"
-   * const colorMapBase = figma.constants.colors.figJamBase
-   * const colorMapBaseLight = figma.constants.colors.figJamBaseLight
-   * ```
+   * Throws if `name` is not a string or does not match a known SF Symbol.
    *
-   * @remarks
-   *
-   */
-  colors: ColorPalettes
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/CodegenEvent
- */
-declare type CodegenEvent = {
-  node: SceneNode
-  language: string
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/CodegenPreference
- */
-declare type CodegenPreferences = {
-  readonly unit: 'PIXEL' | 'SCALED'
-  readonly scaleFactor?: number
-  readonly customSettings: Record<string, string>
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/CodegenPreferencesEvent
- */
-declare type CodegenPreferencesEvent = {
-  propertyName: string
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/CodegenResult
- */
-declare type CodegenResult = {
-  title: string
-  code: string
-  language:
-    | 'TYPESCRIPT'
-    | 'CPP'
-    | 'RUBY'
-    | 'CSS'
-    | 'JAVASCRIPT'
-    | 'HTML'
-    | 'JSON'
-    | 'GRAPHQL'
-    | 'PYTHON'
-    | 'GO'
-    | 'SQL'
-    | 'SWIFT'
-    | 'KOTLIN'
-    | 'RUST'
-    | 'BASH'
-    | 'PLAINTEXT'
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/figma-codegen
- */
-interface CodegenAPI {
-  /**
-   * A plugin for code generation needs to call `figma.codegen.on('generate')` to register a callback
-   * that will be called when a user's selection changes in Dev Mode. This callback
-   * should return an array of JSON objects that represent the sections in the
-   * Inspect panel. The callback has a 15 second timeout and returns an error if it times out. For more
-   * information, see the remarks.
-   *
-   * @remarks
-   *
-   * This callback can be async if your plugin needs to do some data fetching or other async
-   * operation to generate code.
-   *
-   * Note: `figma.showUI` is not allowed within the generate callback. Instead, if [`figma.showUI`](https://developers.figma.com/docs/plugins/api/properties/figma-showui) is required in the generate callback, the `showUI` call should be moved outside of the callback and [`figma.ui.postMessage`](https://developers.figma.com/docs/plugins/api/properties/figma-ui-postmessage) should be used within the callback instead. This ensures that the plugin is able to handle concurrent "generate" events.
-   *
-   * A plugin can also register a callback to handle events when codegen preferences are modified.
-   * This is useful for codegenPreferences that need to open an iframe to get more user input.
-   *
-   * Note: Only preferences with `itemType: "action"` will trigger the `"preferenceschange"`` callback.
-   *
-   * The callback has a 15 second timeout. If the callback registered by `figma.codegen.on('generate')`
-   * doesn't return a value within 15 seconds (for example, if the array of JSON objects takes too long to
-   * construct), the operation ends and an error message is sent to the console:
-   *
-   * ```text title="Callback timeout error"
-   * code generation timed out after 15 seconds
-   * ```
-   *
-   * Additionally, a notification appears in the Code section of the Inspect panel to alert the
-   * plugin's user of the error:
-   *
-   * ```text title="Inspect panel timeout error"
-   * <Plugin name> ran into an issue
-   *
-   * This plugin is created by a third party and not
-   * maintained by Figma, so to give feedback please
-   * reach out to the developer.
-   * ```
-   *
-   * The error in the Inspect panel includes a link to your plugin's community page.
-   *
-   * @param type - The type of event to add the callback for: 'generate' or 'preferenceschange'.
-   * @param callback - The callback that is called when the event is triggered.
-   */
-  on(
-    type: 'generate',
-    callback: (event: CodegenEvent) => Promise<CodegenResult[]> | CodegenResult[],
-  ): void
-  on(type: 'preferenceschange', callback: (event: CodegenPreferencesEvent) => Promise<void>): void
-  /**
-   *  Same as {@link CodegenAPI.on | `figma.codegen.on`}, but the callback only gets called the first time.
-   */
-  once(
-    type: 'generate',
-    callback: (event: CodegenEvent) => Promise<CodegenResult[]> | CodegenResult[],
-  ): void
-  once(type: 'preferenceschange', callback: (event: CodegenPreferencesEvent) => Promise<void>): void
-  /**
-   * Removes a callback added by {@link CodegenAPI.on | `figma.codegen.on`} or {@link CodegenAPI.once | `figma.codegen.once`}.
-   */
-  off(
-    type: 'generate',
-    callback: (event: CodegenEvent) => Promise<CodegenResult[]> | CodegenResult[],
-  ): void
-  off(type: 'preferenceschange', callback: (event: CodegenPreferencesEvent) => Promise<void>): void
-  /**
-   * Read the current preferences as specified by the user.
+   * Example:
    *
    * ```ts
-   * type CodegenPreferences = {
-   *   readonly unit: 'PIXEL' | 'SCALED'
-   *   readonly scaleFactor?: number
-   *   // An object for every "select" item and their currently
-   *   // selected values. The format of this is "select" item
-   *   // propertyName => selectedOption.value.
-   *   readonly customSettings: Record<string, string>
-   * }
+   * const text = figma.createText()
+   * await figma.loadFontAsync({ family: 'SF Pro', style: 'Regular' })
+   * text.characters = 'Share ' + figma.util.getSfSymbolCharacter('square.and.arrow.up')
    * ```
-   */
-  readonly preferences: CodegenPreferences
-  /**
-   * Triggers the `figma.codegen.on("generate")` callback again.
    *
-   * This is is useful for plugins that need to refresh the codegen output. For example, if you’re using an iframe to provide more customization options.
+   * @param name - The canonical SF Symbol name.
    */
-  refresh: () => void
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/DevResource
- */
-interface DevResource {
-  /**
-   * The name of the resource.
-   */
-  readonly name: string
-  /**
-   * The URL of the resource. This is considered the unique identifier of the resource.
-   */
-  readonly url: string
-  /**
-   * `inheritedNodeId` is a field only relevant to links on `INSTANCE` nodes. If `inheritedNodeId` is defined, the link is inherited from a main component or a component set. If you want to edit or delete the inherited link, you will need to go to the main node to do so. For example:
-   *
-   * ```ts
-   * const devResource = { ..., inheritedNodeId: '1:2' }
-   * const node = await figma.getNodeByIdAsync(devResource.inheritedNodeId)
-   * await node.editDevResourceAsync(...)
-   * ```
-   */
-  readonly inheritedNodeId?: string
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/DevResource
- */
-interface DevResourceWithNodeId extends DevResource {
-  /**
-   * The ID of the node that this link is attached to.
-   */
-  nodeId: string
-}
-
-type LinkPreviewEvent = {
-  link: DevResource
-}
-
-type PlainTextElement = {
-  type: 'PLAIN_TEXT'
-  text: string
-}
-
-type LinkPreviewResult =
-  | {
-      type: 'AUTH_REQUIRED'
-    }
-  | PlainTextElement
-  | null
-
-type AuthEvent = {
-  links: DevResource[]
-}
-
-type DevResourceOpenEvent = {
-  devResource: DevResourceWithNodeId
-}
-
-type AuthResult = {
-  type: 'AUTH_SUCCESS'
-} | null
-
-interface VSCodeAPI {}
-
-interface DevResourcesAPI {
-  /**
-   * Create a handler for when the linkpreview, auth, and open events are triggered.
-   */
-  on(
-    type: 'linkpreview',
-    callback: (event: LinkPreviewEvent) => Promise<LinkPreviewResult> | LinkPreviewResult,
-  ): void
-  on(type: 'auth', callback: (event: AuthEvent) => Promise<AuthResult> | AuthResult): void
-  on(type: 'open', callback: (event: DevResourceOpenEvent) => void): void
-  /**
-   * Create a handler for when the linkpreview, auth, and open events are first triggered. This only gets called once.
-   */
-  once(
-    type: 'linkpreview',
-    callback: (event: LinkPreviewEvent) => Promise<LinkPreviewResult> | LinkPreviewResult,
-  ): void
-  once(type: 'auth', callback: (event: AuthEvent) => Promise<AuthResult> | AuthResult): void
-  once(type: 'open', callback: (event: DevResourceOpenEvent) => void): void
-  /**
-   * Remove a handler for the linkpreview, auth, and open events.
-   */
-  off(
-    type: 'linkpreview',
-    callback: (event: LinkPreviewEvent) => Promise<LinkPreviewResult> | LinkPreviewResult,
-  ): void
-  off(type: 'auth', callback: (event: AuthEvent) => Promise<AuthResult> | AuthResult): void
-  off(type: 'open', callback: (event: DevResourceOpenEvent) => void): void
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/figma-timer
- */
-interface TimerAPI {
-  /**
-   * Time remaining on timer, in seconds. If the timer has not been started, returns 0.
-   */
-  readonly remaining: number
-  /**
-   * Total time on timer, in seconds. If the timer has not been started, returns 0. The total time is defined as the time the timer was initially started at, plus or minus any time that may have been added or removed from the timer.
-   */
-  readonly total: number
-  /**
-   * The current state of the timer. If the timer is started and not paused, the state will be `"RUNNING"`. If the timer is not started or finished, the state is `"STOPPED"`. And if the timer is started but paused, the state is `"PAUSED"`.
-   */
-  readonly state: 'STOPPED' | 'PAUSED' | 'RUNNING'
-  /**
-   * Pause the timer. If the timer has not been started, does nothing.
-   */
-  pause: () => void
-  /**
-   * Resume the timer. If the timer is not currently started and paused, does nothing.
-   */
-  resume: () => void
-  /**
-   * Start the timer with `seconds` seconds remaining. If the timer is not currently started, will start the timer with this total time. If the timer is currently started, will set the remaining time to this value, and increment or decrement the timer's total time based on how much time was added or removed from the remaining time. If the timer was previously paused, will also unpause the timer.
-   */
-  start: (seconds: number) => void
-  /**
-   * Stops the timer. If the timer was not started or is finished, does nothing.
-   */
-  stop: () => void
+  getSfSymbolCharacter(name: string): string
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/figma-viewport
@@ -3121,98 +1504,19 @@ interface ViewportAPI {
    * - zoom &lt; 1: design is zoomed out
    * - zoom = 1: design is shown at exact size
    * - zoom &gt; 1: design is zoomed in
+   *
    */
   zoom: number
   /**
    * Automatically sets the viewport coordinates such that the nodes are visible on screen. It is the equivalent of pressing Shift-1.
+   *
    */
   scrollAndZoomIntoView(nodes: ReadonlyArray<BaseNode>): void
   /**
    * The bounds of the viewport of the page that is currently visible on screen. The (x, y) corresponds to the top-left of the screen. User actions such as resizing the window or showing/hiding the rulers/UI will change the bounds of the viewport.
+   *
    */
   readonly bounds: Rect
-  /**
-   * Note: This API is only available in Figma Slides
-   *
-   * @remarks
-   *
-   * The viewport mode within the Slides UI: In Single Slide View, the viewport is zoomed into the current slide, and we only render that
-   * one slide. In Grid View, the viewport is zoomed out to show the entire slide grid.
-   *
-   * You can access the current view:
-   *
-   * ```ts
-   * const currentView = figma.viewport.slidesView
-   * ```
-   *
-   * And you can set the view:
-   *
-   * ```ts
-   * figma.viewport.slidesView = 'single-slide'
-   * ```
-   *
-   * ### A Note About Single Slide View:
-   *
-   * We have updated all of the create methods (`figma.createRectangle()`, `figma.createLine()`, etc) so that when the Figma Slides file is in Single Slide View,
-   * they append that node to the focused slide instead of to the canvas. This is to ensure that the node you are creating is viewable by the current user and
-   * not hidden off to the side of the larger grid view.
-   */
-  slidesView: 'grid' | 'single-slide'
-  /**
-   * Note: This API is only available in Figma Slides and Figma Buzz
-   *
-   * @remarks
-   *
-   * The viewport mode within the Slides and Buzz UI: In Asset View, the viewport is zoomed into the current asset or slide, and we only render that
-   * one asset/slide. In Grid View, the viewport is zoomed out to show the entire canvas grid.
-   *
-   * You can access the current view:
-   *
-   * ```ts
-   * const currentView = figma.viewport.canvasView
-   * ```
-   *
-   * And you can set the view:
-   *
-   * ```ts
-   * figma.viewport.canvasView = 'single-asset'
-   * ```
-   *
-   * ### A Note About Asset View:
-   *
-   * We have updated all of the create methods (`figma.createRectangle()`, `figma.createLine()`, etc) so that when the Figma Slides/Buzz file is in Asset View,
-   * they append that node to the focused asset/slide instead of to the canvas. This is to ensure that the node you are creating is viewable by the current user and
-   * not hidden off to the side of the larger grid view.
-   */
-  canvasView: 'grid' | 'single-asset'
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/figma-textreview
- */
-interface TextReviewAPI {
-  /**
-   * This method will request your plugin to be enabled as a text review plugin for the user.
-   * A modal will pop up that will ask the user if they want to enable the plugin for text review.
-   * The promise returned by the function will be resolved if the user accepts in the dialog and will be rejected if the user cancels.
-   * Note that to prevent spam the promise will be auto rejected if the user cancels the request multiple times in a given plugin run.
-   *
-   * ![Dialog box that shows when you call the function](https://static.figma.com/uploads/ee33919763431eb2520074650fddfaa904c7e9c1)
-   */
-  requestToBeEnabledAsync(): Promise<void>
-  /**
-   * This method will disable the plugin as a text review plugin if it is enabled. The promise will resolve if it has been successfully been disabled and reject if it wasn’t enabled in the first place.
-   */
-  requestToBeDisabledAsync(): Promise<void>
-  /**
-   * This property is a readonly boolean that can be used to check if your plugin is enabled as a text review plugin for the user. It will be true if the plugin is enabled, and false if the plugin is disabled.
-   */
-  readonly isEnabled: boolean
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/figma-parameters
- */
-interface ParameterValues {
-  [key: string]: any
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/figma-parameters
@@ -3306,219 +1610,7 @@ interface SuggestionResults {
 /**
  * @see https://developers.figma.com/docs/plugins/api/figma-parameters
  */
-declare type ParameterInputEvent<ParametersType = ParameterValues> = {
-  query: string
-  key: string
-  parameters: Partial<ParametersType>
-  result: SuggestionResults
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/figma-parameters
- */
-interface ParametersAPI {
-  /**
-   * Register a handler for user input events in the quick action UI.
-   */
-  on(type: 'input', callback: (event: ParameterInputEvent) => void): void
-  /**
-   * Register a handler for user input events in the quick action UI. Same as `figma.parameters.on("input")`, but only gets called the first time.
-   */
-  once(type: 'input', callback: (event: ParameterInputEvent) => void): void
-  /**
-   * Removes a handler added via `figma.parameters.on`.
-   */
-  off(type: 'input', callback: (event: ParameterInputEvent) => void): void
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/properties/figma-on
- */
-interface RunParametersEvent<ParametersType = ParameterValues | undefined> {
-  command: string
-  parameters: ParametersType
-}
-interface OpenDevResourcesEvent {
-  command: 'open-dev-resource'
-  parameters?: undefined
-  link: {
-    url: string
-    name: string
-  }
-}
-type RunEvent = RunParametersEvent | OpenDevResourcesEvent
-interface SlidesViewChangeEvent {
-  view: 'GRID' | 'SINGLE_SLIDE'
-}
-/**
- * Event fired when the canvas view mode changes in Figma Slides and Figma Buzz.
- *
- * This event is triggered when users switch between Asset View and Grid View
- * in the Slides or Buzz interface, allowing plugins to respond to view changes.
- */
-interface CanvasViewChangeEvent {
-  /**
-   * The current view mode of the canvas.
-   * - 'SINGLE_ASSET': Focused view on a single slide or asset
-   * - 'GRID': Overview of the entire canvas grid
-   */
-  view: 'SINGLE_ASSET' | 'GRID'
-}
-interface DropEvent {
-  node: BaseNode | SceneNode
-  x: number
-  y: number
-  absoluteX: number
-  absoluteY: number
-  items: DropItem[]
-  files: DropFile[]
-  dropMetadata?: any
-}
-interface DropItem {
-  type: string
-  data: string
-}
-interface DropFile {
-  name: string
-  type: string
-  getBytesAsync(): Promise<Uint8Array>
-  getTextAsync(): Promise<string>
-}
-interface DocumentChangeEvent {
-  /**
-   * An array of {@link DocumentChange} that has happened since the last time the event was fired.
-   */
-  documentChanges: DocumentChange[]
-}
-interface StyleChangeEvent {
-  /**
-   * An array of {@link StyleChange} that has happened since the last time the event was fired.
-   */
-  styleChanges: StyleChange[]
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/StyleChange
- */
-type StyleChange = StyleCreateChange | StyleDeleteChange | StylePropertyChange
-/**
- * @see https://developers.figma.com/docs/plugins/api/DocumentChange
- */
-interface BaseDocumentChange {
-  /**
-   * The id of the node / style that is subject to the document change. The same that is on `node.id` or `style.id`
-   */
-  id: string
-  /**
-   * Where the change originates from. If the change is 'LOCAL' it is from the user running the plugin and if it is 'REMOTE' it is from a different user in the file.
-   */
-  origin: 'LOCAL' | 'REMOTE'
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/DocumentChange
- */
-interface BaseNodeChange extends BaseDocumentChange {
-  /**
-   * The node that changed in the document. If the node has been removed since the event happened this will be a {@link RemovedNode}
-   */
-  node: SceneNode | RemovedNode
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/RemovedNode
- */
-interface RemovedNode {
-  /**
-   * `removed` is set to `true` to distinguish a deleted node from one that is on the document.
-   */
-  readonly removed: true
-  /**
-   * The type of the node before it was removed from the document
-   */
-  readonly type: NodeType
-  /**
-   * The id of the node
-   */
-  readonly id: string
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/DocumentChange
- */
-interface CreateChange extends BaseNodeChange {
-  /**
-   * The string literal "CREATE" representing the type of document change this is. Always check the type before reading other properties.
-   */
-  type: 'CREATE'
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/DocumentChange
- */
-interface DeleteChange extends BaseNodeChange {
-  /**
-   * The string literal "DELETE" representing the type of document change this is. Always check the type before reading other properties.
-   */
-  type: 'DELETE'
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/DocumentChange
- */
-interface PropertyChange extends BaseNodeChange {
-  /**
-   * The string literal "PROPERTY_CHANGE" representing the type of document change this is. Always check the type before reading other properties.
-   */
-  type: 'PROPERTY_CHANGE'
-  /**
-   * Array of properties that have been changed on the node.
-   */
-  properties: NodeChangeProperty[]
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/DocumentChange
- */
-interface BaseStyleChange extends BaseDocumentChange {
-  /**
-   * The style that has been updated in the document. This is null for StyleDeleteChange.
-   */
-  style: BaseStyle | null
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/DocumentChange
- */
-interface StyleCreateChange extends BaseStyleChange {
-  /**
-   * The string literal "STYLE_CREATE" representing the type of document change this is. Always check the type before reading other properties.
-   */
-  type: 'STYLE_CREATE'
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/DocumentChange
- */
-interface StyleDeleteChange extends BaseStyleChange {
-  /**
-   * The string literal "STYLE_DELETE" representing the type of document change this is. Always check the type before reading other properties. In this case, the returned style is null.
-   */
-  type: 'STYLE_DELETE'
-  style: null
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/DocumentChange
- */
-interface StylePropertyChange extends BaseStyleChange {
-  /**
-   * The string literal "STYLE_PROPERTY_CHANGE" representing the type of document change this is. Always check the type before reading other properties.
-   */
-  type: 'STYLE_PROPERTY_CHANGE'
-  /**
-   * Array of properties that have been changed on the node.
-   */
-  properties: StyleChangeProperty[]
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/DocumentChange
- */
-type DocumentChange =
-  | CreateChange
-  | DeleteChange
-  | PropertyChange
-  | StyleCreateChange
-  | StyleDeleteChange
-  | StylePropertyChange
+interface ParametersAPI {}
 /**
  * @see https://developers.figma.com/docs/plugins/api/NodeChangeProperty
  */
@@ -3555,6 +1647,7 @@ type NodeChangeProperty =
   | 'leadingTrim'
   | 'paragraphIndent'
   | 'paragraphSpacing'
+  | 'textWrapStyle'
   | 'listSpacing'
   | 'hangingPunctuation'
   | 'hangingList'
@@ -3649,46 +1742,11 @@ type NodeChangeProperty =
   | 'authorName'
   | 'code'
   | 'textBackground'
-interface NodeChangeEvent {
-  nodeChanges: NodeChange[]
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/NodeChange
- */
-type NodeChange = CreateChange | DeleteChange | PropertyChange
-/**
- * @see https://developers.figma.com/docs/plugins/api/StyleChangeProperty
- */
-type StyleChangeProperty =
-  | 'name'
-  | 'pluginData'
-  | 'type'
-  | 'description'
-  | 'remote'
-  | 'documentationLinks'
-  | 'fontSize'
-  | 'textDecoration'
-  | 'letterSpacing'
-  | 'lineHeight'
-  | 'leadingTrim'
-  | 'paragraphIndent'
-  | 'paragraphSpacing'
-  | 'listSpacing'
-  | 'hangingPunctuation'
-  | 'hangingList'
-  | 'textCase'
-  | 'paint'
-  | 'effects'
-  | 'layoutGrids'
-type TextReviewEvent = {
-  text: string
-}
-type TextReviewRange = {
-  start: number
-  end: number
-  suggestions: string[]
-  color?: 'RED' | 'GREEN' | 'BLUE'
-}
+  | 'gridAutoTracks'
+  | 'gridItemsPositioning'
+  | 'animationStyles'
+  | 'animations'
+  | 'manualKeyframeTracks'
 type Transform = [[number, number, number], [number, number, number]]
 interface Vector {
   readonly x: number
@@ -3719,10 +1777,75 @@ interface RGBA {
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/FontName
+ *
+ * Describes a font used by a text node. For example, the default font is `{ family: "Inter", style: "Regular" }`.
+ *
+ * @remarks
+ *
+ * Reads always include `family` and `style`. For [variable fonts](https://fonts.google.com/knowledge/glossary/variable_fonts), they also include {@link FontName.variationSettings} with every axis the family defines. Static fonts omit `variationSettings`.
+ *
+ * To apply a font without naming a style, pass a {@link FontNameInput} to {@link PluginAPI.loadFontAsync}, {@link BaseNonResizableTextMixin.setRangeFontName}, or `fontName`. Use {@link PluginAPI.getFontFamilyVariationAxes} to discover the axis tags a family accepts.
+ *
+ * ```ts title="Setting a font with custom variation settings"
+ * (async () => {
+ *   const text = figma.createText()
+ *   await figma.loadFontAsync({ family: 'Inter', style: 'Regular' })
+ *   text.fontName = {
+ *     family: 'Inter',
+ *     style: 'Regular',
+ *     variationSettings: { wght: 600, slnt: -5 },
+ *   }
+ *   text.characters = 'Hello, variable fonts!'
+ * })()
+ * ```
  */
 interface FontName {
   readonly family: string
   readonly style: string
+  /**
+   * The variable font axis values applied to the text, for example `{ wght: 600, slnt: -10 }`. Absent for a static font.
+   *
+   * Reading reports every axis the family defines. When setting, an omitted axis keeps the value of the named instance `style` refers to, so `{ wght: 900 }` on Inter Regular changes only the weight and leaves slant at Regular's default. Setting an axis the family does not define throws; use {@link PluginAPI.getFontFamilyVariationAxes} to discover the valid tags.
+   */
+  readonly variationSettings?: FontVariationSettings
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/FontName
+ *
+ * Variable font axis values keyed by [OpenType variation axis](https://fonts.google.com/knowledge/glossary/axis_in_variable_fonts) tag, mirroring the CSS `font-variation-settings` property. A tag is always four ASCII characters.
+ */
+interface FontVariationSettings {
+  readonly [axis: string]: number
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/FontName
+ *
+ * A font to apply where `style` can be inferred rather than named. Unlike {@link FontName}, `style` may be omitted, in which case Figma resolves the named instance that most closely matches {@link FontName.variationSettings}. Reads always return a fully populated {@link FontName}.
+ *
+ * @remarks
+ *
+ * Accepted by {@link PluginAPI.loadFontAsync}, {@link BaseNonResizableTextMixin.setRangeFontName}, and when assigning {@link BaseNonResizableTextMixin.fontName}.
+ *
+ * Omitting `style` in {@link PluginAPI.loadFontAsync} loads every style of the family. Omitting `style` when setting a font lets Figma pick the named instance closest to `variationSettings` (for example `{ family: 'Inter', variationSettings: { wght: 900 } }` resolves to Inter Black).
+ *
+ * ```ts title="Inferring a named instance from variation settings"
+ * (async () => {
+ *   await figma.loadFontAsync({ family: 'Inter' })
+ *   const text = figma.createText()
+ *   text.characters = 'Hello'
+ *   text.setRangeFontName(0, text.characters.length, {
+ *     family: 'Inter',
+ *     variationSettings: { wght: 900 },
+ *   })
+ *   // Read back: { family: 'Inter', style: 'Black', variationSettings: { wght: 900, slnt: 0 } }
+ *   console.log(text.fontName)
+ * })()
+ * ```
+ */
+interface FontNameInput {
+  readonly family: string
+  readonly style?: string
+  readonly variationSettings?: FontVariationSettings
 }
 type TextCase = 'ORIGINAL' | 'UPPER' | 'LOWER' | 'TITLE' | 'SMALL_CAPS' | 'SMALL_CAPS_FORCED'
 type TextDecoration = 'NONE' | 'UNDERLINE' | 'STRIKETHROUGH'
@@ -4146,9 +2269,15 @@ interface NoiseEffectBase {
    */
   readonly blendMode: BlendMode
   /**
-   * The size of the noise effect.
+   * The size of the noise effect. Applies to both axes. When `noiseSizeVector` is set, this value
+   * is always equal to `noiseSizeVector.x`.
    */
   readonly noiseSize: number
+  /**
+   * The size of the noise effect along the x and y axes. When omitted, `noiseSize` applies to both
+   * axes. When provided, its `x` component must equal `noiseSize` or an error is thrown on write.
+   */
+  readonly noiseSizeVector?: Vector
   /**
    * The density of the noise effect.
    */
@@ -4213,9 +2342,16 @@ interface TextureEffect {
    */
   readonly visible: boolean
   /**
-   * The size of the texture effect.
+   * The size of the texture effect. Applies to both axes. When `noiseSizeVector` is set, this value
+   * is always equal to `noiseSizeVector.x`.
    */
   readonly noiseSize: number
+  /**
+   * The size of the texture effect along the x and y axes. When omitted, `noiseSize` applies to
+   * both axes. When provided, its `x` component must equal `noiseSize` or an error is thrown on
+   * write.
+   */
+  readonly noiseSizeVector?: Vector
   /**
    * The radius of the texture effect.
    */
@@ -4271,10 +2407,41 @@ interface GlassEffect {
   readonly boundVariables?: {}
 }
 /**
+ * A shader applied to a node's `effects`.
+ *
+ * @see https://developers.figma.com/docs/plugins/api/Effect
+ */
+interface ShaderEffect {
+  /**
+   * The string literal "SHADER" representing the type of effect this is. Always check the `type` before reading other properties.
+   */
+  readonly type: 'SHADER'
+  /**
+   * Whether this shader effect is visible.
+   */
+  readonly visible: boolean
+  /**
+   * The id of the shader, as returned by {@link PluginAPI.listAvailableShaders} and {@link PluginAPI.importShaderById}. The shader must be imported with {@link PluginAPI.importShaderById} before it can be applied.
+   */
+  readonly id: string
+  /**
+   * The read/write map of property assignments, keyed by property-definition id (the keys of {@link Shader.propertyDefinitions}, not property names). On reads, this is populated with the effect's current assignments, including author-defined defaults, so a plugin can discover the available ids after the shader is applied.
+   */
+  readonly properties?: {
+    [defId: string]: ShaderPropertyValue
+  }
+}
+/**
  * @see https://developers.figma.com/docs/plugins/api/Effect
  */
 type Effect =
-  DropShadowEffect | InnerShadowEffect | BlurEffect | NoiseEffect | TextureEffect | GlassEffect
+  | DropShadowEffect
+  | InnerShadowEffect
+  | BlurEffect
+  | NoiseEffect
+  | TextureEffect
+  | GlassEffect
+  | ShaderEffect
 /**
  * @see https://developers.figma.com/docs/plugins/api/Constraints
  */
@@ -4497,9 +2664,142 @@ interface PatternPaint {
   readonly blendMode?: BlendMode
 }
 /**
+ * A shader applied to a node's `fills` or `strokes`.
+ *
  * @see https://developers.figma.com/docs/plugins/api/Paint
  */
-type Paint = SolidPaint | GradientPaint | ImagePaint | VideoPaint | PatternPaint
+interface ShaderPaint {
+  /**
+   * The string literal "SHADER" representing the type of paint this is. Always check the `type` before reading other properties.
+   */
+  readonly type: 'SHADER'
+  /**
+   * The id of the shader, as returned by {@link PluginAPI.listAvailableShaders} and {@link PluginAPI.importShaderById}. The shader must be imported with {@link PluginAPI.importShaderById} before it can be applied.
+   */
+  readonly id: string
+  /**
+   * The read/write map of property assignments, keyed by property-definition id (the keys of {@link Shader.propertyDefinitions}, not property names). On reads, this is populated with the paint's current assignments, including author-defined defaults, so a plugin can discover the available ids after the shader is applied.
+   */
+  readonly properties?: {
+    [defId: string]: ShaderPropertyValue
+  }
+  readonly visible?: boolean
+  readonly opacity?: number
+  readonly blendMode?: BlendMode
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Paint
+ */
+type Paint = SolidPaint | GradientPaint | ImagePaint | VideoPaint | PatternPaint | ShaderPaint
+/**
+ * A single value assignable to a shader property, read from or written to the `properties` map of a {@link ShaderEffect} or {@link ShaderPaint}. The shape that's valid for a given property depends on that property's declared `type` in its {@link ShaderPropertyDefinition}. A value can always be a variable binding via the standard `VariableAlias` form.
+ *
+ * @see https://developers.figma.com/docs/plugins/api/Shader
+ */
+type ShaderPropertyValue =
+  | boolean
+  | string
+  | number
+  | RGB
+  | RGBA
+  | {
+      x: number
+      y: number
+    }
+  | {
+      x: number
+      y: number
+      x2: number
+      y2: number
+    }
+  | {
+      x: number
+      y: number
+      radius: number
+    }
+  | {
+      x: number
+      y: number
+      radius: number
+      angle: number
+    }
+  | {
+      x: number
+      y: number
+      color: RGB | RGBA | VariableAlias
+    }
+  | {
+      stops: {
+        position: number
+        color: RGB | RGBA | VariableAlias
+      }[]
+    }
+  | VariableAlias
+/**
+ * A read-only description of one property declared by a shader. Surfaced via the `propertyDefinitions` field of a {@link Shader}, keyed by property-definition id.
+ *
+ * @see https://developers.figma.com/docs/plugins/api/Shader
+ */
+interface ShaderPropertyDefinition {
+  /**
+   * The author-defined name of the property.
+   */
+  readonly name: string
+  /**
+   * The declared type of the property. This determines which shape of {@link ShaderPropertyValue} is valid for it. `POINT` corresponds to the editor's "point" property type.
+   */
+  readonly type:
+    | 'BOOLEAN'
+    | 'TEXT'
+    | 'NUMBER'
+    | 'IMAGE'
+    | 'INSTANCE_SWAP'
+    | 'SLOT'
+    | 'COLOR'
+    | 'POINT'
+    | 'LINE'
+    | 'CIRCLE'
+    | 'CIRCLE_POINT'
+    | 'COLOR_POINT'
+    | 'GRADIENT'
+  /**
+   * The author-defined default value for the property, if any.
+   */
+  readonly defaultValue?: ShaderPropertyValue
+  /**
+   * The author-defined description of the property, if any.
+   */
+  readonly description?: string
+}
+/**
+ * A shader available to the current file, as returned by {@link PluginAPI.listAvailableShaders} and {@link PluginAPI.importShaderById}.
+ *
+ * @see https://developers.figma.com/docs/plugins/api/Shader
+ */
+interface Shader {
+  /**
+   * A stable identifier for the shader. The same value round-trips through {@link PluginAPI.importShaderById} and the `id` field of a {@link ShaderEffect} / {@link ShaderPaint} when applying the shader.
+   */
+  readonly id: string
+  /**
+   * The name of the shader.
+   */
+  readonly name: string
+  /**
+   * Whether the shader applies as an effect (`node.effects`) or as a fill (`node.fills` / `node.strokes`).
+   */
+  readonly type: 'effect' | 'fill'
+  /**
+   * Whether the shader has been imported into the file yet. When `false`, call {@link PluginAPI.importShaderById} with this shader's `id` before applying it.
+   */
+  readonly imported: boolean
+  /**
+   * The shader's declared properties, keyed by property-definition id. Populated for imported shaders; may be absent until the shader is imported.
+   */
+  readonly propertyDefinitions?: {
+    [defId: string]: ShaderPropertyDefinition
+  }
+}
 interface Guide {
   readonly axis: 'X' | 'Y'
   readonly offset: number
@@ -4857,6 +3157,10 @@ type LineHeight =
       readonly unit: 'AUTO'
     }
 type LeadingTrim = 'CAP_HEIGHT' | 'NONE'
+/**
+ * @see https://developers.figma.com/docs/plugins/api/TextWrapStyle
+ */
+type TextWrapStyle = 'AUTO' | 'BALANCE' | 'PRETTY'
 type HyperlinkTarget = {
   type: 'URL' | 'NODE'
   value: string
@@ -4918,7 +3222,7 @@ interface StyledTextSegment {
    */
   fontSize: number
   /**
-   * The font family (e.g. "Inter"), and font style (e.g. "Regular").
+   * The font family (e.g. `"Inter"`), font style (e.g. `"Regular"`). For [variable fonts](https://developers.figma.com/docs/plugins/api/FontName), also {@link FontName.variationSettings}.
    */
   fontName: FontName
   /**
@@ -4998,6 +3302,10 @@ interface StyledTextSegment {
    */
   paragraphSpacing: number
   /**
+   * The text wrap style applied to the paragraph.
+   */
+  textWrapStyle: TextWrapStyle
+  /**
    * A HyperlinkTarget if the text node has exactly one hyperlink, or null if the node has none.
    */
   hyperlink: HyperlinkTarget | null
@@ -5034,14 +3342,11 @@ interface TextPathStartData {
   position: number
 }
 type Reaction = {
-  /**
-   * @deprecated Use the `actions` field instead of the `action` field.
-   */
-  action?: Action
   actions?: Action[]
   trigger: Trigger | null
 }
-type VariableDataType = 'BOOLEAN' | 'FLOAT' | 'STRING' | 'VARIABLE_ALIAS' | 'COLOR' | 'EXPRESSION'
+type VariableDataType =
+  'BOOLEAN' | 'COLOR' | 'EASING' | 'EXPRESSION' | 'FLOAT' | 'STRING' | 'TIMING' | 'VARIABLE_ALIAS'
 type ExpressionFunction =
   | 'ADDITION'
   | 'SUBTRACTION'
@@ -5072,13 +3377,6 @@ type ConditionalBlock = {
   condition?: VariableData
   actions: Action[]
 }
-/**
- * @see https://developers.figma.com/docs/plugins/api/DevStatus
- */
-type DevStatus = {
-  type: 'READY_FOR_DEV' | 'COMPLETED'
-  description?: string
-} | null
 /**
  * @see https://developers.figma.com/docs/plugins/api/Action
  */
@@ -5128,10 +3426,6 @@ type Action =
       readonly destinationId: string | null
       readonly navigation: Navigation
       readonly transition: Transition | null
-      /**
-       * @deprecated Use `resetScrollPosition` instead.
-       */
-      readonly preserveScrollPosition?: boolean
       readonly overlayRelativePosition?: Vector
       readonly resetVideoPosition?: boolean
       readonly resetScrollPosition?: boolean
@@ -5228,9 +3522,9 @@ interface EasingFunctionSpring {
   damping: number
   initialVelocity: number
 }
-interface NormalizedSpring {
-  readonly bounce: number
-}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
 interface MotionEasing {
   readonly type:
     | 'EASE_IN'
@@ -5249,6 +3543,328 @@ interface MotionEasing {
     | 'HOLD'
   readonly easingFunctionCubicBezier?: EasingFunctionBezier
   readonly easingFunctionSpring?: NormalizedSpring
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+interface PhysicalSpring {
+  readonly mass: number
+  readonly stiffness: number
+  readonly damping: number
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+interface NormalizedSpring {
+  /**
+   * A normalized bounce value from 0 to 1.
+   */
+  readonly bounce: number
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type AnimationStylePropValue = string | number | boolean | MotionEasing | VariableAlias
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type AvailableAnimationStylePropValue = string
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+interface BaseAnimationStyle {
+  readonly styleId: string
+  readonly name: string
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+interface AvailableAnimationStyle extends BaseAnimationStyle {
+  readonly description?: string
+  readonly props?: {
+    readonly [key: string]: AvailableAnimationStylePropValue
+  }
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+interface AnimationStyleConfiguration {
+  /**
+   * The duration of the applied animation style in seconds.
+   */
+  readonly duration?: number
+  /**
+   * The timeline offset of the applied animation style in seconds.
+   */
+  readonly timelineOffset?: number
+  readonly props?: {
+    readonly [key: string]: AnimationStylePropValue
+  }
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+interface AppliedAnimationStyle extends BaseAnimationStyle, AnimationStyleConfiguration {
+  readonly id: string
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type KeyframeValue =
+  | {
+      readonly type: 'FLOAT'
+      readonly value: number
+    }
+  | {
+      readonly type: 'COLOR'
+      readonly value: RGBA
+    }
+  | {
+      readonly type: 'TEXT_DATA'
+      readonly value: string
+    }
+  | {
+      readonly type: 'VECTOR'
+      readonly value: Vector
+    }
+  | {
+      readonly type: 'BOOL'
+      readonly value: boolean
+    }
+  | {
+      readonly type: 'CIRCLE'
+      readonly value: {
+        readonly x: number
+        readonly y: number
+        readonly radius: number
+      }
+    }
+  | {
+      readonly type: 'LINE'
+      readonly value: {
+        readonly x: number
+        readonly y: number
+        readonly x2: number
+        readonly y2: number
+      }
+    }
+  | {
+      readonly type: 'CIRCLE_POINT'
+      readonly value: {
+        readonly x: number
+        readonly y: number
+        readonly radius: number
+        readonly angle: number
+      }
+    }
+  | {
+      readonly type: 'COLOR_POINT'
+      readonly value: {
+        readonly x: number
+        readonly y: number
+        readonly color: RGBA
+      }
+    }
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+interface ManualKeyframeInput {
+  readonly id?: string
+  /**
+   * The keyframe position on the timeline in seconds.
+   */
+  readonly timelinePosition: number
+  readonly easing?: MotionEasing | VariableAlias
+  readonly value: KeyframeValue
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+interface ManualKeyframeTrackInput {
+  readonly id?: string
+  readonly baseValue?: KeyframeValue
+  readonly keyframes: ReadonlyArray<ManualKeyframeInput>
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+interface ManualKeyframe extends ManualKeyframeInput {
+  readonly id: string
+  readonly easing: MotionEasing | VariableAlias
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+interface ManualKeyframeBinding {
+  readonly id: string
+  readonly baseValue: KeyframeValue
+  readonly keyframes: ReadonlyArray<ManualKeyframe>
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+interface ManualKeyframeTrack {
+  readonly id: string
+  readonly keyframeOperation: 'SET' | 'OFFSET' | 'SCALE'
+  readonly keyframes: ReadonlyArray<ManualKeyframe>
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+interface KeyframeBinding {
+  readonly baseValue: KeyframeValue
+  readonly timelineDuration: number
+  readonly tracks: ReadonlyArray<ManualKeyframeTrack>
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type KeyframePropertyFieldName =
+  | 'CORNER_RADIUS'
+  | 'STROKE_WEIGHT'
+  | 'STACK_SPACING'
+  | 'STACK_PADDING_LEFT'
+  | 'STACK_PADDING_TOP'
+  | 'STACK_PADDING_RIGHT'
+  | 'STACK_PADDING_BOTTOM'
+  | 'WIDTH'
+  | 'HEIGHT'
+  | 'RECTANGLE_TOP_LEFT_CORNER_RADIUS'
+  | 'RECTANGLE_TOP_RIGHT_CORNER_RADIUS'
+  | 'RECTANGLE_BOTTOM_LEFT_CORNER_RADIUS'
+  | 'RECTANGLE_BOTTOM_RIGHT_CORNER_RADIUS'
+  | 'BORDER_TOP_WEIGHT'
+  | 'BORDER_BOTTOM_WEIGHT'
+  | 'BORDER_LEFT_WEIGHT'
+  | 'BORDER_RIGHT_WEIGHT'
+  | 'STACK_COUNTER_SPACING'
+  | 'OPACITY'
+  | 'GRID_ROW_GAP'
+  | 'GRID_COLUMN_GAP'
+  | 'TRANSLATION_X'
+  | 'TRANSLATION_Y'
+  | 'TRANSLATION_XY'
+  | 'ROTATION'
+  | 'SCALE_X'
+  | 'SCALE_Y'
+  | 'SCALE_XY'
+  | 'PATH_TRIM_START'
+  | 'PATH_TRIM_END'
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type EffectKeyframeFieldName =
+  | 'OFFSET_X'
+  | 'OFFSET_Y'
+  | 'RADIUS'
+  | 'SPREAD'
+  | 'COLOR'
+  | 'REFRACTION_RADIUS'
+  | 'SPECULAR_ANGLE'
+  | 'SPECULAR_INTENSITY'
+  | 'CHROMATIC_ABERRATION'
+  | 'SPLAY'
+  | 'REFRACTION_INTENSITY'
+  | 'START_RADIUS'
+  | 'NOISE_SIZE_X'
+  | 'NOISE_SIZE_Y'
+  | 'DENSITY'
+  | 'EFFECT_OPACITY'
+  | 'SECONDARY_COLOR'
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type KeyframeField =
+  | {
+      readonly type: 'PROPERTY'
+      readonly name: KeyframePropertyFieldName
+    }
+  | {
+      readonly type: 'INDEXED_ITEM'
+      readonly collection: 'fills' | 'strokes'
+      readonly index: number
+    }
+  | {
+      readonly type: 'INDEXED_ITEM'
+      readonly collection: 'fills' | 'strokes'
+      readonly index: number
+      readonly propertyId: string
+    }
+  | {
+      readonly type: 'INDEXED_ITEM'
+      readonly collection: 'effects'
+      readonly index: number
+      readonly field: EffectKeyframeFieldName
+    }
+  | {
+      readonly type: 'INDEXED_ITEM'
+      readonly collection: 'effects'
+      readonly index: number
+      readonly propertyId: string
+    }
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type ComponentPropKeyframeTracks = Partial<Record<string, ManualKeyframeBinding>>
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type ComponentPropKeyframeBindings = Partial<Record<string, KeyframeBinding>>
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type PaintManualKeyframeTrack =
+  | ManualKeyframeBinding
+  | {
+      readonly properties: ComponentPropKeyframeTracks
+    }
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type PaintKeyframeBinding =
+  | KeyframeBinding
+  | {
+      readonly properties: ComponentPropKeyframeBindings
+    }
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type EffectManualKeyframeTracks = Partial<
+  Record<EffectKeyframeFieldName, ManualKeyframeBinding>
+> & {
+  readonly properties?: ComponentPropKeyframeTracks
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type EffectKeyframeBindings = Partial<Record<EffectKeyframeFieldName, KeyframeBinding>> & {
+  readonly properties?: ComponentPropKeyframeBindings
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type ManualKeyframeTracks = Partial<Record<KeyframePropertyFieldName, ManualKeyframeBinding>> & {
+  readonly fills?: Partial<Record<number, PaintManualKeyframeTrack>>
+  readonly strokes?: Partial<Record<number, PaintManualKeyframeTrack>>
+  readonly effects?: Partial<Record<number, EffectManualKeyframeTracks>>
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type Animations = Partial<Record<KeyframePropertyFieldName, KeyframeBinding>> & {
+  readonly fills?: Partial<Record<number, PaintKeyframeBinding>>
+  readonly strokes?: Partial<Record<number, PaintKeyframeBinding>>
+  readonly effects?: Partial<Record<number, EffectKeyframeBindings>>
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+interface Timeline {
+  readonly id: string
+  /**
+   * The timeline duration in seconds.
+   */
+  readonly duration: number
 }
 type OverflowDirection = 'NONE' | 'HORIZONTAL' | 'VERTICAL' | 'BOTH'
 /**
@@ -5316,10 +3932,16 @@ type ConnectorStrokeCap =
   | 'TRIANGLE_FILLED'
   | 'DIAMOND_FILLED'
   | 'CIRCLE_FILLED'
+  | 'ERD_ZERO_OR_ONE'
+  | 'ERD_EXACTLY_ONE'
+  | 'ERD_ZERO_OR_MORE'
+  | 'ERD_ONE_OR_MORE'
+  | 'ERD_ONE'
+  | 'ERD_MANY'
 /**
  * @see https://developers.figma.com/docs/plugins/api/node-properties
  */
-interface BaseNodeMixin extends PluginDataMixin, DevResourcesMixin {
+interface BaseNodeMixin extends PluginDataMixin {
   /**
    * The unique identifier of a node. For example, `1:3`. The node id can be used with methods such as {@link PluginAPI.getNodeByIdAsync}, but plugins typically don't need to use this since you can usually just access a node directly.
    *
@@ -5386,75 +4008,6 @@ interface BaseNodeMixin extends PluginDataMixin, DevResourcesMixin {
    */
   remove(): void
   /**
-   * Sets state on the node to show a button and description when the node is selected. Clears the button and description when `relaunchData` is `{}`.
-   *
-   * Note: In Figma and Dev Mode, this shows up in the properties panel. In FigJam, this shows up in the property menu. See [here](https://developers.figma.com/docs/plugins/api/properties/nodes-setrelaunchdata#example-figma-design-ui) for examples.
-   *
-   * @param data -
-   *
-   * ```ts
-   * {
-   *   [command: string]: string // description
-   * }
-   * ```
-   * e.g. `data = { myCommand: 'Short description' }`
-   * @param command - The string that will be passed as `figma.command` when the plugin is run after the button is clicked. This command must be present in the [manifest](https://developers.figma.com/docs/plugins/manifest#relaunchbuttons) under one of the `relaunchButtons`, which is used to look up the name to display for the button.
-   * @param description - Up to three lines of text that will be displayed under the button to provide plugin specific information about the node or any clarification about the action the button will perform. This method will throw if description exceeds 1000 characters, but the UI will display even less (only 3 lines).
-   *
-   * @remarks
-   *
-   * Each call to this method sets entirely new relaunch data, removing any relaunch data and associated buttons/descriptions from before. To maintain buttons from a previous call, store the button information with `setSharedPluginData(namespace, key, value)` and fetch it with `getSharedPluginData(namespace, key)` before passing it on to `setRelaunchData`.
-   *
-   * To use this API, the plugin manifest must include a `relaunchButtons` section: see the [manifest guide](https://developers.figma.com/docs/plugins/manifest#relaunchbuttons) for more information.
-   *
-   * Note: Note that if the `command` passed to this method does not match a command in the manifest, nothing will be displayed. Similarly if the name of a command in the manifest changes or is removed, then all buttons with that command will disappear. This behavior can be used to remove buttons when a particular action is no longer supported by the plugin.
-   *
-   * In Figma design, the relaunch data can also be placed on the {@link PageNode} or {@link DocumentNode}, to show a button and description when nothing is selected. Relaunch buttons added to the {@link PageNode} will be displayed on that page, combined with buttons from the {@link DocumentNode} that show on every page. This is not supported in FigJam.
-   *
-   * ## Examples
-   *
-   * ```ts title="manifest.json"
-   * // With the following in the manifest:
-   * "relaunchButtons": [
-   *   {"command": "edit", "name": "Edit shape"},
-   *   {"command": "open", "name": "Open Shaper", "multipleSelection": true}
-   * ]
-   * ```
-   *
-   * ```ts title="code.ts"
-   * // Add two buttons (ordered by the above array from the manifest):
-   * // * an "Edit shape" button with a description of "Edit this trapezoid
-   * //   with Shaper" that runs the plugin with `figma.command === 'edit'`.
-   * // * an "Open Shaper" button with no description that runs the plugin with
-   * //   `figma.command === 'open'`.
-   * node.setRelaunchData({ edit: 'Edit this trapezoid with Shaper', open: '' })
-   *
-   * // With the following in the manifest:
-   * "relaunchButtons": [
-   *   {"command": "relaunch", "name": "Run again", "multipleSelection": true}
-   * ]
-   *
-   * // Pass an empty description to show only a button
-   * node.setRelaunchData({ relaunch: '' })
-   *
-   * // Remove the button and description
-   * node.setRelaunchData({})
-   * ```
-   *
-   * ### Example Figma Design UI
-   * ![Relaunch UI in Figma Design](https://developers.figma.com/img/plugins/relaunch_ui_design.png)
-   *
-   * ### Example FigJam UI
-   * ![Relaunch UI in FigJam](https://developers.figma.com/img/plugins/relaunch_ui_figjam.png)
-   */
-  setRelaunchData(data: { [command: string]: string }): void
-  /**
-   * Retreives the reluanch data stored on this node using {@link BaseNodeMixin.setRelaunchData}
-   */
-  getRelaunchData(): {
-    [command: string]: string
-  }
-  /**
    * Returns true if Figma detects that a node is an asset, otherwise returns false. An asset is is either an icon or a raster image.
    *
    * This property is useful if you're building a [plugin for code generation](https://developers.figma.com/docs/plugins/codegen-plugins).
@@ -5464,6 +4017,7 @@ interface BaseNodeMixin extends PluginDataMixin, DevResourcesMixin {
   readonly isAsset: boolean
   /**
    * Resolves to a JSON object of CSS properties of the node. This is the same CSS that Figma shows in the inspect panel and is helpful if you are building a [plugin for code generation](https://developers.figma.com/docs/plugins/codegen-plugins).
+   *
    */
   getCSSAsync(): Promise<{
     [key: string]: string
@@ -5480,6 +4034,32 @@ interface BaseNodeMixin extends PluginDataMixin, DevResourcesMixin {
  */
 interface PluginDataMixin {
   /**
+   * Retrieves custom information that was stored on this node or style using {@link PluginDataMixin.setPluginData}. If there is no data stored for the provided key, an empty string is returned.
+   */
+  getPluginData(key: string): string
+  /**
+   * Lets you store custom information on any node or style, **private** to your plugin. The total size of your entry (`pluginId`, `key`, `value`) cannot exceed 100 kB.
+   *
+   * @param key - The key under which to store the data. This is similar to writing to a plain object via `obj[key] = value`.
+   * @param value - The data you want to store. If you want to store a value type other than a string, encode it as a JSON string first via `JSON.stringify` and `JSON.parse`. If you set the value to the empty string (""), the key/value pair is removed.
+   *
+   * @remarks
+   *
+   * The data is specific to your plugin ID. Plugins with other IDs won't be able to read this data. You can retrieve it later by calling `getPluginData` with the same key. To find all data stored on a node or style by your plugin use `getPluginDataKeys`.
+   *
+   * Caution: ⚠ The data is stored privately for **stability**, not **security**. It prevents other plugins from accessing with your data. It does not, however, prevent users from seeing the data given sufficient effort. For example, they could export the document as a .fig file and try to decode it.
+   *
+   * Caution: ⚠ Data will become inaccessible if your plugin ID changes.
+   *
+   *
+   * Caution: ⚠ Total entry size cannot exceed 100 kB.
+   */
+  setPluginData(key: string, value: string): void
+  /**
+   * Retrieves a list of all keys stored on this node or style using using {@link PluginDataMixin.setPluginData}. This enables iterating through all data stored privately on a node or style by your plugin.
+   */
+  getPluginDataKeys(): string[]
+  /**
    * Retrieves custom information that was stored on this node or style using {@link PluginDataMixin.setSharedPluginData}. If there is no data stored for the provided namespace and key, an empty string is returned.
    */
   getSharedPluginData(namespace: string, key: string): string
@@ -5494,7 +4074,7 @@ interface PluginDataMixin {
    *
    * This lets you store custom information on any node or style. You can retrieve it later by calling {@link PluginDataMixin.getSharedPluginData} with the same namespace and key. To find all data stored on a node or style in a particular namespace, use {@link PluginDataMixin.getSharedPluginDataKeys}.
    *
-   * Any data you write using this API will be readable by any plugin. The intent is to allow plugins to interoperate with each other.
+   * Any data you write using this API will be readable by any plugin. The intent is to allow plugins to interoperate with each other. Use {@link PluginDataMixin.setPluginData} instead if you don't want other plugins to be able to read your data.
    *
    * You must also provide a `namespace` argument to avoid key collisions with other plugins. This argument is mandatory to prevent multiple plugins from using generic key names like `data` and overwriting one another. We recommend passing a value that identifies your plugin. This namespace can be given to authors of other plugins so that they can read data from your plugin.
    *
@@ -5509,68 +4089,7 @@ interface PluginDataMixin {
 /**
  * @see https://developers.figma.com/docs/plugins/api/node-properties
  */
-interface DevResourcesMixin {
-  /**
-   *
-   * Gets all of the dev resources on a node. This includes any inherited dev resources from components and component sets.
-   *
-   * @param options - An optional parameter to include getting all of the dev resources on the children of the node. Defaults to false.
-   */
-  getDevResourcesAsync(options?: { includeChildren?: boolean }): Promise<DevResourceWithNodeId[]>
-  /**
-   *
-   * Adds a dev resource to a node. This will fail if the node already has a dev resource with the same url.
-   *
-   * @param url - The url of the dev resource.
-   * @param name - The name of the dev resource. If not provided, Figma will get the name from the url.
-   *
-   */
-  addDevResourceAsync(url: string, name?: string): Promise<void>
-  /**
-   *
-   * Edits a dev resource on a node. This will fail if the node does not have a dev resource with the same url.
-   *
-   * @param currentUrl - The current url of the dev resource.
-   * @param newValue - The new name and/or url of the dev resource.
-   *
-   */
-  editDevResourceAsync(
-    currentUrl: string,
-    newValue: {
-      name?: string
-      url?: string
-    },
-  ): Promise<void>
-  /**
-   *
-   * Deletes a dev resource on a node. This will fail if the node does not have a dev resource with the same url.
-   *
-   * @param url - The url of the dev resource.
-   */
-  deleteDevResourceAsync(url: string): Promise<void>
-  /**
-   *
-   * Caution: This is a private API only available to [Figma partners](https://www.figma.com/partners/)
-   */
-  setDevResourcePreviewAsync(url: string, preview: PlainTextElement): Promise<void>
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/node-properties
- */
-interface DevStatusMixin {
-  /**
-   * Whether the node is marked [ready for development](https://help.figma.com/hc/en-us/articles/15023124644247-Guide-to-Dev-Mode#01H8CR3K6V9S02RK503QCX0367) or [completed](https://help.figma.com/hc/en-us/articles/15023124644247-Guide-to-Dev-Mode#01H8CR3K6V9S02RK503QCX0367).
-   *
-   * There are some restrictions on how `devStatus` can be set:
-   * - Can only be set on a node directly under a page or section
-   * - Cannot be set on a node that is inside another node that already has a `devStatus`
-   */
-  devStatus: DevStatus
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/node-properties
- */
-interface SceneNodeMixin extends ExplicitVariableModesMixin {
+interface SceneNodeMixin extends ExplicitVariableModesMixin, MotionNodeMixin {
   /**
    * Whether the node is visible or not. Does not affect a plugin's ability to access the node.
    *
@@ -5611,6 +4130,8 @@ interface SceneNodeMixin extends ExplicitVariableModesMixin {
   readonly attachedConnectors: ConnectorNode[]
   /**
    * All component properties that are attached on this node. A node can only have `componentPropertyReferences` if it is a component sublayer or an instance sublayer. It will be `null` otherwise. The value in the key-value pair refers to the component property name as returned by `componentPropertyDefinitions` on the containing component, component set or main component (for instances).
+   *
+   * When setting, may throw the following errors: cannotApplySlotPropertyToNonFrameNode, cannotApplySlotPropertyToFrameWithGrid, or cannotApplySlotPropertyToFrame.
    */
   componentPropertyReferences:
     | {
@@ -5619,6 +4140,11 @@ interface SceneNodeMixin extends ExplicitVariableModesMixin {
     | null
   /**
    * The variables bound to a particular field on this node. Please see the [Working with Variables](https://developers.figma.com/docs/plugins/working-with-variables) guide for how to get and set variable bindings.
+   *
+   * @remarks
+   *
+   * On nodes with independent corner radii (e.g. rectangles, frames), a `cornerRadius` binding sets all four corners and appears in `boundVariables` as `topLeftRadius`/`topRightRadius`/`bottomLeftRadius`/`bottomRightRadius` rather than `cornerRadius`; elsewhere it appears as `cornerRadius`.
+   *
    */
   readonly boundVariables?: {
     readonly [field in VariableBindableNodeField]?: VariableAlias
@@ -5634,15 +4160,6 @@ interface SceneNodeMixin extends ExplicitVariableModesMixin {
     }
     readonly textRangeFills?: VariableAlias[]
   }
-  /**
-   * Binds the provided `field` on this node to the given variable. Please see the [Working with Variables](https://developers.figma.com/docs/plugins/working-with-variables) guide for how to get and set variable bindings.
-   *
-   * @deprecated Use `setBoundVariable(VariableBindableNodeField, Variable)` instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   */
-  setBoundVariable(
-    field: VariableBindableNodeField | VariableBindableTextField,
-    variableId: string | null,
-  ): void
   /**
    * Binds the provided `field` on this node to the given variable. Please see the [Working with Variables](https://developers.figma.com/docs/plugins/working-with-variables) guide for how to get and set variable bindings.
    *
@@ -5721,6 +4238,164 @@ interface SceneNodeMixin extends ExplicitVariableModesMixin {
     [collectionId: string]: string
   }
 }
+/**
+ * Motion node properties and methods are available in Beta. This API is subject to change.
+ *
+ * @see https://developers.figma.com/docs/plugins/api/node-properties
+ */
+interface MotionNodeMixin {
+  /**
+   * The Motion animation style instances currently applied to this node.
+   * Their `props` values are the configured property values for this node.
+   *
+   * @remarks
+   * ```ts
+   * const node = figma.currentPage.selection[0]
+   * if (node) {
+   *   for (const style of node.animationStyles) {
+   *     console.log(style.name, style.id, style.props)
+   *   }
+   * }
+   * ```
+   */
+  readonly animationStyles: AppliedAnimationStyle[]
+  /**
+   * All Motion animation keyframes on this node, including keyframes created by animation styles and manual keyframe tracks.
+   *
+   * @remarks
+   * ```ts
+   * const node = figma.currentPage.selection[0]
+   * const translationX = node?.animations.TRANSLATION_X
+   * if (translationX) {
+   *   console.log(translationX.timelineDuration, translationX.tracks)
+   * }
+   * ```
+   */
+  readonly animations: Animations
+  /**
+   * The manual Motion keyframe tracks bound to this node.
+   *
+   * @remarks
+   * ```ts
+   * const node = figma.currentPage.selection[0]
+   * const manualTranslationX = node?.manualKeyframeTracks.TRANSLATION_X
+   * if (manualTranslationX) {
+   *   console.log(manualTranslationX.keyframes)
+   * }
+   * ```
+   */
+  readonly manualKeyframeTracks: ManualKeyframeTracks
+  /**
+   * The Motion timelines that contain this node. Currently this returns the containing top-level frame's timeline.
+   *
+   * @remarks
+   * ```ts
+   * const node = figma.currentPage.selection[0]
+   * if (node) {
+   *   for (const timeline of node.timelines) {
+   *     console.log(timeline.id, timeline.duration)
+   *   }
+   * }
+   * ```
+   */
+  readonly timelines: ReadonlyArray<Timeline>
+  /**
+   * Applies a Motion animation style to this node and returns the applied animation style instance id.
+   *
+   * @param styleId - The `styleId` of the animation style to apply. Use {@link MotionAPI.figmaAnimationStyles} to get available styles.
+   * @param animationStyleData - Optional values used to configure the applied animation style.
+   *
+   * @remarks
+   * ```ts
+   * const node = figma.currentPage.selection[0]
+   * const [style] = figma.motion.figmaAnimationStyles()
+   * if (node && style) {
+   *   const appliedStyleId = node.applyAnimationStyle(style.styleId, {
+   *     duration: 0.4,
+   *     timelineOffset: 0,
+   *     props: {
+   *       direction: 'right',
+   *       distance: 120,
+   *     },
+   *   })
+   *   console.log(appliedStyleId)
+   * }
+   * ```
+   */
+  applyAnimationStyle(styleId: string, animationStyleData?: AnimationStyleConfiguration): string
+  /**
+   * Removes an applied Motion animation style from this node.
+   *
+   * @param id - The applied animation style instance id returned by {@link MotionNodeMixin.applyAnimationStyle} or read from {@link MotionNodeMixin.animationStyles}.
+   *
+   * @remarks
+   * ```ts
+   * const node = figma.currentPage.selection[0]
+   * const [appliedStyle] = node?.animationStyles ?? []
+   * if (node && appliedStyle) {
+   *   node.removeAnimationStyle(appliedStyle.id)
+   * }
+   * ```
+   */
+  removeAnimationStyle(id: string): void
+  /**
+   * Applies or replaces the manual Motion keyframe track for a property, paint, or effect field on this node.
+   *
+   * @param field - The property, paint, or effect field to animate.
+   * @param track - The manual keyframe track to write.
+   *
+   * @remarks
+   * ```ts
+   * const node = figma.currentPage.selection[0]
+   * if (node) {
+   *   node.applyManualKeyframeTrack(
+   *     { type: 'PROPERTY', name: 'TRANSLATION_X' },
+   *     {
+   *       baseValue: { type: 'FLOAT', value: 0 },
+   *       keyframes: [
+   *         { timelinePosition: 0, value: { type: 'FLOAT', value: 0 } },
+   *         { timelinePosition: 0.3, value: { type: 'FLOAT', value: 120 } },
+   *       ],
+   *     },
+   *   )
+   * }
+   * ```
+   */
+  applyManualKeyframeTrack(field: KeyframeField, track: ManualKeyframeTrackInput): void
+  /**
+   * Removes the manual Motion keyframe track for a property, paint, or effect field on this node.
+   *
+   * @param field - The property, paint, or effect field to remove.
+   *
+   * @remarks
+   * ```ts
+   * const node = figma.currentPage.selection[0]
+   * if (node) {
+   *   node.removeManualKeyframeTrack({
+   *     type: 'PROPERTY',
+   *     name: 'TRANSLATION_X',
+   *   })
+   * }
+   * ```
+   */
+  removeManualKeyframeTrack(field: KeyframeField): void
+  /**
+   * Sets the duration, in seconds, for the timeline with the given id.
+   *
+   * @param id - A timeline id read from {@link MotionNodeMixin.timelines}.
+   * @param duration - The new timeline duration in seconds. Must be greater than zero.
+   *
+   * @remarks
+   * ```ts
+   * const node = figma.currentPage.selection[0]
+   * const [timeline] = node?.timelines ?? []
+   * if (node && timeline) {
+   *   node.setTimelineDuration(timeline.id, 1.2)
+   * }
+   * ```
+   */
+  setTimelineDuration(id: string, duration: number): void
+}
 type VariableBindableNodeField =
   | 'height'
   | 'width'
@@ -5731,6 +4406,7 @@ type VariableBindableNodeField =
   | 'paddingTop'
   | 'paddingBottom'
   | 'visible'
+  | 'cornerRadius'
   | 'topLeftRadius'
   | 'topRightRadius'
   | 'bottomLeftRadius'
@@ -5793,6 +4469,9 @@ interface ChildrenMixin {
    * This array can be read like and iterated like a regular array. However, calling this property always returns a new array, and both the property and the new array are read-only.
    *
    * As such, this property cannot be assigned to, and the array cannot be modified directly (it wouldn't do anything). Instead, use {@link ChildrenMixin.appendChild}, {@link ChildrenMixin.insertChild} or {@link BaseNodeMixin.remove}.
+   *
+   * Do not recursively walk the entire document tree by repeatedly reading `children` (for example, a manual DFS/BFS over `node.children`). That pattern is often much slower in large files.
+   * Prefer {@link ChildrenMixin.findAllWithCriteria} when you know the target node types, and use {@link ChildrenMixin.findAll} when you need callback-based logic.
    *
    * Note: If you are curious, the reason why inserting children has to be done via API calls is because our internal representation for the layer tree uses [fractional indexing](https://www.figma.com/blog/multiplayer-editing-in-figma/) and {@link ChildrenMixin.insertChild} performs that conversion.
    */
@@ -5884,7 +4563,7 @@ interface ChildrenMixin {
    *
    * Caution: ⚠ Large documents in Figma can have tens of thousands of nodes. Be careful using this function as it could be very slow.
    * If you only need to search immediate children, it is much faster to call `node.children.filter(callback)` or `node.findChildren(callback)`.
-   * Please refer to our [recommendations](https://developers.figma.com/docs/plugins/accessing-document#optimizing-traversals) for how to optimize document traversals.
+   * Please refer to our [recommendations](https://developers.figma.com/docs/plugins/accessing-document#full-document-traversal) for how to optimize document traversals.
    */
   findAll(callback?: (node: SceneNode) => boolean): SceneNode[]
   /**
@@ -5906,7 +4585,7 @@ interface ChildrenMixin {
    *
    * Caution: ⚠ Large documents in Figma can have tens of thousands of nodes. Be careful using this function as it could be very slow.
    * If you only need to search immediate children, it is much faster to call `node.children.find(callback)` or `node.findChild(callback)`.
-   * Please refer to our [recommendations](https://developers.figma.com/docs/plugins/accessing-document#optimizing-traversals) for how to optimize document traversals.
+   * Please refer to our [recommendations](https://developers.figma.com/docs/plugins/accessing-document#full-document-traversal) for how to optimize document traversals.
    */
   findOne(callback: (node: SceneNode) => boolean): SceneNode | null
   /**
@@ -5917,6 +4596,7 @@ interface ChildrenMixin {
    * @param criteria - An object of type {@link FindAllCriteria} that specifies the search criteria. The following criterias are currently supported:
    * - Nodes with specific {@link NodeType | types}
    * - Nodes with {@link PluginDataMixin.getSharedPluginData | SharedPluginData } by their namespace and keys.
+   * - Nodes with {@link PluginDataMixin.getPluginData | PluginData } by their keys.
    * - A combination of any of the above.
    *
    * @remarks
@@ -5949,6 +4629,23 @@ interface ChildrenMixin {
    * })
    * ```
    *
+   * ### Find by plugin data
+   * ```ts
+   * // Find all nodes in the current page with plugin data
+   * // for the current plugin.
+   * const nodes = figma.currentPage.findAllWithCriteria({
+   *   pluginData: {}
+   * })
+   *
+   * // Find all nodes in the current page with plugin data
+   * // for the current plugin with keys "a" or "b"
+   * const nodes = figma.currentPage.findAllWithCriteria({
+   *   pluginData: {
+   *     keys: ["a", "b"]
+   *   }
+   * })
+   * ```
+   *
    * ### Find by shared plugin data
    * ```ts
    * // Find all nodes in the current page with shared plugin data
@@ -5974,6 +4671,13 @@ interface ChildrenMixin {
    * You can combine multiple criterias for further narrow your search.
    *
    * ```ts
+   * // Find all text nodes in the current page with plugin data
+   * // for the current plugin
+   * const nodes = figma.currentPage.findAllWithCriteria({
+   *   types: ["TEXT"],
+   *   pluginData: {}
+   * })
+   *
    * // Find all text nodes in the current page with shared plugin data
    * // stored on the "bar" namespace
    * const nodes = figma.currentPage.findAllWithCriteria({
@@ -6125,12 +4829,6 @@ interface LayoutMixin
    * The actual bounds of a node accounting for drop shadows, thick strokes, and anything else that may fall outside the node's regular bounding box defined in `x`, `y`, `width`, and `height`. The `x` and `y` inside this property represent the absolute position of the node on the page. This value will be `null` if the node is invisible.
    */
   readonly absoluteRenderBounds: Rect | null
-  /**
-   * When toggled, causes the layer to keep its proportions when the user resizes it via the properties panel.
-   *
-   * @deprecated Use `targetAspectRatio`, `lockAspectRatio`, and `unlockAspectRatio` instead.
-   */
-  constrainProportions: boolean
   /**
    * The rotation of the node in degrees. Returns values from -180 to 180. Identical to `Math.atan2(-m10, m00)` in the {@link DimensionAndPositionMixin.relativeTransform} matrix. When setting `rotation`, it will also set `m00`, `m01`, `m10`, `m11`.
    *
@@ -6391,19 +5089,6 @@ interface ContainerMixin {
    */
   expanded: boolean
 }
-/**
- * @see https://developers.figma.com/docs/plugins/api/node-properties
- */
-interface DeprecatedBackgroundMixin {
-  /**
-   * @deprecated Use `fills` instead.
-   */
-  backgrounds: ReadonlyArray<Paint>
-  /**
-   * @deprecated Use `fillStyleId` instead. This property is read-only if the manifest contains `"documentAccess": "dynamic-page"`.
-   */
-  backgroundStyleId: string
-}
 declare type StrokeCap =
   | 'NONE'
   | 'ROUND'
@@ -6429,6 +5114,8 @@ interface AutoLayoutMixin {
    * As a consequence, note that if a frame has `layoutMode === "NONE"`, calling `layoutMode = "VERTICAL"; layoutMode = "NONE"` does not leave the document unchanged. Removing auto-layout from a frame does not restore the children to their original positions.
    *
    * This property must be set to `"HORIZONTAL"` or `"VERTICAL"` in order for the {@link AutoLayoutMixin.primaryAxisSizingMode}, {@link AutoLayoutMixin.counterAxisSizingMode}, {@link AutoLayoutMixin.layoutWrap}, {@link AutoLayoutMixin.primaryAxisAlignItems}, {@link AutoLayoutMixin.counterAxisAlignItems}, {@link AutoLayoutMixin.counterAxisAlignContent}, {@link AutoLayoutMixin.paddingTop}, {@link AutoLayoutMixin.paddingBottom}, {@link AutoLayoutMixin.paddingLeft}, {@link AutoLayoutMixin.paddingRight}, {@link AutoLayoutMixin.itemSpacing}, {@link AutoLayoutMixin.counterAxisSpacing}, {@link AutoLayoutMixin.itemReverseZIndex}, and {@link AutoLayoutMixin.strokesIncludedInLayout} properties to be applicable.
+   *
+   * Note: `GRID` is not supported for Slot frames, and setting `GRID` will throw a cannotApplyGridToSlot error.
    *
    * ```ts title="Auto-layout frame with horizontal layout"
    * const parentFrame = figma.createFrame()
@@ -6483,14 +5170,6 @@ interface AutoLayoutMixin {
    * Applicable only on auto-layout frames. Determines the bottom padding between the border of the frame and its children.
    */
   paddingBottom: number
-  /**
-   * @deprecated Use `paddingLeft` and `paddingRight` instead.
-   */
-  horizontalPadding: number
-  /**
-   * @deprecated Use `paddingTop` and `paddingBottom` instead.
-   */
-  verticalPadding: number
   /**
    * Applicable only on auto-layout frames. Determines whether the primary axis has a fixed length (determined by the user) or an automatic length (determined by the layout engine).
    *
@@ -6611,7 +5290,9 @@ interface AutoLayoutMixin {
    *
    * - In horizontal auto-layout frames, `“MIN”` and `“MAX”` correspond to left and right respectively.
    * - In vertical auto-layout frames, `“MIN”` and `“MAX”` correspond to top and bottom respectively.
-   * - `“SPACE_BETWEEN”` will cause the children to space themselves evenly along the primary axis, only putting the extra space between the children.
+   * - `“SPACE_BETWEEN”` will space the children evenly along the primary axis, only putting the extra space between the children. The first and last child are flush with the edges of the frame.
+   * - `“SPACE_EVENLY”` will space the children evenly along the primary axis, dividing the extra space equally in the spaces before the first child, between each pair of items, and after the last child.
+   * - `“SPACE_AROUND”` will space the children evenly along the primary axis such that the spacing between each pair of items is equal, and the empty space before the first and after the last child is equal to half the space between items.
    *
    * The corresponding property for the counter axis direction is {@link AutoLayoutMixin.counterAxisAlignItems}.
    *
@@ -6626,47 +5307,68 @@ interface AutoLayoutMixin {
    * parentFrame.resize(300, 100)
    *
    * // Parent frame
-   * // +------------------------------------+
-   * // | +-----------++-----------+         |
-   * // | |           ||           |         |
-   * // | |  Child 1  ||  Child 2  |         |
-   * // | |           ||           |         |
-   * // | +-----------++-----------+         |
-   * // +------------------------------------+
+   * // +--------------------------------------+
+   * // |+-----------++-----------+            |
+   * // ||           ||           |            |
+   * // ||  Child 1  ||  Child 2  |            |
+   * // ||           ||           |            |
+   * // |+-----------++-----------+            |
+   * // +--------------------------------------+
    * parentFrame.primaryAxisAlignItems = 'MIN'
    *
    * // Parent frame
-   * // +------------------------------------+
-   * // |          +-----------++-----------+|
-   * // |          |           ||           ||
-   * // |          |  Child 1  ||  Child 2  ||
-   * // |          |           ||           ||
-   * // |          +-----------++-----------+|
-   * // +------------------------------------+
+   * // +--------------------------------------+
+   * // |            +-----------++-----------+|
+   * // |            |           ||           ||
+   * // |            |  Child 1  ||  Child 2  ||
+   * // |            |           ||           ||
+   * // |            +-----------++-----------+|
+   * // +--------------------------------------+
    * parentFrame.primaryAxisAlignItems = 'MAX'
    *
    * // Parent frame
-   * // +------------------------------------+
-   * // |     +-----------++-----------+     |
-   * // |     |           ||           |     |
-   * // |     |  Child 1  ||  Child 2  |     |
-   * // |     |           ||           |     |
-   * // |     +-----------++-----------+     |
-   * // +------------------------------------+
+   * // +--------------------------------------+
+   * // |      +-----------++-----------+      |
+   * // |      |           ||           |      |
+   * // |      |  Child 1  ||  Child 2  |      |
+   * // |      |           ||           |      |
+   * // |      +-----------++-----------+      |
+   * // +--------------------------------------+
    * parentFrame.primaryAxisAlignItems = 'CENTER'
    *
    * // Parent frame
-   * // +------------------------------------+
-   * // |+-----------+          +-----------+|
-   * // ||           |          |           ||
-   * // ||  Child 1  |          |  Child 2  ||
-   * // ||           |          |           ||
-   * // |+-----------+          +-----------+|
-   * // +------------------------------------+
+   * // +--------------------------------------+
+   * // |+-----------+            +-----------+|
+   * // ||           |            |           ||
+   * // ||  Child 1  |            |  Child 2  ||
+   * // ||           |            |           ||
+   * // |+-----------+            +-----------+|
+   * // +--------------------------------------+
    * parentFrame.primaryAxisAlignItems = 'SPACE_BETWEEN'
+   *
+   * // Parent frame
+   * // +--------------------------------------+
+   * // |    +-----------+    +-----------+    |
+   * // |    |           |    |           |    |
+   * // |----|  Child 1  |----|  Child 2  |----|
+   * // |    |           |    |           |    |
+   * // |    +-----------+    +-----------+    |
+   * // +--------------------------------------+
+   * parentFrame.primaryAxisAlignItems = 'SPACE_EVENLY'
+   *
+   * // Parent frame
+   * // +--------------------------------------+
+   * // |   +-----------+      +-----------+   |
+   * // |   |           |      |           |   |
+   * // |---|  Child 1  |------|  Child 2  |---|
+   * // |   |           |      |           |   |
+   * // |   +-----------+      +-----------+   |
+   * // +--------------------------------------+
+   * parentFrame.primaryAxisAlignItems = 'SPACE_AROUND'
    * ```
    */
-  primaryAxisAlignItems: 'MIN' | 'MAX' | 'CENTER' | 'SPACE_BETWEEN'
+  primaryAxisAlignItems:
+    'MIN' | 'MAX' | 'CENTER' | 'SPACE_BETWEEN' | 'SPACE_EVENLY' | 'SPACE_AROUND'
   /**
    * Applicable only on "HORIZONTAL" or "VERTICAL" auto-layout frames. Determines how the auto-layout frame’s children should be aligned in the counter axis direction.
    *
@@ -6919,6 +5621,48 @@ interface GridTrackSize {
   type: 'FLEX' | 'FIXED' | 'HUG'
 }
 /**
+ * Options for {@link GridLayoutMixin.reorderRows} and {@link GridLayoutMixin.reorderColumns}.
+ * @see https://developers.figma.com/docs/plugins/api/GridTrackReorderOptions
+ */
+interface GridTrackReorderOptions {
+  /**
+   * The indices of the rows or columns (tracks) to move. Does not need to be sorted, contiguous, or deduplicated.
+   * All indices must be within bounds for the current number of rows or columns.
+   */
+  fromIndices: ReadonlyArray<number>
+  /**
+   * The index to insert the selected rows or columns (tracks) at. This is evaluated against the original
+   * row/column order (before the move).
+   *
+   * As an example, take a grid with 4 columns and 2 rows.
+   * fromIndices could be 0 to 3 (inclusive), and insertionIndex could be 0 to 4 (inclusive).
+   *
+   * ```
+   *   0         1         2         3         4 ← possible insertion indices
+   * ---- 0 --- --- 1 --- --- 2 --- --- 3 ----   ← track indices
+   * +-------------------+---------+---------+
+   * |                   |         |         |
+   * |                   |         |         |
+   * +---------+---------+---------+---------+
+   * |         |         |         |         |
+   * |         |         |         |         |
+   * +---------+---------+---------+---------+
+   * ```
+   */
+  insertionIndex: number
+}
+/**
+ * Describes a single row or column (track)'s movement for a call to {@link GridLayoutMixin.reorderRows}
+ *
+ * @see https://developers.figma.com/docs/plugins/api/GridTrackReorderEntry
+ */
+interface GridTrackReorderEntry {
+  /** The original index of the track before the reorder. */
+  from: number
+  /** The new index of the track after the reorder. */
+  to: number
+}
+/**
  * @see https://developers.figma.com/docs/plugins/api/node-properties
  */
 interface GridLayoutMixin {
@@ -6930,6 +5674,9 @@ interface GridLayoutMixin {
    * If the setter for this value is called on a grid with a value less than 1, it will throw an error.
    * Users cannot remove rows from a grid if they are occupied by children, so if you try to reduce the count of rows in a grid and some of those rows have children, it will throw an error.
    * By default, when the row count is increased, the new rows will be added as {@link GridTrackSize} objects with type `"FLEX"`. If you want to change the type of the new rows, you can use the setters on GridTrackSize objects returned by {@link GridLayoutMixin.gridRowSizes} or {@link GridLayoutMixin.gridColumnSizes}.
+   *
+   * Caution: ⚠️ Setting `gridRowCount` will throw an error if {@link GridLayoutMixin.gridAutoTracks} is set to `"ROWS"`, since the row count is managed automatically.
+   * Add or remove children to change the number of rows instead, or set `gridAutoTracks` to `NONE` before setting `gridRowCount`.
    *
    * ```ts title="Grid layout with 2 rows and 3 columns"
    * const parentFrame = figma.createFrame()
@@ -7042,6 +5789,136 @@ interface GridLayoutMixin {
    * ```
    */
   appendChildAt(node: SceneNode, rowIndex: number, columnIndex: number): void
+  /**
+   * Applicable only on auto-layout frames with `layoutMode` set to `"GRID"`.
+   * Controls how the grid handles automatic row creation.
+   *
+   * @remarks
+   * - `"NONE"` (default): the row count is controlled by {@link GridLayoutMixin.gridRowCount},
+   *   but will never go below the number of rows necessary to hold all children in the grid.
+   * - `"ROWS"`: new rows are added automatically as children are appended, and removed when
+   *   a row becomes empty. Setting {@link GridLayoutMixin.gridRowCount} directly will throw
+   *   an error while this is set to `"ROWS"`.
+   *
+   * ```ts title="Grid with automatic rows"
+   * const grid = figma.createFrame()
+   * grid.layoutMode = 'GRID'
+   * grid.gridColumnCount = 3
+   * grid.gridAutoTracks = 'ROWS'
+   *
+   * // The grid starts with 1 row and 3 columns.
+   * // Appending more children than the grid can fit
+   * // automatically adds new rows.
+   * for (let i = 0; i < 7; i++) {
+   *   grid.appendChild(figma.createFrame())
+   * }
+   * // + --- + --- + --- +
+   * // |  1  |  2  |  3  |
+   * // + --- + --- + --- +
+   * // |  4  |  5  |  6  |
+   * // + --- + --- + --- +
+   * // |  7  |     |     |
+   * // + --- + --- + --- +
+   * grid.gridRowCount // 3 (auto-managed)
+   * ```
+   */
+  gridAutoTracks: 'NONE' | 'ROWS'
+  /**
+   * Applicable only on auto-layout frames with `layoutMode` set to `"GRID"`.
+   * Controls how children are positioned within the grid.
+   *
+   * @remarks
+   * - `"MANUAL"` (default): children stay at the grid cell they are placed in. Use
+   *   {@link GridChildrenMixin.setGridChildPosition} or {@link GridLayoutMixin.appendChildAt}
+   *   to position children explicitly.
+   * - `"ROW_AUTO_FLOW"`: children are placed by layer order into the next available cell in
+   *   row-major order (left to right, top to bottom), similar to CSS
+   *   [`grid-auto-flow: row`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-flow).
+   *   Calling {@link GridChildrenMixin.setGridChildPosition} will throw an error in this mode —
+   *   reorder children using {@link ChildrenMixin.insertChild} instead.
+   *
+   * ```ts title="Grid with automatic item positioning"
+   * const grid = figma.createFrame()
+   * grid.layoutMode = 'GRID'
+   * grid.gridColumnCount = 2
+   * grid.gridAutoTracks = 'ROWS'
+   * grid.gridItemsPositioning = 'ROW_AUTO_FLOW'
+   *
+   * const a = figma.createFrame()
+   * const b = figma.createFrame()
+   * const c = figma.createFrame()
+   * grid.appendChild(a)
+   * grid.appendChild(b)
+   * grid.appendChild(c)
+   *
+   * // Children flow automatically:
+   * // + --- + --- +
+   * // |  a  |  b  |
+   * // + --- + --- +
+   * // |  c  |     |
+   * // + --- + --- +
+   * ```
+   */
+  gridItemsPositioning: 'MANUAL' | 'ROW_AUTO_FLOW'
+  /**
+   * Applicable only on auto-layout frames with `layoutMode` set to `"GRID"`.
+   * Moves one or more rows to a new position in the grid, shifting other rows as needed.
+   *
+   * @remarks
+   * If a child in one of the selected rows spans multiple rows, all of those spanned rows
+   * are automatically included in the move. The returned array describes both the input tracks and any
+   * tracks that were added implicitly due to spanning.
+   *
+   * All values in `fromIndices` must be in the range `[0, gridRowCount)` and `insertionIndex`
+   * must be in the range `[0, gridRowCount]`, otherwise an error will be thrown. If an error
+   * is thrown, the grid is left unchanged.
+   *
+   * ```ts title="Moving the first row to the end of the grid"
+   * const grid = figma.createFrame()
+   * grid.layoutMode = 'GRID'
+   * grid.gridRowCount = 3
+   * grid.gridColumnCount = 2
+   *
+   * // Populate the grid
+   * for (let i = 0; i < 6; i++) {
+   *   grid.appendChild(figma.createFrame())
+   * }
+   * // Before:
+   * // + --- + --- +
+   * // |  1  |  2  |  <- row 0
+   * // + --- + --- +
+   * // |  3  |  4  |  <- row 1
+   * // + --- + --- +
+   * // |  5  |  6  |  <- row 2
+   * // + --- + --- +
+   *
+   * const moves = grid.reorderRows({ fromIndices: [0], insertionIndex: 3 })
+   * // After:
+   * // + --- + --- +
+   * // |  3  |  4  |
+   * // + --- + --- +
+   * // |  5  |  6  |
+   * // + --- + --- +
+   * // |  1  |  2  |
+   * // + --- + --- +
+   * // moves => [{ from: 0, to: 2 }, { from: 1, to: 0 }, { from: 2, to: 1 }]
+   * ```
+   */
+  reorderRows(options: GridTrackReorderOptions): ReadonlyArray<GridTrackReorderEntry>
+  /**
+   * Applicable only on auto-layout frames with `layoutMode` set to `"GRID"`.
+   * Moves one or more columns to a new position in the grid, shifting other columns as needed.
+   *
+   * @remarks
+   * If a child in one of the selected columns spans multiple columns, all of those spanned columns
+   * are automatically included in the move.  The returned array describes both the input tracks and
+   * any tracks that were added implicitly due to spanning.
+   *
+   * All values in `fromIndices` must be in the range `[0, gridColumnCount)` and `insertionIndex`
+   * must be in the range `[0, gridColumnCount]`, otherwise an error will be thrown. If an error
+   * is thrown, the grid is left unchanged.
+   */
+  reorderColumns(options: GridTrackReorderOptions): ReadonlyArray<GridTrackReorderEntry>
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/node-properties
@@ -7118,6 +5995,8 @@ interface GridChildrenMixin {
    * The row and column indices are 0-based, where 0 is the top row in the grid, and 0 is the left-most column in the grid.
    * If the specified row or column index is out of bounds, it will throw an error.
    * If the specified row or column index is occupied by another node, it will throw an error.
+   *
+   * Caution: ⚠️ This method will throw an error if the parent grid has {@link GridLayoutMixin.gridItemsPositioning} set to `"ROW_AUTO_FLOW"`, since child positions are managed automatically. Use {@link ChildrenMixin.insertChild} to change the order of children instead.
    * ```ts title="Setting the position of a node in a grid"
    * const grid = figma.createFrame()
    * grid.layoutMode = 'GRID'
@@ -7409,7 +6288,7 @@ interface ScatterBrushProperties {
   gap: number
   /** The amount of random movement applied to brush instances along the stroke path. The minimum value is 0. */
   wiggle: number
-  /** The amount of random size variation applied to brush instances. Ranges from 0 to 3.*/
+  /** The amount of random size variation applied to brush instances. Ranges from 0 to 3. */
   sizeJitter: number
   /** The amount of random angular variation in degrees applied to brush instances. Ranges from -180 to 180. */
   angularJitter: number
@@ -7456,11 +6335,11 @@ type BrushStrokeProperties = StretchBrushProperties | ScatterBrushProperties
 interface DynamicStrokeProperties {
   /** The type of complex stroke. Fixed to 'DYNAMIC'. */
   type: 'DYNAMIC'
-  /** The frequency of the dynamic stroke. Ranges from 0.01 to 20.*/
+  /** The frequency of the dynamic stroke. Ranges from 0.01 to 20. */
   frequency: number
-  /** The amplitude of the wiggles in the dynamic stroke. Minimum value is 0.*/
+  /** The amplitude of the wiggles in the dynamic stroke. Minimum value is 0. */
   wiggle: number
-  /** The amount of smoothing applied to the dynamic stroke. Ranges from 0 to 1.*/
+  /** The amount of smoothing applied to the dynamic stroke. Ranges from 0 to 1. */
   smoothen: number
 }
 /**
@@ -7543,15 +6422,19 @@ interface CornerMixin {
  */
 interface RectangleCornerMixin {
   /**
+   * The radius of the top left corner, in pixels. This value must be non-negative and can be fractional.
    */
   topLeftRadius: number
   /**
+   * The radius of the top right corner, in pixels. This value must be non-negative and can be fractional.
    */
   topRightRadius: number
   /**
+   * The radius of the bottom left corner, in pixels. This value must be non-negative and can be fractional.
    */
   bottomLeftRadius: number
   /**
+   * The radius of the bottom right corner, in pixels. This value must be non-negative and can be fractional.
    */
   bottomRightRadius: number
 }
@@ -7564,13 +6447,11 @@ interface ExportMixin {
    */
   exportSettings: ReadonlyArray<ExportSettings>
   /**
-   * Exports the node as an encoded image.
+   * Exports the node in the format given by `settings`. Image formats (PNG, JPG), PDF, and the video formats (MP4, GIF, WebM) return a `Uint8Array` of the encoded file; `SVG_STRING` returns a string and `JSON_REST_V1` returns an object.
    *
    * If the manifest contains `"documentAccess": "dynamic-page"`, **and** the node is a {@link PageNode}, you must first call {@link PageNode.loadAsync} to access this function.
    *
    * @param settings - When this parameter is absent, this function defaults to exporting as a PNG at 1x resolution.
-   *
-   * Note that the result is a Uint8Array, representing the bytes of the image file (encoded in the specified format).
    *
    * ```ts title="Create a hexagon, export as PNG, and place on canvas"
    * (async () => {
@@ -7624,9 +6505,33 @@ interface ExportMixin {
    *   console.log(json.document)
    * })()
    * ```
+   *
+   * Passing an {@link ExportSettingsMP4}, {@link ExportSettingsGIF}, or {@link ExportSettingsWEBM} exports a video (returned as a `Uint8Array`). The exported node must be a top-level frame (a frame placed directly on a page) whose content is animated; the entire frame is encoded across the animation's duration. Calling video export on any other node — including a nested animated frame, or an individual layer that has keyframes but is not itself a top-level frame — rejects with an error. To export the animation a layer participates in, first resolve its enclosing top-level frame with {@link BaseNodeMixin.getTopLevelFrame}. Video export is only available when running in Figma.
+   *
+   * ```ts title="Export the selected layer's top-level frame as an MP4 and a GIF"
+   * (async () => {
+   *   const frame = figma.currentPage.selection[0]?.getTopLevelFrame()
+   *   if (!frame) {
+   *     figma.notify('Select a frame to export')
+   *     return
+   *   }
+   *
+   *   try {
+   *     // highlight-start
+   *     const mp4 = await frame.exportAsync({ format: 'MP4', fps: 30, quality: 'HIGH' })
+   *     const gif = await frame.exportAsync({ format: 'GIF', fps: 15, loopCount: 0 })
+   *     // highlight-end
+   *   } catch (e) {
+   *     // exportAsync rejects if the frame has no animated content to encode
+   *     figma.notify('This frame has no animation to export')
+   *   }
+   * })()
+   * ```
    */
   exportAsync(settings?: ExportSettings): Promise<Uint8Array>
+
   exportAsync(settings: ExportSettingsSVGString): Promise<string>
+
   exportAsync(settings: ExportSettingsREST): Promise<Object>
 }
 /**
@@ -7903,6 +6808,7 @@ interface PublishableMixin {
   readonly key: string
   /**
    * Gets the status of this style/component in the team library.
+   *
    */
   getPublishStatusAsync(): Promise<PublishStatus>
 }
@@ -7927,7 +6833,6 @@ interface BaseFrameMixin
     SceneNodeMixin,
     ChildrenMixin,
     ContainerMixin,
-    DeprecatedBackgroundMixin,
     GeometryMixin,
     ComplexStrokesMixin,
     CornerMixin,
@@ -7940,8 +6845,7 @@ interface BaseFrameMixin
     AutoLayoutMixin,
     GridLayoutMixin,
     AspectRatioLockMixin,
-    AnnotationsMixin,
-    DevStatusMixin {
+    AnnotationsMixin {
   /**
    * Includes the id (for local components) or key (for library components) of the component the given node was detached from, if any. If the node isn't a detached instance, it will be null. If the node is a component or instance, it will be null.
    */
@@ -8043,7 +6947,6 @@ interface AnnotationsMixin {
    * Annotations on the node.
    *
    * Learn more about annotations in the [Help Center](https://help.figma.com/hc/en-us/articles/20774752502935) or see the [Annotation type](https://developers.figma.com/docs/plugins/api/Annotation) for usage examples.
-   *
    */
   annotations: ReadonlyArray<Annotation>
 }
@@ -8159,65 +7062,13 @@ interface MeasurementsMixin {
    */
   deleteMeasurement(id: string): void
 }
-/**
- * @see https://developers.figma.com/docs/plugins/api/node-properties
- */
-interface VariantMixin {
-  /**
-   * Variant properties and values for this node. Is `null` for nodes that are not variants.
-   *
-   * @remarks
-   *
-   * [Variant properties](https://help.figma.com/hc/en-us/articles/5579474826519#h_01G2Q5GF4407ZTN7K8FHM2JREZ) define attributes of variants in a component set. For example, a component set for a button might have variant properties such as `size` and `state`, with different possible values for each property (e.g. `default`, `hover`, `pressed`, and `disabled` for the `state` property).
-   *
-   * ```ts title="Variant-related properties and methods for component sets, components, and instances"
-   * componentSet.variantGroupProperties
-   *
-   * // Output
-   * {
-   *   Size: {
-   *     values: ['Small', 'Medium', 'Large']
-   *   },
-   *   State: {
-   *     values: ['Default', 'Hover', 'Pressed', 'Disabled']
-   *   }
-   * }
-   *
-   * // One of the variants / component nodes in the component set
-   * componentSet.children[1].variantProperties
-   *
-   * // Output
-   * { Size: 'Small', State: 'Hover' }
-   *
-   * // variantProperties also works on an instances of variants
-   * instance.variantProperties
-   *
-   * // Output
-   * { Size: 'Medium', State: 'Default' }
-   *
-   * // Use setProperties on an instance of a variant to configure it
-   * instance.setProperties({ Size: 'Large' })
-   * instance.variantProperties
-   *
-   * // Output
-   * { Size: 'Large', State: 'Default' }
-   * ```
-   *
-   * @deprecated Use {@link InstanceNode.componentProperties} instead.
-   */
-  readonly variantProperties: {
-    [property: string]: string
-  } | null
-}
 interface ComponentPropertiesMixin {
   /**
-   * All component properties and their default values that exist on this component set or non-variant component. `'VARIANT'` properties will also have a list of all variant options. `'BOOLEAN'`, `'TEXT'`, and `'INSTANCE_SWAP'` properties will have their names suffixed by a unique identifier starting with `'#'`, which is helpful for quickly distinguishing multiple component properties that have the same name in the Figma UI. The entire property name should be used for all Component property-related API methods and properties.
+   * All component properties and their default values that exist on this component set. `'VARIANT'` properties will also have a list of all variant options. `'BOOLEAN'`, `'TEXT'`, and `'INSTANCE_SWAP'` properties will have their names suffixed by a unique identifier starting with `'#'`, which is helpful for quickly distinguishing multiple component properties that have the same name in the Figma UI. The entire property name should be used for all Component property-related API methods and properties.
    *
    * @remarks
    *
    * [Component properties-related properties](https://help.figma.com/hc/en-us/articles/5579474826519-Create-and-use-component-properties) define parts of the component people can change by tying them to specific design properties. You can create component properties for any main component or component set, and apply them to nested layers of the component or variant.
-   *
-   * On a component node, this property can only be read when the component is not a variant. For a variant component whose parent is a component set, read `componentPropertyDefinitions` from the parent component set instead.
    *
    * ```ts title="Component properties-related properties and methods for component sets, components, and instances"
    * componentSet.componentPropertyDefinitions
@@ -8287,7 +7138,7 @@ interface ComponentPropertiesMixin {
    * component.deleteComponentProperty("PrimaryButtonIcon#5:5")
    *
    * // componentPropertyDefinitions and componentProperties work similarly for
-   * // non-variant main components and their instances but will never have 'VARIANT'
+   * // main components and their instances but will never have 'VARIANT'
    * // properties.
    * component.componentPropertyDefinitions
    *
@@ -8368,7 +7219,7 @@ interface ComponentPropertiesMixin {
    */
   readonly componentPropertyDefinitions: ComponentPropertyDefinitions
   /**
-   * Adds a new component property to this node and returns the property name with its unique identifier suffixed. This function supports properties with type `'BOOLEAN'`, `'TEXT'`, `'INSTANCE_SWAP'` or `'VARIANT'`.
+   * Adds a new component property to this node and returns the property name with its unique identifier suffixed. This function supports properties with type `'BOOLEAN'`, `'TEXT'`, `'INSTANCE_SWAP'`, `'VARIANT'`, or `'SLOT'`.
    */
   addComponentProperty(
     propertyName: string,
@@ -8379,11 +7230,13 @@ interface ComponentPropertiesMixin {
   /**
    * Modifies the name, default value, or preferred values of an existing component property on this node and returns the property name with its unique identifier suffixed.
    *
-   * This function supports properties with type `'BOOLEAN'`, `'TEXT'`, `'INSTANCE_SWAP'`, or `'VARIANT'` with the following restrictions:
+   * This function supports properties with type `'BOOLEAN'`, `'TEXT'`, `'INSTANCE_SWAP'`, `'VARIANT'`, or `'SLOT'` with the following restrictions:
    *
    * - `name` is supported for all properties
-   * - `defaultValue` is supported for `'BOOLEAN'`, `'TEXT'`, and `'INSTANCE_SWAP'` properties, but not for `'VARIANT'` properties
-   * - `preferredValues` is only supported for `'INSTANCE_SWAP'` properties
+   * - `defaultValue` is supported for `'BOOLEAN'`, `'TEXT'`, and `'INSTANCE_SWAP'` properties, but not for `'VARIANT'` or `'SLOT'` properties
+   * - `preferredValues` is only supported for `'INSTANCE_SWAP'` and `'SLOT'` properties
+   * - `description` is only supported for `'SLOT'` properties
+   * - `slotSettings` is only supported for `'SLOT'` properties
    */
   editComponentProperty(
     propertyName: string,
@@ -8391,10 +7244,12 @@ interface ComponentPropertiesMixin {
       name?: string
       defaultValue?: string | boolean | VariableAlias
       preferredValues?: InstanceSwapPreferredValue[]
+      description?: string
+      slotSettings?: SlotSettings
     },
   ): string
   /**
-   * Deletes an existing component property on this node. This function only supports properties with type `'BOOLEAN'`, `'TEXT'`, or `'INSTANCE_SWAP'`.
+   * Deletes an existing component property on this node. This function only supports properties with type `'BOOLEAN'`, `'TEXT'`, `'INSTANCE_SWAP'` or `'SLOT'`.
    */
   deleteComponentProperty(propertyName: string): void
 }
@@ -8411,7 +7266,26 @@ interface BaseNonResizableTextMixin {
    */
   fontSize: number | PluginAPI['mixed']
   /**
-   * The font family (e.g. "Inter"), and font style (e.g. "Regular"). Setting this property to a different value requires the new font to be loaded.
+   * The font family (e.g. `"Inter"`), font style (e.g. `"Regular"`). For [variable fonts](https://developers.figma.com/docs/plugins/api/FontName), also {@link FontName.variationSettings}. Setting this property to a different value requires the new font to be loaded.
+   *
+   * @remarks
+   *
+   * When reading, `variationSettings` is populated only when the font is a variable font, and includes every axis the family defines (not just overrides). Returns `figma.mixed` when the text node has more than one font, or when variation settings differ across character ranges.
+   *
+   * When writing, pass a {@link FontName} or {@link FontNameInput}. Omit `style` to let Figma pick the named instance closest to `variationSettings`. Supply `variationSettings` to override specific axes; keys must match the family's axis tags (see {@link PluginAPI.getFontFamilyVariationAxes}). An omitted axis keeps the named instance's default.
+   *
+   * ```ts title="Set a variable font with custom weight"
+   * (async () => {
+   *   const text = figma.createText()
+   *   await figma.loadFontAsync({ family: 'Inter', style: 'Regular' })
+   *   text.fontName = {
+   *     family: 'Inter',
+   *     style: 'Regular',
+   *     variationSettings: { wght: 650 },
+   *   }
+   *   text.characters = 'Almost bold'
+   * })()
+   * ```
    */
   fontName: FontName | PluginAPI['mixed']
   /**
@@ -8501,19 +7375,36 @@ interface BaseNonResizableTextMixin {
    */
   setRangeFontSize(start: number, end: number, value: number): void
   /**
-   * Get the `fontName` from characters in range `start` (inclusive) to `end` (exclusive).
+   * Get the `fontName` from characters in range `start` (inclusive) to `end` (exclusive). For [variable fonts](https://developers.figma.com/docs/plugins/api/FontName), the returned {@link FontName} includes {@link FontName.variationSettings}. Returns `figma.mixed` when the range contains more than one font or when variation settings differ.
    */
   getRangeFontName(start: number, end: number): FontName | PluginAPI['mixed']
   /**
    * Set the `fontName` from characters in range `start` (inclusive) to `end` (exclusive). Requires the new font to be loaded.
+   *
+   * @remarks
+   *
+   * Accepts a {@link FontNameInput}. Pass `variationSettings` to override specific axes of a [variable font](https://developers.figma.com/docs/plugins/api/FontName). Omit `style` to let Figma pick the named instance closest to `variationSettings`.
+   *
+   * ```ts title="Override weight on a character range"
+   * (async () => {
+   *   const text = figma.createText()
+   *   await figma.loadFontAsync({ family: 'Inter' })
+   *   text.characters = 'Hello world'
+   *   text.setRangeFontName(0, 5, {
+   *     family: 'Inter',
+   *     style: 'Regular',
+   *     variationSettings: { wght: 700 },
+   *   })
+   * })()
+   * ```
    */
-  setRangeFontName(start: number, end: number, value: FontName): void
+  setRangeFontName(start: number, end: number, value: FontNameInput): void
   /**
    * Get the `fontWeight` from characters in range `start` (inclusive) to `end` (exclusive).
    */
   getRangeFontWeight(start: number, end: number): number | PluginAPI['mixed']
   /**
-   * Get the `fontName`s from characters in range `start` (inclusive) to `end` (exclusive).
+   * Get the `fontName`s from characters in range `start` (inclusive) to `end` (exclusive). For [variable fonts](https://developers.figma.com/docs/plugins/api/FontName), each entry includes {@link FontName.variationSettings}.
    */
   getRangeAllFontNames(start: number, end: number): FontName[]
   /**
@@ -8570,12 +7461,6 @@ interface BaseNonResizableTextMixin {
    */
   setRangeTextStyleIdAsync(start: number, end: number, styleId: string): Promise<void>
   /**
-   * Set the `textStyleId` from characters in range `start` (inclusive) to `end` (exclusive). Requires the font to be loaded.
-   *
-   * @deprecated Use `setRangeTextStyleIdAsync` instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   */
-  setRangeTextStyleId(start: number, end: number, value: string): void
-  /**
    * Get the `fillStyleId` from characters in range `start` (inclusive) to `end` (exclusive).
    */
   getRangeFillStyleId(start: number, end: number): string | PluginAPI['mixed']
@@ -8583,12 +7468,6 @@ interface BaseNonResizableTextMixin {
    * Set the provided {@link PaintStyle} as a fill to characters in range `start` (inclusive) to `end` (exclusive).
    */
   setRangeFillStyleIdAsync(start: number, end: number, styleId: string): Promise<void>
-  /**
-   * Set the `fillStyleId` from characters in range `start` (inclusive) to `end` (exclusive). Requires the font to be loaded.
-   *
-   * @deprecated Use `setRangeFillStyleIdAsync` instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   */
-  setRangeFillStyleId(start: number, end: number, value: string): void
   /**
    * Get the `boundVariable` for a given field from characters in range `start` (inclusive) to `end` (exclusive).
    */
@@ -8776,15 +7655,125 @@ interface NonResizableTextMixin extends BaseNonResizableTextMixin {
   /**
    * The indentation of paragraphs (offset of the first line from the left). Setting this property requires the font the be loaded.
    */
-  paragraphIndent: number
+  paragraphIndent: number | PluginAPI['mixed']
   /**
    * The vertical distance between paragraphs. Setting this property requires the font to be loaded.
+   *
+   * @remarks
+   *
+   * **Working with Paragraph Level Fields**
+   *
+   * ```ts
+   * const text = figma.createText()
+   * await figma.loadFontAsync({ family: 'Inter', style: 'Regular' })
+   *
+   * // Create text with two paragraphs, separated by \n
+   * text.characters = "hello figma, welcome to my plugin!\nI love the Figma Plugin API!"
+   * text.resize(120, 30)
+   * text.textAutoResize = 'HEIGHT'
+   *
+   * // Apply 20px paragraph spacing - all paragraphs covered by the provided text range will be
+   * // modified, and remaining paragraphs will be untouched.
+   * text.setRangeParagraphSpacing(0, 1, 20)
+   * // text.paragraphSpacing = Symbol(figma.mixed)
+   * // text.getStyledTextSegments(['paragraphSpacing']) =
+   * //    [
+   * //      {
+   * //        "characters": "hello figma, welcome to my plugin!\n",
+   * //        "start": 0,
+   * //        "end": 35,
+   * //        "paragraphSpacing": 20
+   * //      },
+   * //      {
+   * //        "characters": "I love the Figma Plugin API!",
+   * //        "start": 35,
+   * //        "end": 63,
+   * //        "paragraphSpacing": 0
+   * //      }
+   * //    ]
+   *
+   * text.setRangeTextWrapStyle(38, 39, 'BALANCE')
+   * // text.textWrapStyle = Symbol(figma.mixed)
+   * // text.getStyledTextSegments(['textWrapStyle']) =
+   * //    [
+   * //      {
+   * //        "characters": "hello figma, welcome to my plugin!\n",
+   * //        "start": 0,
+   * //        "end": 35,
+   * //        "textWrapStyle": "AUTO"
+   * //      },
+   * //      {
+   * //        "characters": "I love the Figma Plugin API!",
+   * //        "start": 35,
+   * //        "end": 63,
+   * //        "textWrapStyle": "BALANCE"
+   * //      }
+   * //    ]
+   * ```
+   *
    */
-  paragraphSpacing: number
+  paragraphSpacing: number | PluginAPI['mixed']
+  /**
+   * Controls how text wraps within each paragraph. Setting this property requires the font to be loaded.
+   *
+   * @remarks
+   *
+   * **Working with Paragraph Level Fields**
+   *
+   * ```ts
+   * const text = figma.createText()
+   * await figma.loadFontAsync({ family: 'Inter', style: 'Regular' })
+   *
+   * // Create text with two paragraphs, separated by \n
+   * text.characters = "hello figma, welcome to my plugin!\nI love the Figma Plugin API!"
+   * text.resize(120, 30)
+   * text.textAutoResize = 'HEIGHT'
+   *
+   * // Apply 20px paragraph spacing - all paragraphs covered by the provided text range will be
+   * // modified, and remaining paragraphs will be untouched.
+   * text.setRangeParagraphSpacing(0, 1, 20)
+   * // text.paragraphSpacing = Symbol(figma.mixed)
+   * // text.getStyledTextSegments(['paragraphSpacing']) =
+   * //    [
+   * //      {
+   * //        "characters": "hello figma, welcome to my plugin!\n",
+   * //        "start": 0,
+   * //        "end": 35,
+   * //        "paragraphSpacing": 20
+   * //      },
+   * //      {
+   * //        "characters": "I love the Figma Plugin API!",
+   * //        "start": 35,
+   * //        "end": 63,
+   * //        "paragraphSpacing": 0
+   * //      }
+   * //    ]
+   *
+   * text.setRangeTextWrapStyle(38, 39, 'BALANCE')
+   * // text.textWrapStyle = Symbol(figma.mixed)
+   * // text.getStyledTextSegments(['textWrapStyle']) =
+   * //    [
+   * //      {
+   * //        "characters": "hello figma, welcome to my plugin!\n",
+   * //        "start": 0,
+   * //        "end": 35,
+   * //        "textWrapStyle": "AUTO"
+   * //      },
+   * //      {
+   * //        "characters": "I love the Figma Plugin API!",
+   * //        "start": 35,
+   * //        "end": 63,
+   * //        "textWrapStyle": "BALANCE"
+   * //      }
+   * //    ]
+   * ```
+   *
+   */
+  textWrapStyle: TextWrapStyle | PluginAPI['mixed']
   /**
    * The vertical distance between lines of a list.
    */
-  listSpacing: number
+  listSpacing: number | PluginAPI['mixed']
   /**
    * Whether punctuation, like quotation marks, hangs outside the text box.
    */
@@ -8933,6 +7922,14 @@ interface NonResizableTextMixin extends BaseNonResizableTextMixin {
    * Set the `paragraphSpacing` for a paragraph containing characters in range `start` (inclusive) to `end` (exclusive).
    */
   setRangeParagraphSpacing(start: number, end: number, value: number): void
+  /**
+   * Get the `textWrapStyle` for a paragraph containing characters in range `start` (inclusive) to `end` (exclusive).
+   */
+  getRangeTextWrapStyle(start: number, end: number): TextWrapStyle | PluginAPI['mixed']
+  /**
+   * Set the `textWrapStyle` for a paragraph containing characters in range `start` (inclusive) to `end` (exclusive). Requires the font to be loaded.
+   */
+  setRangeTextWrapStyle(start: number, end: number, value: TextWrapStyle): void
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/TextPathNode
@@ -9013,7 +8010,7 @@ interface DocumentNode extends BaseNodeMixin {
    * ```
    *
    * Caution: ⚠ Large documents in Figma can have tens of thousands of nodes. Be careful using this function as it could be very slow.
-   * Please refer to our [recommendations](https://developers.figma.com/docs/plugins/accessing-document#optimizing-traversals) for how to optimize document traversals.
+   * Please refer to our [recommendations](https://developers.figma.com/docs/plugins/accessing-document#full-document-traversal) for how to optimize document traversals.
    */
   findAll(callback?: (node: PageNode | SceneNode) => boolean): Array<PageNode | SceneNode>
   /**
@@ -9036,7 +8033,7 @@ interface DocumentNode extends BaseNodeMixin {
    * ```
    *
    * Caution: ⚠ Large documents in Figma can have tens of thousands of nodes. Be careful using this function as it could be very slow.
-   * Please refer to our [recommendations](https://developers.figma.com/docs/plugins/accessing-document#optimizing-traversals) for how to optimize document traversals.
+   * Please refer to our [recommendations](https://developers.figma.com/docs/plugins/accessing-document#full-document-traversal) for how to optimize document traversals.
    */
   findOne(callback: (node: PageNode | SceneNode) => boolean): PageNode | SceneNode | null
   /**
@@ -9078,21 +8075,9 @@ interface ExplicitVariableModesMixin {
   /**
    * Clears an explicit mode for the given collection on this node
    *
-   * @deprecated Use `clearExplicitVariableModeForCollection(VariableCollection)` instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   * */
-  clearExplicitVariableModeForCollection(collectionId: string): void
-  /**
-   * Clears an explicit mode for the given collection on this node
-   *
    * @param collection - A variable collection. Make sure to pass a collection object here; passing a variable collection ID is deprecated.
    */
   clearExplicitVariableModeForCollection(collection: VariableCollection): void
-  /**
-   * Sets an explicit mode for the given collection on this node
-   *
-   * @deprecated Use `setExplicitVariableModeForCollection(VariableCollection, Variable)` instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   */
-  setExplicitVariableModeForCollection(collectionId: string, modeId: string): void
   /**
    * Sets an explicit mode for the given collection on this node
    *
@@ -9193,71 +8178,13 @@ interface PageNode
    */
   readonly prototypeStartNode: FrameNode | GroupNode | ComponentNode | InstanceNode | null
   /**
-   * Returns true if the node is a page divider, which is only possible when the page node is empty and has a page divider name. A page divider name consists of all asterisks, all en dashes, all em dashes, or all spaces.
+   * Returns true if the node is a page divider, which is only possible when the page node is empty and has a page divider name. A page divider name consists of all asterisks, all en dashes, all em dashes, or all spaces. To create a page divider, use {@link PluginAPI.createPageDivider} or rename an empty page to a page divider name.
    */
-  isPageDivider: boolean
+  readonly isPageDivider: boolean
   /**
    * Loads the contents of the page node.
    */
   loadAsync(): Promise<void>
-  /**
-   * Registers a callback that will be invoked when an event occurs on the page. Current supported events are:
-   *
-   * - `"nodechange"`: Emitted when a node is added, removed, or updated.
-   *
-   * @param type - The type of event to listen for.
-   * @param callback - The callback to be invoked when the event occurs.
-   *
-   * @remarks
-   *
-   * ## Available event types
-   *
-   * ### `"nodechange"`
-   *
-   * This event will be emitted when a node on the page is added, removed, or updated.
-   *
-   * The callback will receive a NodeChangeEvent with the below interface:
-   *
-   * ```ts
-   * interface NodeChangeEvent {
-   *   nodeChanges: NodeChange[]
-   * }
-   * ```
-   *
-   * There are 3 different {@link NodeChange} types. Each of these changes has a `type` property to distinguish them:
-   *
-   * | Change | `type` property | Description |
-   * | --- | --- | --- |
-   * | [`CreateChange`](https://developers.figma.com/docs/plugins/api/NodeChange#createchange) | `'CREATE'` | A node has been created in the page. If a node with nested children is being added to the page a `CreateChange` will only be made for the highest level parent that was added to the page. |
-   * | [`DeleteChange`](https://developers.figma.com/docs/plugins/api/NodeChange#deletechange) | `'DELETE'` | A node has been removed from the page. If a node with nested children is being removed from the page a  `DeleteChange`  will only be made for the highest level parent that was removed from the page. |
-   * | [`PropertyChange`](https://developers.figma.com/docs/plugins/api/NodeChange#propertychange) | `'PROPERTY_CHANGE'` | A property of a node has changed. |
-   */
-  on(type: 'nodechange', callback: (event: NodeChangeEvent) => void): void
-  /**
-   * Same as {@link PageNode.on}, but the callback will only be called once, the first time the specified event happens.
-   */
-  once(type: 'nodechange', callback: (event: NodeChangeEvent) => void): void
-  /**
-   * Removes a callback added with {@link PageNode.on} or {@link PageNode.once}.
-   *
-   * @remarks
-   *
-   * The callback needs to be the same object that was originally added. For example, you can do this:
-   *
-   * ```ts title="Correct way to remove a callback"
-   * let fn = () => { console.log("nodechange") }
-   * page.on("nodechange", fn)
-   * page.off("nodechange", fn)
-   * ```
-   *
-   * whereas the following won't work, because the function objects are different:
-   *
-   * ```ts title="Incorrect way to remove a callback"
-   * page.on("nodechange", () => { console.log("nodechange") })
-   * page.off("nodechange", () => { console.log("nodechange") })
-   * ```
-   */
-  off(type: 'nodechange', callback: (event: NodeChangeEvent) => void): void
   /**
    *
    * Note: This API is only available in Figma Slides
@@ -9275,13 +8202,17 @@ interface PageNode
   focusedSlide?: SlideNode | null
   /**
    *
-   * Note: This API is only available in Figma Slides and Figma Buzz
+   * Note: This API is only available in Figma Slides, Figma Buzz, and Dev Mode.
    *
-   * When in Asset View, the Slide/Asset that is currently focused is accessible via this property.
+   * For Figma Slides and Figma Buzz:
+   * When in Asset View, this is the focused slide or asset.
+   *
+   * For Dev Mode:
+   * This is the node currently focused in Dev Mode focus view. This property is read-only in Dev Mode.
    *
    * @remarks
    *
-   * You can also set this via:
+   * In Figma Slides and Figma Buzz, you can also set this via:
    *
    * ```ts
    * figma.currentPage.focusedNode = node
@@ -9306,7 +8237,6 @@ interface GroupNode
     ReactionMixin,
     ChildrenMixin,
     ContainerMixin,
-    DeprecatedBackgroundMixin,
     BlendMixin,
     LayoutMixin,
     ExportMixin,
@@ -9330,7 +8260,6 @@ interface TransformGroupNode
     ReactionMixin,
     ChildrenMixin,
     ContainerMixin,
-    DeprecatedBackgroundMixin,
     BlendMixin,
     LayoutMixin,
     ExportMixin,
@@ -9609,7 +8538,7 @@ interface TextPathNode
 /**
  * @see https://developers.figma.com/docs/plugins/api/ComponentPropertyType
  */
-type ComponentPropertyType = 'BOOLEAN' | 'TEXT' | 'INSTANCE_SWAP' | 'VARIANT'
+type ComponentPropertyType = 'BOOLEAN' | 'TEXT' | 'INSTANCE_SWAP' | 'VARIANT' | 'SLOT'
 /**
  * @see https://developers.figma.com/docs/plugins/api/InstanceSwapPreferredValue
  */
@@ -9617,11 +8546,20 @@ type InstanceSwapPreferredValue = {
   type: 'COMPONENT' | 'COMPONENT_SET'
   key: string
 }
+type SlotSettings = {
+  stretchChildOnInsert?: boolean
+  displayEmptyByDefault?: boolean
+  minChildren?: number | null
+  maxChildren?: number | null
+  allowPreferredValuesOnly?: boolean
+}
 /**
  * @see https://developers.figma.com/docs/plugins/api/ComponentPropertyOptions
  */
 type ComponentPropertyOptions = {
   preferredValues?: InstanceSwapPreferredValue[]
+  description?: string
+  slotSettings?: SlotSettings
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/ComponentPropertyDefinitions
@@ -9632,8 +8570,10 @@ type ComponentPropertyDefinitions = {
     defaultValue: string | boolean
     preferredValues?: InstanceSwapPreferredValue[]
     variantOptions?: string[]
+    description?: string
+    slotSettings?: SlotSettings
     readonly boundVariables?: {
-      [field in VariableBindableComponentPropertyField]?: VariableAlias
+      [field in VariableBindableComponentPropertyDefinitionField]?: VariableAlias
     }
   }
 }
@@ -9650,20 +8590,11 @@ interface ComponentSetNode extends BaseFrameMixin, PublishableMixin, ComponentPr
    * The default variant of this component set, which is the top-left-most variant, spatially. This corresponds to the variant that would be inserted when dragging in a component set from the team library in the Figma UI.
    */
   readonly defaultVariant: ComponentNode
-  /**
-   * @deprecated Use `componentPropertyDefinitions` instead.
-   */
-  readonly variantGroupProperties: {
-    [property: string]: {
-      values: string[]
-    }
-  }
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/ComponentNode
  */
-interface ComponentNode
-  extends DefaultFrameMixin, PublishableMixin, VariantMixin, ComponentPropertiesMixin {
+interface ComponentNode extends DefaultFrameMixin, PublishableMixin, ComponentPropertiesMixin {
   /**
    * The type of this node, represented by the string literal "COMPONENT"
    */
@@ -9677,15 +8608,13 @@ interface ComponentNode
    */
   createInstance(): InstanceNode
   /**
+   * Creates a new slot node within this component.
+   */
+  createSlot(): SlotNode
+  /**
    * Returns an array of all of the instances of this component in the document.
    */
   getInstancesAsync(): Promise<InstanceNode[]>
-  /**
-   * Returns an array of all of the instances of this component in the document.
-   *
-   * @deprecated Use {@link ComponentNode.getInstancesAsync} instead. Accessing this property will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   */
-  readonly instances: InstanceNode[]
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/ComponentProperties
@@ -9700,7 +8629,7 @@ type ComponentProperties = {
     }
   }
 }
-interface InstanceNode extends DefaultFrameMixin, VariantMixin {
+interface InstanceNode extends DefaultFrameMixin {
   /**
    * The type of this node, represented by the string literal "INSTANCE"
    */
@@ -9728,7 +8657,7 @@ interface InstanceNode extends DefaultFrameMixin, VariantMixin {
    */
   swapComponent(componentNode: ComponentNode): void
   /**
-   * Sets the component properties and values for this instance. `propertyName` corresponds to the names returned by `componentPropertyDefinitions` and should be suffixed with `'#'` and a unique ID for `'TEXT'`, `'BOOLEAN'`, and `'INSTANCE_SWAP'` properties. In the case of name collision, this function prioritizes updating the `'VARIANT'` type properties. Existing properties that are non-specified in the function will maintain their current value.
+   * Sets the component properties and values for this instance. `propertyName` corresponds to the names returned by `componentPropertyDefinitions` and should be suffixed with `'#'` and a unique ID for `'TEXT'`, `'BOOLEAN'`, and `'INSTANCE_SWAP'` properties. Does not support `'SLOT'` properties and will throw `cannotSetSlotProperty`. In the case of name collision, this function prioritizes updating the `'VARIANT'` type properties. Existing properties that are non-specified in the function will maintain their current value.
    */
   setProperties(properties: { [propertyName: string]: string | boolean | VariableAlias }): void
   /**
@@ -9764,14 +8693,34 @@ interface InstanceNode extends DefaultFrameMixin, VariantMixin {
     overriddenFields: NodeChangeProperty[]
   }[]
   /**
-   * Resets all direct overrides on this instance.
-   * @deprecated Use `removeOverrides` instead.
-   */
-  resetOverrides(): void
-  /**
    * Removes all direct overrides on this instance.
    */
   removeOverrides(): void
+}
+interface SlotNode extends DefaultFrameMixin {
+  /**
+   * The type of this node, represented by the string literal "SLOT"
+   */
+  readonly type: 'SLOT'
+  /**
+   * Create a copy of this node. By default, the duplicate will be parented under `figma.currentPage`.
+   * The clone is returned as a plain `FrameNode` rather than a `SlotNode`, because slots are
+   * defined by a component property reference that only makes sense inside their parent component.
+   */
+  clone(): FrameNode
+  /**
+   * Resets a given slot node to the original component slot content.
+   */
+  resetSlot(): void
+  /**
+   * The set of limits, configured on the corresponding `'SLOT'` component property's {@link SlotSettings}, that the current contents of this slot violate. Returns an empty array when within limits. Multiple kinds may be present simultaneously (e.g. `['BELOW_MIN', 'HAS_NON_PREFERRED']`), since `HAS_NON_PREFERRED` is independent of the child count. `BELOW_MIN` and `ABOVE_MAX` are mutually exclusive.
+   *
+   * - `'BELOW_MIN'`: the slot has fewer children than its configured `minChildren`.
+   * - `'ABOVE_MAX'`: the slot has more children than its configured `maxChildren`.
+   * - `'HAS_NON_PREFERRED'`: the slot contains a child that is not in the property's preferred values, while `allowPreferredValuesOnly` is `true`.
+   *
+   */
+  readonly limitViolations: Array<'BELOW_MIN' | 'ABOVE_MAX' | 'HAS_NON_PREFERRED'>
 }
 interface BooleanOperationNode
   extends
@@ -9830,13 +8779,6 @@ interface StampNode
    * Duplicates the node. By default, the duplicate will be parented under `figma.currentPage`.
    */
   clone(): StampNode
-  /**
-   * Fetches the name, id, and photoUrl of the user that created the Stamp. Note that this can return null
-   * if the stamp was created before July 2022 or if the user is currently not connected to the internet.
-   *
-   * `fileusers` must be specified in the permissions array in `manifest.json` to access this function.
-   */
-  getAuthorAsync(): Promise<BaseUser | null>
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/TableNode
@@ -9947,9 +8889,13 @@ interface TableCellNode extends MinimalFillsMixin {
    * The column index of this cell relative to its parent table.
    */
   readonly columnIndex: number
+
   readonly toString: string
+
   readonly parent: TableNode
+
   readonly height: number
+
   readonly width: number
 }
 interface HighlightNode
@@ -10148,7 +9094,7 @@ interface ConnectorNode extends OpaqueNodeMixin, MinimalBlendMixin, MinimalStrok
    */
   clone(): ConnectorNode
 }
-type VariableResolvedDataType = 'BOOLEAN' | 'COLOR' | 'FLOAT' | 'STRING' | 'TIMING' | 'EASING'
+type VariableResolvedDataType = 'BOOLEAN' | 'COLOR' | 'EASING' | 'FLOAT' | 'STRING' | 'TIMING'
 interface VariableAlias {
   type: 'VARIABLE_ALIAS'
   id: string
@@ -10550,58 +9496,6 @@ interface WidgetNode extends OpaqueNodeMixin, StickableMixin {
    * Create an identical copy of this WidgetNode. By default, the duplicate will be parented under `figma.currentPage`.
    */
   clone(): WidgetNode
-  /**
-   * Create a copy of this WidgetNode while overriding specific synced state & synced map values for the widget.
-   * Overrides are only applied if a widget is cloning itself or other widgets created by the same `manifest.id`.
-   * @param syncedStateOverrides - synced state values to override in the new WidgetNode.
-   *
-   * Each key/value pair in this object will override the corresponding `useSyncedState(<key>)` value.
-   *
-   * Similar to [`WidgetNode.clone`](https://developers.figma.com/docs/plugins/api/WidgetNode#clone), the duplicate will be parented under
-   * `figma.currentPage`. If you are relying on the x, y or the relativeTransform of the original widget, make sure
-   * to account for the case where the original widget is parented under a different node (eg. a section).
-   *
-   * @param syncedMapOverrides - synced maps to override in the new WidgetNode.
-   *
-   * Each key in this object will override the entire corresponding `useSyncedMap(<key>)` value if specified.
-   *
-   * Caution: NOTE: every key in `syncedMapOverrides` will override the entire corresponding synced map, deleting all existing keys in the map. If you wish to preserve some of the keys in the map, you'll need to explicitly specify them in the override.
-   *
-   * For more information, check out [this page in our widget documentation](https://figma.com/widget-docs/managing-multiple-widgets#widgetnodeclonewidget).
-   */
-  cloneWidget(
-    syncedStateOverrides: {
-      [name: string]: any
-    },
-    syncedMapOverrides?: {
-      [mapName: string]: {
-        [key: string]: any
-      }
-    },
-  ): WidgetNode
-  /**
-   * Sets the entire synced state and synced map values for a widget. This function only sets the synced state for widgets with a matching `node.widgetId` (an instance of the same widget). This means that running this function only works inside of a widget.
-   * @param syncedState - synced state values to set in the WidgetNode.
-   * @param syncedMap - synced map values to set in the WidgetNode.
-   *
-   * @remarks
-   *
-   * Prior to setting the synced state, the existing synced state is cleared. This means the synced state values will replace the existing synced state. This behaves differently than `node.cloneWidget()` which will only override the passed in synced state and synced map values and preserve the others. Callers should explicitly pass in entire synced state and synced map objects. You can use [node.widgetSyncedState](https://figma.com/widget-docs/managing-multiple-widgets/#widgetnodewidgetsyncedstate) to get the current synced state.
-   *
-   * If you try to set the synced state for a widget with a different version of the same widget, that widget will automatically update to match the running widget's version. This ensures that the synced state values you set will always be compatible with the widget. A side effect of this is that a widget may get downgraded to a lower version.
-   *
-   * To get a list of other widgets with the same `widgetId`, check out [findWidgetNodesByWidgetId](https://developers.figma.com/docs/plugins/api/properties/nodes-findwidgetnodesbywidgetid).
-   */
-  setWidgetSyncedState(
-    syncedState: {
-      [name: string]: any
-    },
-    syncedMap?: {
-      [mapName: string]: {
-        [key: string]: any
-      }
-    },
-  ): void
 }
 interface EmbedData {
   /**
@@ -10725,7 +9619,14 @@ interface MediaNode extends OpaqueNodeMixin {
  * @see https://developers.figma.com/docs/plugins/api/SectionNode
  */
 interface SectionNode
-  extends ChildrenMixin, MinimalFillsMixin, OpaqueNodeMixin, DevStatusMixin, AspectRatioLockMixin {
+  extends
+    ChildrenMixin,
+    MinimalFillsMixin,
+    OpaqueNodeMixin,
+    AspectRatioLockMixin,
+    MinimalStrokesMixin,
+    CornerMixin,
+    RectangleCornerMixin {
   /**
    * The type of this node, represented by the string literal "SECTION"
    */
@@ -10782,9 +9683,8 @@ interface SlideNode extends BaseFrameMixin {
    */
   isSkippedSlide: boolean
   /**
-   * Read and set the speaker notes for this slide as a markdown string. See
-   * the figma-use-slides skill's slide-properties reference for the full
-   * list of supported and unsupported markdown formatting.
+   * Read and set the slide's speaker notes as Markdown. Empty when the slide has
+   * no speaker notes.
    */
   speakerNotes: string
 }
@@ -10925,6 +9825,7 @@ type SceneNode =
   | SlideNode
   | SlideRowNode
   | SlideGridNode
+  | SlotNode
   | InteractiveSlideElementNode
 /**
  * @see https://developers.figma.com/docs/plugins/api/node-types
@@ -10957,17 +9858,12 @@ interface BaseStyleMixin extends PublishableMixin, PluginDataMixin {
    * The unique identifier of the style in the document the plugin is executing from. You can assign this value via `setFillStyleIdAsync`, `setStrokeStyleIdAsync`, `setTextStyleIdAsync`, etc. to make the node properties reflect that of the style node.
    */
   readonly id: string
+
   readonly type: StyleType
   /**
    * The consumers of this style. The `fields` in `StyleConsumers` refers to the field where the style is applied (e.g. a PaintStyle can be applied in `setFillStyleIdAsync` or `setStrokeStyleIdAsync`).
    */
   getStyleConsumersAsync(): Promise<StyleConsumers[]>
-  /**
-   * The consumers of this style. The `fields` in `StyleConsumers` refers to the field where the style is applied (e.g. a PaintStyle can be applied in `setFillStyleIdAsync` or `setStrokeStyleIdAsync`).
-   *
-   * @deprecated Use `getStyleConsumersAsync` instead. Accessing this property will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
-   */
-  readonly consumers: StyleConsumers[]
   /**
    * The name of the style node. Note that setting this also sets "autoRename" to false on {@link TextNode}.
    */
@@ -11007,7 +9903,7 @@ interface TextStyle extends BaseStyleMixin {
    */
   textDecoration: TextDecoration
   /**
-   * Value to replace the text {@link BaseNonResizableTextMixin.fontName} with.
+   * Value to replace the text {@link BaseNonResizableTextMixin.fontName} with. For [variable fonts](https://developers.figma.com/docs/plugins/api/FontName), this includes {@link FontName.variationSettings}.
    */
   fontName: FontName
   /**
@@ -11030,6 +9926,10 @@ interface TextStyle extends BaseStyleMixin {
    * Value to replace the text {@link NonResizableTextMixin.paragraphSpacing} with.
    */
   paragraphSpacing: number
+  /**
+   * Value to replace the text {@link NonResizableTextMixin.textWrapStyle} with.
+   */
+  textWrapStyle: TextWrapStyle
   /**
    * Value to replace the text {@link NonResizableTextMixin.listSpacing} with.
    */
@@ -11112,65 +10012,6 @@ interface Image {
     height: number
   }>
 }
-interface Video {
-  /**
-   * A unique hash of the contents of the video file.
-   */
-  readonly hash: string
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/BaseUser
- */
-interface BaseUser {
-  /**
-   * The user's id. `id` will be automatically generated users in workshop mode.
-   * `id` will also be automatically generated for the current user if they are not logged in.
-   * For other non-logged in users, this value will be null.
-   */
-  readonly id: string | null
-  /**
-   * The user's name. `name` will be 'Anonymous' for non-logged in users.
-   */
-  readonly name: string
-  /**
-   * The user's photo URL. `photoUrl` will be automatically generated users in workshop mode.
-   * `photoUrl` will also be automatically generated for the current user if they are not logged in.
-   * For other non-logged in users, this value will be null.
-   */
-  readonly photoUrl: string | null
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/User
- */
-interface User extends BaseUser {
-  /**
-   * The current user's multiplayer color. This will match the color of their dot stamps and cursor.
-   */
-  readonly color: string
-  /**
-   * The user's session id. This is guaranteed to be unique among active users.
-   * For example, if a user with the same `id` opens a file in different tabs,
-   * each `User` will have a unique `sessionId`.
-   */
-  readonly sessionId: number
-}
-/**
- * @see https://developers.figma.com/docs/plugins/api/ActiveUser
- */
-interface ActiveUser extends User {
-  /**
-   * Cursor position of the user on the canvas. If the user's mouse is not on the canvas, this value is `null`.
-   */
-  readonly position: Vector | null
-  /**
-   * The bounds of the canvas that is currently visible on-screen for the active user.
-   */
-  readonly viewport: Rect
-  /**
-   * The node IDs the user has selected.
-   */
-  readonly selection: string[]
-}
 /**
  * @see https://developers.figma.com/docs/plugins/api/FindAllCriteria
  */
@@ -11184,6 +10025,25 @@ interface FindAllCriteria<T extends NodeType[]> {
    * ```
    */
   types?: T
+  /**
+   * If specified, the search will match nodes that have {@link PluginDataMixin.getPluginData | PluginData} stored for your plugin.
+   *
+   * ```ts
+   * // Find children that have plugin data stored.
+   * node.findAllWithCriteria({ pluginData: {} })
+   *
+   * // Find children that have plugin data stored with keys
+   * // "a" or "b"
+   * node.findAllWithCriteria({
+   *   pluginData: {
+   *     keys: ["a", "b"]
+   *   }
+   * })
+   * ```
+   */
+  pluginData?: {
+    keys?: string[]
+  }
   /**
    * If specified, the search will match nodes that have {@link PluginDataMixin.getSharedPluginData | SharedPluginData} stored on the given `namespace` and `keys`.
    *
@@ -11214,12 +10074,12 @@ interface FindAllCriteria<T extends NodeType[]> {
 /**
  * @see https://developers.figma.com/docs/plugins/api/TransformModifier
  */
-interface TransformModifier {}
+type TransformModifier = LinearRepeatModifier | RadialRepeatModifier
 /**
  * @see https://developers.figma.com/docs/plugins/api/TransformModifier
  * Base interface for repeat transform modifiers.
  */
-interface RepeatModifier extends TransformModifier {
+interface RepeatModifier {
   /** Type of transform modifier. Currently, only 'REPEAT' is supported. */
   type: 'REPEAT'
   /** Number of times to repeat the children. */
@@ -11247,105 +10107,85 @@ interface RadialRepeatModifier extends RepeatModifier {
   /** Type of repeat modifier. */
   repeatType: 'RADIAL'
 }
-
-// ============================================================
-// Additional APIs (available via use_figma)
-// ============================================================
-
-/**
- * Result returned by node.query(). Iterable with for...of.
- */
-interface QueryResult {
-  /** Number of matched nodes */
+/** Result returned by node.query(). */
+interface QueryResult extends Iterable<SceneNode> {
   readonly length: number
-  /** First matched node, or null */
   first(): SceneNode | null
-  /** Last matched node, or null */
   last(): SceneNode | null
-  /** Convert to regular array */
   toArray(): SceneNode[]
-  /** Iterate with callback. Returns this for chaining. */
   each(callback: (node: SceneNode, index: number) => void): QueryResult
-  /** Map to new array */
   map<T>(callback: (node: SceneNode, index: number) => T): T[]
-  /** Filter to new QueryResult */
   filter(callback: (node: SceneNode, index: number) => boolean): QueryResult
-  /** Extract property values from all matched nodes */
   values(keys: string[]): Record<string, unknown>[]
-  /** Set properties on all matched nodes */
   set(props: Record<string, unknown>): QueryResult
-  /** Sub-query within matched nodes */
   query(selector: string): QueryResult
-  [Symbol.iterator](): Iterator<SceneNode>
 }
-
-/**
- * Options for node.screenshot()
- */
 interface ScreenshotOptions {
-  /** Export scale. Default: 0.5 (auto-capped so max output dimension ≤ 1024px). */
+  /** Defaults to 0.5 and is capped to a 1024px maximum dimension. */
   scale?: number
-  /** When false, includes overlapping content from sibling nodes. Default: true. */
+  /** Include overlapping content from sibling nodes when false. */
   contentsOnly?: boolean
 }
-
-// Additional node methods
 interface BaseNodeMixin {
   /**
-   * Set multiple properties at once. Returns this for chaining.
-   * Priority keys (e.g. layoutMode) are applied first regardless of object key order.
-   * width/height are routed through resize() automatically.
-   *
-   * @example
-   * node.set({ opacity: 0.5, cornerRadius: 8, name: "Card" })
+   * Set multiple properties and return this node.
    */
   set(props: Record<string, unknown>): this
-
   /**
-   * CSS-like selector query within this node's subtree.
-   * Selector syntax: type (FRAME, TEXT), [attr=val], >, :first-child, :nth-child(n), comma unions.
-   *
-   * @example
-   * frame.query('TEXT[name=Title]')
-   * figma.currentPage.query('FRAME[name^=Card] > TEXT')
+   * Query this node's subtree with a CSS-like selector.
    */
   query(selector: string): QueryResult
-
   /**
-   * Test if this node matches a CSS-like selector.
+   * Test whether this node matches a CSS-like selector.
    */
   matches(selector: string): boolean
-
+}
+interface SceneNodeMixin {
   /**
-   * Capture a PNG screenshot of this node and return it inline in the response.
+   * Export this node as a PNG and write the result to figma.io for inspection.
    *
-   * @example
-   * await frame.screenshot()                          // default scale
-   * await frame.screenshot({ scale: 2 })              // hi-res
-   * await frame.screenshot({ contentsOnly: false })   // include overlapping content
+   * @param settings Screenshot options, if applicable
    */
-  screenshot(options?: ScreenshotOptions): Promise<void>
-
+  screenshot(settings?: ScreenshotOptions): Promise<void>
   /**
-   * Show/hide a shimmer overlay on this node indicating work in progress.
+   * Show or hide the in-progress shimmer overlay.
    */
   placeholder: boolean
+  /**
+   * Generates a pretty-printed string representation of the node tree with
+   * indentation for nested children.
+   *
+   * @param options - The options for the tree. `fields` is an array of fields to include for each node, and supports path projection.
+   *
+   */
+  tree(options?: { maxDepth?: number; maxChildren?: number; fields?: string[] }): string
 }
-
-// Additional figma.* APIs
 interface PluginAPI {
-  /** File I/O namespace for writing images and data. */
+  /**
+   * Write output files to the tool response.
+   */
   readonly io: {
     /**
-     * Write a file (.png, .json, .csv). For images, data should be a Uint8Array from exportAsync().
-     *
-     * @example
-     * const bytes = await node.exportAsync({ format: 'PNG' })
-     * figma.io.write('screenshot.png', bytes)
+     * Write image or data output to the tool response.
      */
     write(path: string, data: Uint8Array | string): void
   }
 }
+interface PageNode {
+  /**
+   * Computes optimal placement bounds for a new top-level node,
+   * avoiding collisions with existing nodes on the page.
+   *
+   * Only callable on the current page — throws if called on a
+   * non-active page reference.
+   *
+   * @param size - The size of the node to be placed
+   *
+   * @returns The bounds of where the node should be placed if it can be placed
+   *   without collision, null otherwise.
+   */
+  findPlacement(size: { width: number; height: number }): Rect | null
+}
 
 // prettier-ignore
-export { ArgFreeEventType, PluginAPI, VersionHistoryResult, VariablesAPI, LibraryVariableCollection, LibraryVariable, AnnotationsAPI, BuzzAPI, BuzzTextField, BuzzMediaField, BuzzAssetType, TeamLibraryAPI, PaymentStatus, PaymentsAPI, ClientStorageAPI, NotificationOptions, NotifyDequeueReason, NotificationHandler, ShowUIOptions, UIPostMessageOptions, OnMessageProperties, MessageEventHandler, UIAPI, UtilAPI, ColorPalette, ColorPalettes, ConstantsAPI, CodegenEvent, CodegenPreferences, CodegenPreferencesEvent, CodegenResult, CodegenAPI, DevResource, DevResourceWithNodeId, LinkPreviewEvent, PlainTextElement, LinkPreviewResult, AuthEvent, DevResourceOpenEvent, AuthResult, VSCodeAPI, DevResourcesAPI, TimerAPI, ViewportAPI, TextReviewAPI, ParameterValues, SuggestionResults, ParameterInputEvent, ParametersAPI, RunParametersEvent, OpenDevResourcesEvent, RunEvent, SlidesViewChangeEvent, CanvasViewChangeEvent, DropEvent, DropItem, DropFile, DocumentChangeEvent, StyleChangeEvent, StyleChange, BaseDocumentChange, BaseNodeChange, RemovedNode, CreateChange, DeleteChange, PropertyChange, BaseStyleChange, StyleCreateChange, StyleDeleteChange, StylePropertyChange, DocumentChange, NodeChangeProperty, NodeChangeEvent, NodeChange, StyleChangeProperty, TextReviewEvent, TextReviewRange, Transform, Vector, Rect, RGB, RGBA, FontName, TextCase, TextDecoration, TextDecorationStyle, FontStyle, TextDecorationOffset, TextDecorationThickness, TextDecorationColor, OpenTypeFeature, ArcData, DropShadowEffect, InnerShadowEffect, BlurEffectBase, BlurEffectNormal, BlurEffectProgressive, BlurEffect, NoiseEffectBase, NoiseEffectMonotone, NoiseEffectDuotone, NoiseEffectMultitone, NoiseEffect, TextureEffect, GlassEffect, Effect, ConstraintType, Constraints, ColorStop, ImageFilters, SolidPaint, GradientPaint, ImagePaint, VideoPaint, PatternPaint, Paint, Guide, RowsColsLayoutGrid, GridLayoutGrid, LayoutGrid, ExportSettingsConstraints, ExportSettingsImage, ExportSettingsSVGBase, ExportSettingsSVG, ExportSettingsSVGString, ExportSettingsPDF, ExportSettingsREST, ExportSettings, WindingRule, VectorVertex, VectorSegment, VectorRegion, VectorNetwork, VectorPath, VectorPaths, LetterSpacing, LineHeight, LeadingTrim, HyperlinkTarget, TextListOptions, BlendMode, MaskType, Font, TextStyleOverrideType, StyledTextSegment, TextPathStartData, Reaction, VariableDataType, ExpressionFunction, Expression, VariableValueWithExpression, VariableData, ConditionalBlock, DevStatus, Action, SimpleTransition, DirectionalTransition, Transition, Trigger, Navigation, Easing, EasingFunctionBezier, EasingFunctionSpring, OverflowDirection, OverlayPositionType, OverlayBackground, OverlayBackgroundInteraction, PublishStatus, ConnectorEndpointPosition, ConnectorEndpointPositionAndEndpointNodeId, ConnectorEndpointEndpointNodeIdAndMagnet, ConnectorEndpoint, ConnectorStrokeCap, BaseNodeMixin, PluginDataMixin, DevResourcesMixin, DevStatusMixin, SceneNodeMixin, VariableBindableNodeField, VariableBindableTextField, VariableBindablePaintField, VariableBindablePaintStyleField, VariableBindableColorStopField, VariableBindableEffectField, VariableBindableEffectStyleField, VariableBindableLayoutGridField, VariableBindableGridStyleField, VariableBindableComponentPropertyField, VariableBindableComponentPropertyDefinitionField, StickableMixin, ChildrenMixin, ConstraintMixin, DimensionAndPositionMixin, LayoutMixin, AspectRatioLockMixin, BlendMixin, ContainerMixin, DeprecatedBackgroundMixin, StrokeCap, StrokeJoin, HandleMirroring, AutoLayoutMixin, GridTrackSize, GridLayoutMixin, AutoLayoutChildrenMixin, GridChildrenMixin, InferredAutoLayoutResult, DetachedInfo, MinimalStrokesMixin, IndividualStrokesMixin, MinimalFillsMixin, VariableWidthPoint, PresetVariableWidthStrokeProperties, CustomVariableWidthStrokeProperties, VariableWidthStrokeProperties, ComplexStrokeProperties, ScatterBrushProperties, StretchBrushProperties, BrushStrokeProperties, DynamicStrokeProperties, GeometryMixin, ComplexStrokesMixin, CornerMixin, RectangleCornerMixin, ExportMixin, FramePrototypingMixin, VectorLikeMixin, ReactionMixin, DocumentationLink, PublishableMixin, DefaultShapeMixin, BaseFrameMixin, DefaultFrameMixin, OpaqueNodeMixin, MinimalBlendMixin, Annotation, AnnotationProperty, AnnotationPropertyType, AnnotationsMixin, Measurement, MeasurementSide, MeasurementOffset, MeasurementsMixin, VariantMixin, ComponentPropertiesMixin, BaseNonResizableTextMixin, NonResizableTextMixin, NonResizableTextPathMixin, TextSublayerNode, DocumentNode, ExplicitVariableModesMixin, PageNode, FrameNode, GroupNode, TransformGroupNode, SliceNode, RectangleNode, LineNode, EllipseNode, PolygonNode, StarNode, VectorNode, TextNode, TextPathNode, ComponentPropertyType, InstanceSwapPreferredValue, ComponentPropertyOptions, ComponentPropertyDefinitions, ComponentSetNode, ComponentNode, ComponentProperties, InstanceNode, BooleanOperationNode, StickyNode, StampNode, TableNode, TableCellNode, HighlightNode, WashiTapeNode, ShapeWithTextNode, CodeBlockNode, LabelSublayerNode, ConnectorNode, VariableResolvedDataType, VariableAlias, VariableValue, VariableScope, CodeSyntaxPlatform, Variable, VariableCollection, ExtendedVariableCollection, AnnotationCategoryColor, AnnotationCategory, WidgetNode, EmbedData, EmbedNode, LinkUnfurlData, LinkUnfurlNode, MediaData, MediaNode, SectionNode, SlideNode, SlideRowNode, SlideGridNode, InteractiveSlideElementNode, SlideTransition, BaseNode, SceneNode, NodeType, StyleType, InheritedStyleField, StyleConsumers, BaseStyleMixin, PaintStyle, TextStyle, EffectStyle, GridStyle, BaseStyle, Image, Video, BaseUser, User, ActiveUser, FindAllCriteria, TransformModifier, RepeatModifier, LinearRepeatModifier, RadialRepeatModifier }
+export { PluginAPI, VariablesAPI, LibraryVariableCollection, LibraryVariable, AnnotationsAPI, BuzzTextField, BuzzMediaField, TeamLibraryAPI, MotionAPI, UtilAPI, ViewportAPI, SuggestionResults, ParametersAPI, NodeChangeProperty, Transform, Vector, Rect, RGB, RGBA, FontName, FontVariationSettings, FontNameInput, TextCase, TextDecoration, TextDecorationStyle, FontStyle, TextDecorationOffset, TextDecorationThickness, TextDecorationColor, OpenTypeFeature, ArcData, DropShadowEffect, InnerShadowEffect, BlurEffectBase, BlurEffectNormal, BlurEffectProgressive, BlurEffect, NoiseEffectBase, NoiseEffectMonotone, NoiseEffectDuotone, NoiseEffectMultitone, NoiseEffect, TextureEffect, GlassEffect, ShaderEffect, Effect, ConstraintType, Constraints, ColorStop, ImageFilters, SolidPaint, GradientPaint, ImagePaint, VideoPaint, PatternPaint, ShaderPaint, Paint, ShaderPropertyValue, ShaderPropertyDefinition, Shader, Guide, RowsColsLayoutGrid, GridLayoutGrid, LayoutGrid, ExportSettingsConstraints, ExportSettingsImage, ExportSettingsSVGBase, ExportSettingsSVG, ExportSettingsSVGString, ExportSettingsPDF, ExportSettingsREST, ExportSettings, WindingRule, VectorVertex, VectorSegment, VectorRegion, VectorNetwork, VectorPath, VectorPaths, LetterSpacing, LineHeight, LeadingTrim, TextWrapStyle, HyperlinkTarget, TextListOptions, BlendMode, MaskType, Font, TextStyleOverrideType, StyledTextSegment, TextPathStartData, Reaction, VariableDataType, ExpressionFunction, Expression, VariableValueWithExpression, VariableData, ConditionalBlock, Action, SimpleTransition, DirectionalTransition, Transition, Trigger, Navigation, Easing, EasingFunctionBezier, EasingFunctionSpring, MotionEasing, PhysicalSpring, NormalizedSpring, AnimationStylePropValue, AvailableAnimationStylePropValue, BaseAnimationStyle, AvailableAnimationStyle, AnimationStyleConfiguration, AppliedAnimationStyle, KeyframeValue, ManualKeyframeInput, ManualKeyframeTrackInput, ManualKeyframe, ManualKeyframeBinding, ManualKeyframeTrack, KeyframeBinding, KeyframePropertyFieldName, EffectKeyframeFieldName, KeyframeField, ComponentPropKeyframeTracks, ComponentPropKeyframeBindings, PaintManualKeyframeTrack, PaintKeyframeBinding, EffectManualKeyframeTracks, EffectKeyframeBindings, ManualKeyframeTracks, Animations, Timeline, OverflowDirection, OverlayPositionType, OverlayBackground, OverlayBackgroundInteraction, PublishStatus, ConnectorEndpointPosition, ConnectorEndpointPositionAndEndpointNodeId, ConnectorEndpointEndpointNodeIdAndMagnet, ConnectorEndpoint, ConnectorStrokeCap, BaseNodeMixin, PluginDataMixin, SceneNodeMixin, MotionNodeMixin, VariableBindableNodeField, VariableBindableTextField, VariableBindablePaintField, VariableBindablePaintStyleField, VariableBindableColorStopField, VariableBindableEffectField, VariableBindableEffectStyleField, VariableBindableLayoutGridField, VariableBindableGridStyleField, VariableBindableComponentPropertyField, VariableBindableComponentPropertyDefinitionField, StickableMixin, ChildrenMixin, ConstraintMixin, DimensionAndPositionMixin, LayoutMixin, AspectRatioLockMixin, BlendMixin, ContainerMixin, StrokeCap, StrokeJoin, HandleMirroring, AutoLayoutMixin, GridTrackSize, GridTrackReorderOptions, GridTrackReorderEntry, GridLayoutMixin, AutoLayoutChildrenMixin, GridChildrenMixin, InferredAutoLayoutResult, DetachedInfo, MinimalStrokesMixin, IndividualStrokesMixin, MinimalFillsMixin, VariableWidthPoint, PresetVariableWidthStrokeProperties, CustomVariableWidthStrokeProperties, VariableWidthStrokeProperties, ComplexStrokeProperties, ScatterBrushProperties, StretchBrushProperties, BrushStrokeProperties, DynamicStrokeProperties, GeometryMixin, ComplexStrokesMixin, CornerMixin, RectangleCornerMixin, ExportMixin, FramePrototypingMixin, VectorLikeMixin, ReactionMixin, DocumentationLink, PublishableMixin, DefaultShapeMixin, BaseFrameMixin, DefaultFrameMixin, OpaqueNodeMixin, MinimalBlendMixin, Annotation, AnnotationProperty, AnnotationPropertyType, AnnotationsMixin, Measurement, MeasurementSide, MeasurementOffset, MeasurementsMixin, ComponentPropertiesMixin, BaseNonResizableTextMixin, NonResizableTextMixin, NonResizableTextPathMixin, TextSublayerNode, DocumentNode, ExplicitVariableModesMixin, PageNode, FrameNode, GroupNode, TransformGroupNode, SliceNode, RectangleNode, LineNode, EllipseNode, PolygonNode, StarNode, VectorNode, TextNode, TextPathNode, ComponentPropertyType, InstanceSwapPreferredValue, SlotSettings, ComponentPropertyOptions, ComponentPropertyDefinitions, ComponentSetNode, ComponentNode, ComponentProperties, InstanceNode, SlotNode, BooleanOperationNode, StickyNode, StampNode, TableNode, TableCellNode, HighlightNode, WashiTapeNode, ShapeWithTextNode, CodeBlockNode, LabelSublayerNode, ConnectorNode, VariableResolvedDataType, VariableAlias, VariableValue, VariableScope, CodeSyntaxPlatform, Variable, VariableCollection, ExtendedVariableCollection, AnnotationCategoryColor, AnnotationCategory, WidgetNode, EmbedData, EmbedNode, LinkUnfurlData, LinkUnfurlNode, MediaData, MediaNode, SectionNode, SlideNode, SlideRowNode, SlideGridNode, InteractiveSlideElementNode, SlideTransition, BaseNode, SceneNode, NodeType, StyleType, InheritedStyleField, StyleConsumers, BaseStyleMixin, PaintStyle, TextStyle, EffectStyle, GridStyle, BaseStyle, Image, FindAllCriteria, TransformModifier, RepeatModifier, LinearRepeatModifier, RadialRepeatModifier, QueryResult, ScreenshotOptions }

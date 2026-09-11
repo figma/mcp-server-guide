@@ -451,15 +451,15 @@ Add TEXT, BOOLEAN, and INSTANCE_SWAP properties to the ComponentSet (not to indi
 ### TEXT Properties
 
 Expose editable text in instances:
-
 ```javascript
 // On the ComponentSetNode (cs):
 const labelKey = cs.addComponentProperty('Label', 'TEXT', 'Button');
 // labelKey is now something like "Label#0:1"
-
 // Wire to the label child in each variant:
 for (const child of cs.children) {
-  const labelNode = child.findOne(n => n.name === 'label');
+  const labelNode = child.findOne(
+    n => n.name === 'label' && 'characters' in n,
+  );
   if (labelNode) {
     labelNode.componentPropertyReferences = { characters: labelKey };
   }
@@ -874,15 +874,15 @@ await figma.setCurrentPageAsync(page);
 const cs = await figma.getNodeByIdAsync(CS_ID);
 cs.description = 'Buttons allow users to take actions and make choices with a single tap.';
 cs.documentationLinks = [{ uri: 'https://your-storybook.com/button' }];
-
 // Add properties — save returned keys
 const labelKey    = cs.addComponentProperty('Label', 'TEXT', 'Button');
 const showIconKey = cs.addComponentProperty('Show Icon', 'BOOLEAN', true);
 const iconKey     = cs.addComponentProperty('Icon', 'INSTANCE_SWAP', DEFAULT_ICON_ID);
-
 // Wire to children
 for (const child of cs.children) {
-  const labelNode = child.findOne(n => n.name === 'label');
+  const labelNode = child.findOne(
+    n => n.name === 'label' && 'characters' in n,
+  );
   if (labelNode) labelNode.componentPropertyReferences = { characters: labelKey };
 
   const iconNode = child.findOne(n => n.name === 'icon');

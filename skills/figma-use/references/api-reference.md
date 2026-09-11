@@ -235,11 +235,11 @@ parent.appendChild(child)
 parent.insertChild(index, child)
 node.remove()
 ```
-
 ## Descriptions & Documentation Links
-
-Only access `description` on components and component sets. Accessing it on a
-frame, instance, or other scene node throws instead of returning `undefined`.
+Only access `node.description` on components and component sets. In `use_figma`,
+reading it on a frame, instance, or other scene node returns `undefined`, while
+assigning it throws a `no such property` TypeError. Narrow by `node.type` before
+either operation so `undefined` is not mistaken for an empty description.
 
 ```js
 // Description — plain text, shown in Figma's component panel
