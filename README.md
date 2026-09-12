@@ -205,6 +205,7 @@ You can also learn more about the skills included with the Figma plugin for [sup
 This repo also contains standalone workflow skills that are not bundled with the Figma plugin:
 - [`workflow-skills/video-interaction-mapper`](workflow-skills/video-interaction-mapper): Turns UI recordings into annotated Figma storyboards
 - [`workflow-skills/generate-project-plan`](workflow-skills/generate-project-plan): Turn a PRD (plus optional codebase grounding) into a FigJam project plan board
+- [`workflow-skills/figma-fidelity-guard`](workflow-skills/figma-fidelity-guard): Audits incomplete or truncated design context and gates high-fidelity implementation on evidence completeness
 
 # MCP best practices
 
