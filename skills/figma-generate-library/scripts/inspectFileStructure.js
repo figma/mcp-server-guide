@@ -60,39 +60,32 @@ async function inspectFileStructure() {
   }
 
   // --- Component sets (and standalone components) ---
-  // We need to load all pages to inspect components across the whole file.
-  const originalPage = figma.currentPage
-
-  for (const page of figma.root.children) {
-    await figma.setCurrentPageAsync(page)
-
-    // findAllWithCriteria.types accepts an array — one indexed scan returns
-    // both COMPONENT_SET and standalone COMPONENT nodes.
-    const found = page.findAllWithCriteria({ types: ['COMPONENT_SET', 'COMPONENT'] })
-    for (const node of found) {
-      if (node.type === 'COMPONENT_SET') {
-        result.componentSets.push({
-          id: node.id,
-          name: node.name,
-          variantCount: node.children.length,
-          pageId: page.id,
-          pageName: page.name,
-        })
-      } else if (node.parent && node.parent.type !== 'COMPONENT_SET') {
-        // Standalone component (not a variant inside a COMPONENT_SET)
-        result.componentSets.push({
-          id: node.id,
-          name: node.name,
-          variantCount: 1,
-          pageId: page.id,
-          pageName: page.name,
-        })
-      }
+  // One root-level traversal avoids repeated page switches and keeps the scan
+  // independent of the current page state.
+  const found = figma.root.findAll(
+    (node) => node.type === 'COMPONENT_SET' || node.type === 'COMPONENT',
+  )
+  for (const node of found) {
+    const pageInfo = getPageInfo(node)
+    if (node.type === 'COMPONENT_SET') {
+      result.componentSets.push({
+        id: node.id,
+        name: node.name,
+        variantCount: node.children.length,
+        pageId: pageInfo.pageId,
+        pageName: pageInfo.pageName,
+      })
+    } else if (node.parent && node.parent.type !== 'COMPONENT_SET') {
+      // Standalone component (not a variant inside a COMPONENT_SET)
+      result.componentSets.push({
+        id: node.id,
+        name: node.name,
+        variantCount: 1,
+        pageId: pageInfo.pageId,
+        pageName: pageInfo.pageName,
+      })
     }
   }
-
-  // Restore original page
-  await figma.setCurrentPageAsync(originalPage)
 
   // --- Text styles ---
   const textStyles = figma.getLocalTextStyles()
@@ -117,4 +110,16 @@ async function inspectFileStructure() {
   }
 
   return result
+}
+
+function getPageInfo(node) {
+  let current = node
+  while (current && current.type !== 'PAGE') {
+    current = current.parent
+  }
+
+  return {
+    pageId: current?.id ?? figma.currentPage.id,
+    pageName: current?.name ?? figma.currentPage.name,
+  }
 }
