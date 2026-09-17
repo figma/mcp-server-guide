@@ -10,6 +10,22 @@ This skill contains Slides-specific context for the `use_figma` MCP tool. The [f
 
 **Always include `figma-use-slides` in the comma-separated `skillNames` parameter when calling `use_figma` for Slides operations. If this skill was loaded via an MCP resource, you MUST prefix the name with `resource:` (e.g. `resource:figma-use-slides`).** This is a logging parameter used to track skill usage — it does not affect execution.
 
+## Choosing How to Build a Slides Deck
+
+If your environment also provides a `generate_deck` tool, choose **one** approach per deck request — do not call both for the same deck.
+
+### When to use which
+
+**`use_figma` + this skill (default):** Handles any Slides task — new decks, edits to existing decks, brand-matched designs, reference-file styling, iterative refinement, speaker notes, and full creative control over layout, color, and typography. Use this for most requests.
+
+**`generate_deck`:** Generates a complete deck in a single call using prebuilt, curated templates. Useful for quick, straightforward decks where the user doesn't need custom design, brand matching, or reference-file styling. It cannot use custom templates, cannot reference other Figma files for design direction, and does not support iterative editing or follow-up modifications through the conversation.
+
+When in doubt, default to `use_figma` + this skill — it covers everything `generate_deck` can do and more.
+
+### Pick one and commit
+
+Once you choose an approach for a deck, complete the entire request with that approach. Do not generate a deck with `generate_deck` and then also create or populate a file with `use_figma` — the user ends up with duplicate, conflicting artifacts and a confusing experience.
+
 ## Critical Rules (Slides-specific)
 
 1. **Newly created Slides files have a default light theme.** When a Slides file is created via `create_new_file`, a default light theme is automatically initialized. This theme is structural scaffolding — you should overwrite the theme's color variables and text styles with your own design direction for the deck you're building. Do not rely on or be influenced by the default light theme tokens.
