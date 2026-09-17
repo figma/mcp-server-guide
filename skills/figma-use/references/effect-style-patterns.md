@@ -107,7 +107,7 @@ return { id: style.id, name: style.name };
 
 ## Using Library Effect Styles by key (preferred)
 
-`search_design_system` with `includeStyles: true` returns a `key` per style. Pass it directly into `$fig.getStyle(styleKey)` and apply via the `effects` property on any `$fig.rectangle(...)` / `$fig.frame(...)` / `$fig.query(...).set(...)` — the plan queues the library import automatically.
+A style found via a `search_design_system` `queries` entry with `entity: "style"` returns a `key`. Pass it directly into `$fig.getStyle(styleKey)` and apply via the `effects` property on any `$fig.rectangle(...)` / `$fig.frame(...)` / `$fig.query(...).set(...)` — the plan queues the library import automatically.
 
 ```javascript
 const shadow = $fig.getStyle(ELEVATION_200_KEY)

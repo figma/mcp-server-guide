@@ -13,7 +13,7 @@ Protocol for handling failures and incomplete runs in multi-call design-system w
 - If `safeToRetryWithoutCanvasRead` is `true`, fix the error and retry.
 - If `false`, stop writes, read the canvas, determine what changed, then make changes.
 
-However, in multi-step workflows, **previously successful calls** will have created state that persists. If a workflow is abandoned mid-way, nodes from earlier successful calls remain in the file. The cleanup and idempotency patterns in this document handle that scenario.
+However, in multi-step workflows (20–100+ calls), **previously successful calls** will have created state that persists. If a workflow is abandoned mid-way, nodes from earlier successful calls remain in the file. The cleanup and idempotency patterns in this document handle that scenario.
 
 For **abandoned multi-step workflows** (where you need to roll back nodes from previous *successful* calls), use the cleanup protocol in Section 2.
 
@@ -326,9 +326,7 @@ These errors leave the file in a state where continuing forward is unreliable:
 ### Variable creation fails
 
 - If `safeToRetryWithoutCanvasRead` is `true`, fix the error and retry.
-- If `false`, inventory variables, determine what changed, then resume idempotently. Do not build an in-scope dependent asset until its required variables are correct.
-
-**The most common variable-creation failure:** script timeout when creating many variables. Fix: batch variable creation — create at most 20–30 variables per call.
+- If `false`, inventory variables, determine what changed, then resume idempotently. Do not proceed to Phase 2 until all planned variables are correct.
 
 ### In-scope page or file structure fails
 
@@ -343,43 +341,16 @@ Page failures rarely require foundation rollback unless the page structure itsel
 
 ### Component creation fails
 
-This is the most common failure mode in long builds. Since `use_figma` is atomic, a failed call creates nothing — but previous successful calls in the component creation sequence will have created state. Handle by which call in the sequence failed:
-
-```
-If failure in Call 1 (page creation):
-  → Nothing was created. Fix the script and retry.
-
-If failure in Call 2 (doc frame):
-  → Call 1's page exists. Fix Call 2 and retry — idempotency check handles it.
-
-If failure in Call 3 (base component):
-  → Calls 1-2 succeeded. Fix Call 3 and retry.
-
-If failure in Call 4 (variant creation):
-  → Call 3's base component exists. Fix Call 4 and retry.
-  → If you need to restart from Call 3, clean up Call 3's nodes first
-    using cleanupOrphans scoped to the component page.
-
-If failure in Call 5 (combineAsVariants + layout):
-  → Variant ComponentNodes from Call 4 exist but aren't combined yet.
-  → Fix Call 5 and retry.
-  → If the component set was already created by a prior attempt of Call 5
-    that succeeded, remove it first, then re-run.
-
-If failure in Call 6 (component properties):
-  → The component set already exists and is structurally sound.
-  → Fix Call 6 and retry — addComponentProperty is safe to retry if
-    you first check componentPropertyDefinitions for existing properties.
-  → Idempotency check: if 'Label' property already exists, skip addComponentProperty.
-```
+This is the most common failure mode in long builds. Previous successful calls persist. If `safeToRetryWithoutCanvasRead` is `false`, inspect the component page and state ledger before resuming idempotently.
 
 **Idempotency for component properties (Call 6 retry):**
 
 ```javascript
-const existingDefs = cs.componentPropertyDefinitions;
-const labelKey = existingDefs['Label']
-  ? Object.keys(existingDefs).find(k => k.startsWith('Label'))
-  : cs.addComponentProperty('Label', 'TEXT', 'Button');
+const candidate = await figma.getNodeByIdAsync(COMPONENT_SET_ID);
+if (!candidate || candidate.type !== 'COMPONENT_SET') throw new Error('Expected a component set');
+const existingDefs = candidate.componentPropertyDefinitions;
+const labelKey = Object.keys(existingDefs).find(key => key.startsWith('Label#'))
+  ?? candidate.addComponentProperty('Label', 'TEXT', 'Button');
 ```
 
 ### In-scope QA or Code Connect fails
