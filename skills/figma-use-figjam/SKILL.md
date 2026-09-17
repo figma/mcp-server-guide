@@ -41,7 +41,7 @@ Every FigJam text mutation (sticky/shape/label/table cell/connector text, standa
 
 ## Adding Images to a FigJam Board
 
-**`upload_assets` is the ONLY supported way to add images to a FigJam file.** Do NOT use `figma.createImage()` or `figma.createImageAsync()` from inside `use_figma` — they are unsupported as image-upload entry points in FigJam. Call `upload_assets` with the FigJam `fileKey`; the tool returns single-use upload URLs that you POST raw image bytes to, and the image is committed and placed automatically. Pass `nodeId` (with `count: 1`) to attach the upload to an existing FigJam node as a fill; omit `nodeId` to drop the image onto the board as a new layer.
+**`upload_assets` is the ONLY supported way to add images to a FigJam file.** Call `upload_assets` with the FigJam `fileKey`; the tool returns single-use upload URLs that you POST raw image bytes to, and the image is committed and placed automatically. Pass `nodeIds` (with one entry per upload) to attach uploads to existing FigJam nodes as fills; omit `nodeIds` to drop the images onto the board as new layers.
 
 For the full request/response shape, see [figma-use → api-reference.md → Images](../figma-use/references/api-reference.md#images).
 

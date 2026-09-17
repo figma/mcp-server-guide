@@ -170,7 +170,7 @@ Plan-step style API. Creators return per-style handles — `FigPlanPaintStyle` /
 | `$fig.textStyle(opts)` | `FigPlanTextStyle` | Create a text style. `opts.name` required. `opts.fontName` / `opts.fontSize` / etc. |
 | `$fig.effectStyle(opts)` | `FigPlanEffectStyle` | Create an effect style. `opts.name` required. `opts.effects` optional. |
 | `$fig.gridStyle(opts)` | `FigPlanGridStyle` | Create a grid style. `opts.name` required. `opts.layoutGrids` optional. |
-| `$fig.getStyle(nameOrIdOrKey)` | `FigPlanStyle \| null` | Wrap an existing local style OR a library style by `key` (the value returned by `search_design_system` with `includeStyles: true`). Tries id, then asset key (queues a plan-managed library import if the style isn't yet in the file), then scans paint → text → effect → grid styles by name. |
+| `$fig.getStyle(nameOrIdOrKey)` | `FigPlanStyle \| null` | Wrap an existing local style OR a library style by `key` (the value returned by a `search_design_system` `queries` entry with `entity: "style"`). Tries id, then asset key (queues a plan-managed library import if the style isn't yet in the file), then scans paint → text → effect → grid styles by name. |
 | `planStyle.set(opts \| fn)` | `this` | Apply props in place. Fn form receives the **live Figma `Style`** narrowed to the concrete subtype (`PaintStyle` / `TextStyle` / `EffectStyle` / `GridStyle`). |
 | `planStyle.remove()` | `this` | Delete the style. |
 | `planStyle.id` | `string` | Real style id (after `done()`) or planId (before). Use this when binding by id manually. |
@@ -209,7 +209,7 @@ Plan-step variable API. `$fig.varCollection(opts)` creates a new collection; `op
 |---|---|---|
 | `$fig.varCollection(opts)` | `FigPlanVarCollection` | Create a variable collection. `opts.name` + `opts.modes` required. |
 | `$fig.getVarCollection(idOrName)` | `FigPlanVarCollection` | Wrap existing collection by id or name. Throws if not found. |
-| `$fig.getVar(idOrKey)` | `FigPlanVariable` | Wrap an existing variable by real Figma variable id OR a library variable `key` (the value returned by `search_design_system` with `includeVariables: true`). For an asset key, the plan queues a library import automatically. Throws if not found. |
+| `$fig.getVar(idOrKey)` | `FigPlanVariable` | Wrap an existing variable by real Figma variable id OR a library variable `key` (the value returned by a `search_design_system` `queries` entry with `entity: "variable"`). For an asset key, the plan queues a library import automatically. Throws if not found. |
 | `coll.colorVar(opts)` | `FigPlanColorVar` | Create a COLOR variable. `opts.name` required. `opts.values` as `{ modeName: hexString }`. |
 | `coll.numVar(opts)` | `FigPlanNumVar` | Create a FLOAT variable. `opts.name` required. `opts.values` as `{ modeName: number }`. |
 | `coll.boolVar(opts)` | `FigPlanBoolVar` | Create a BOOLEAN variable. `opts.values` as `{ modeName: boolean }`. |

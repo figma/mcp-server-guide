@@ -453,15 +453,15 @@ Add TEXT, BOOLEAN, and INSTANCE_SWAP properties to the ComponentSet (not to indi
 ### TEXT Properties
 
 Expose editable text in instances:
-
 ```javascript
 // On the ComponentSetNode (cs):
 const labelKey = cs.addComponentProperty('Label', 'TEXT', 'Button');
 // labelKey is now something like "Label#0:1"
-
 // Wire to the label child in each variant:
 for (const child of cs.children) {
-  const labelNode = child.findOne(n => n.name === 'label');
+  const labelNode = child.findOne(
+    n => n.name === 'label' && 'characters' in n,
+  );
   if (labelNode) {
     labelNode.componentPropertyReferences = { characters: labelKey };
   }
@@ -540,7 +540,6 @@ iconComp.findAllWithCriteria({ types: ['VECTOR'] }).forEach(vec => {
 
 return { iconCompId: iconComp.id };
 ```
-
 **Then use the returned `iconCompId` as the default value for INSTANCE_SWAP:**
 ```javascript
 const iconKey = cs.addComponentProperty('Icon', 'INSTANCE_SWAP', ICON_COMP_ID);
@@ -549,12 +548,13 @@ const iconKey = cs.addComponentProperty('Icon', 'INSTANCE_SWAP', ICON_COMP_ID);
 **Constraining swap options with `preferredValues`:**
 After adding the INSTANCE_SWAP property, you can optionally limit which components appear in the swap picker:
 ```javascript
-// Get the property definitions to find the exact key
-const props = cs.componentPropertyDefinitions;
+const propertyOwner = cs?.type === 'COMPONENT' && cs.parent?.type === 'COMPONENT_SET' ? cs.parent : cs;
+if (!propertyOwner || !['COMPONENT', 'COMPONENT_SET'].includes(propertyOwner.type)) throw new Error('Expected a component set or non-variant component');
+const props = propertyOwner.componentPropertyDefinitions;
 const iconPropKey = Object.keys(props).find(k => k.startsWith('Icon'));
 
 // Set preferred values (array of component keys or instance IDs)
-cs.editComponentProperty(iconPropKey, {
+propertyOwner.editComponentProperty(iconPropKey, {
   preferredValues: [
     { type: 'COMPONENT', key: chevronRightComp.key },
     { type: 'COMPONENT', key: chevronLeftComp.key },
@@ -619,7 +619,7 @@ Always validate after creating or modifying a component before proceeding to the
 
 ### `get_metadata` structural checks
 
-After creating the component set, call `get_metadata` on the ComponentSet node and verify:
+After creating the component set, call `get_metadata` on the `COMPONENT_SET` node ID (never an individual variant component ID) and verify:
 - `variantGroupProperties` lists the expected axes with the correct value arrays
 - `componentPropertyDefinitions` contains the expected TEXT/BOOLEAN/INSTANCE_SWAP properties
 - `children.length` equals the expected variant count (e.g., 18 for 3×2×3)
@@ -876,15 +876,15 @@ await figma.setCurrentPageAsync(page);
 const cs = await figma.getNodeByIdAsync(CS_ID);
 cs.description = 'Buttons allow users to take actions and make choices with a single tap.';
 cs.documentationLinks = [{ uri: 'https://your-storybook.com/button' }];
-
 // Add properties — save returned keys
 const labelKey    = cs.addComponentProperty('Label', 'TEXT', 'Button');
 const showIconKey = cs.addComponentProperty('Show Icon', 'BOOLEAN', true);
 const iconKey     = cs.addComponentProperty('Icon', 'INSTANCE_SWAP', DEFAULT_ICON_ID);
-
 // Wire to children
 for (const child of cs.children) {
-  const labelNode = child.findOne(n => n.name === 'label');
+  const labelNode = child.findOne(
+    n => n.name === 'label' && 'characters' in n,
+  );
   if (labelNode) labelNode.componentPropertyReferences = { characters: labelKey };
 
   const iconNode = child.findOne(n => n.name === 'icon');
@@ -905,7 +905,7 @@ return {
 ### Call 7: Validate with get_metadata
 
 **Goal:** Structural check — variant count, properties, axes.
-**Action:** Call `get_metadata` on the ComponentSet node ID (from state). Verify in the result:
+**Action:** Call `get_metadata` on the `COMPONENT_SET` node ID from state, not on any child variant component. Verify in the result:
 - `children.length === 18`
 - `variantGroupProperties` has `Size`, `Style`, `State` keys with correct value arrays
 - `componentPropertyDefinitions` has `Label`, `Show Icon`, `Icon` entries

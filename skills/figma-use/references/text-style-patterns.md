@@ -172,7 +172,7 @@ return result;
 
 ## Using Library Text Styles by key (preferred)
 
-`search_design_system` with `includeStyles: true` returns a `key` per style. Pass it directly into `$fig.getStyle(styleKey)` and apply via the `textStyle` property on any `$fig.text(...)` / `$fig.query('TEXT').set(...)` — the plan queues the library import automatically.
+A style found via a `search_design_system` `queries` entry with `entity: "style"` returns a `key`. Pass it directly into `$fig.getStyle(styleKey)` and apply via the `textStyle` property on any `$fig.text(...)` / `$fig.query('TEXT').set(...)` — the plan queues the library import automatically.
 
 ```javascript
 const heading = $fig.getStyle(HEADING_TEXT_STYLE_KEY)

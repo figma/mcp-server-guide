@@ -114,7 +114,7 @@ Ambiguous request? Pick a reasonable extension, do it, and narrate what you chos
 
 If `use_figma` fails after `generate_diagram` succeeded, the user already has the file link from step 3 of the communication flow. The failure message just needs to tell them the state of the file:
 
-- **Do not** retry in a loop or churn trying to fix it.
+- If `safeToRetryWithoutCanvasRead` is `true`, fix the error and retry. If `false`, read the canvas, determine what changed, then make changes.
 - **Do** report clearly what landed and what didn't. _"The diagram is in the file, but I couldn't add the callout labels — `use_figma` failed with {short error}. You can add them manually or ask me to try again."_
 - Partial progress is still progress. The user can open the file and continue from there.
 
