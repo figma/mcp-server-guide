@@ -180,7 +180,7 @@ frame.setExplicitVariableModeForCollection(tokens.variableCollection, darkModeId
 
 ## Using library variables by key (preferred)
 
-`search_design_system` with `includeVariables: true` returns a `key` per variable. Pass it directly into `$fig.getVar(variableKey)` — the plan queues the library import automatically. Same call also accepts a local variable id; one call site, both shapes.
+A variable found via a `search_design_system` `queries` entry with `entity: "variable"` returns a `key`. Pass it directly into `$fig.getVar(variableKey)` — the plan queues the library import automatically. Same call also accepts a local variable id; one call site, both shapes.
 
 ```javascript
 const brand = $fig.getVar(BRAND_COLOR_VAR_KEY)

@@ -18,7 +18,6 @@ Use this skill to create or update **screens, views, and multi-section UI contai
 ## Skill Boundaries
 
 - Use this skill when the deliverable is a **composed Figma view** (new or updated) — full-page screens, modals, dialogs, drawers, sidebars, panels, or any multi-section container — built from design system component instances.
-- If the user wants to generate **code from a Figma design**, switch to [figma-implement-design](../figma-implement-design/SKILL.md).
 - If the user wants to create **new reusable components or variants**, use [figma-use](../figma-use/SKILL.md) directly.
 - If the user wants to write **Code Connect mappings**, switch to [figma-code-connect](../figma-code-connect/SKILL.md).
 
@@ -130,7 +129,7 @@ return {
 
 Match `components` against your unresolved components; Code Connect keys from 2a-i stay authoritative. Mark any newly resolved. If all components are resolved, skip 2a-iii.
 
-**2a-iii — LAST RESORT: `search_design_system`.** Only if components remain unresolved after completing both 2a-i and 2a-ii. **Search broadly** — try multiple terms and synonyms (e.g., "button", "input", "nav", "card", "accordion", "header", "footer", "tag", "avatar", "toggle", "icon", etc.). Use `includeComponents: true` to focus on components.
+**2a-iii — LAST RESORT: `search_design_system`.** Only if components remain unresolved after completing both 2a-i and 2a-ii. **Search broadly** — try multiple terms and synonyms as component entries in one `queries` call (e.g., `{ entity: "component", query: "button" }`, `{ entity: "component", query: "input" }`, `{ entity: "component", query: "nav" }`, etc.).
 
 **Include component properties** in your map — you need to know which TEXT properties each component exposes for text overrides. Create a temporary instance, read its `componentProperties` (and those of nested instances), then remove the temp instance.
 
@@ -148,7 +147,7 @@ Component Map:
 
 #### 2b: Discover variables (colors, spacing, radii)
 
-**Inspect existing screens first.** Reuse `variables` from the 2a-ii inventory; if that step was skipped, run the inventory here when an existing screen is available. For unresolved variables, use `search_design_system` with `queries` entries whose `entity` is `"variable"`.
+**Inspect existing screens first** (same as components). Or use `search_design_system` with `queries` entries whose `entity` is `"variable"`.
 
 > **WARNING: Two different variable discovery methods — do not confuse them.**
 >
@@ -157,7 +156,7 @@ Component Map:
 >
 > **Never conclude "no variables exist" based solely on `getLocalVariableCollectionsAsync()` returning empty.** Always also run `search_design_system` with variable query entries to check for library variables before deciding to create your own.
 
-**Query strategy:** `search_design_system` matches against **variable names** (e.g., "Gray/gray-9", "core/gray/100", "space/400"), not categories. Put multiple short, simple searches in one `queries` call rather than one compound query. Every array entry must be an `{ "entity": "variable", "query": "..." }` object, never a bare string:
+**Query strategy:** `search_design_system` matches against **variable names** (e.g., "Gray/gray-9", "core/gray/100", "space/400"), not categories. Put multiple short, simple queries in one `queries` call rather than one compound query:
 
 - **Primitive colors:** `{ "entity": "variable", "query": "gray" }`, `{ "entity": "variable", "query": "red" }`, etc.
 - **Semantic colors:** `{ "entity": "variable", "query": "background" }`, `{ "entity": "variable", "query": "surface" }`, etc.
@@ -192,7 +191,7 @@ See [variable-patterns.md](../figma-use/references/variable-patterns.md) for bin
 
 #### 2c: Discover styles (text styles, effect styles)
 
-Search for styles using `search_design_system` with `includeStyles: true` and terms like "heading", "body", "shadow", "elevation". Or inspect what an existing screen uses:
+Search for styles using `search_design_system` with `entity: "style"` query entries and terms like "heading", "body", "shadow", "elevation". Or inspect what an existing screen uses:
 
 ```js
 const frame = figma.currentPage.findOne(n => n.name === "Existing Screen");
@@ -431,7 +430,7 @@ Because this skill works in retry-safe construction phases, errors are naturally
 ## Best Practices
 
 - **Always search before building.** The design system likely has the component, variable, or style you need. Manual construction and hardcoded values should be the exception, not the rule.
-- **Search broadly.** Try synonyms and partial terms. A "NavigationPill" might be found under "pill", "nav", "tab", or "chip". For variables, search "color", "spacing", "radius", etc.
+- **Search broadly.** Try synonyms and partial terms as `{ entity, query }` entries in one `queries` call. A "NavigationPill" might be found under "pill", "nav", "tab", or "chip", so pass those as component entries. For variables, use `entity: "variable"` with queries like "color", "spacing", "radius", etc.
 - **Prefer design system tokens over hardcoded values.** Use variable bindings for colors, spacing, and radii. Use text styles for typography. Use effect styles for shadows. This keeps the screen linked to the design system.
 - **Prefer component instances over manual builds.** Instances stay linked to the source component and update automatically when the design system evolves.
 - **MUST use $fig for all node creation.** Do not use `figma.createFrame()`, `figma.createText()`, etc. Use `$fig.autoLayout()`, `$fig.text()`, `$fig.rectangle()`, etc.
