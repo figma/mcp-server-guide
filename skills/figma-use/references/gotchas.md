@@ -232,8 +232,8 @@ The same rule generalizes to *any* traversal: scope it to the smallest known anc
 
 A Figma file can have multiple pages (canvas nodes). `get_metadata` only returns the subtree of whichever node you pass it. To get a usable index of every page:
 
-- Call `get_metadata` with **no nodeId** — it returns the document's top-level pages as `{guid, name}` entries (no XML dump). This is the cheapest way to discover pages.
-- For more detail per page (e.g. child counts, top-level node types), fall back to `use_figma`:
+- **Do not rely on `get_metadata` to enumerate pages.** Even with **no nodeId**, its response header reads "Listing the top-level pages of the document" but it returns only the **currently-active page**, not all of them. (Verified 2026-07-10 against a 9-page file: it returned a single page.) The tool's own `description` makes the same incorrect claim, so an agent that trusts it wastes a call every time it needs the full page list.
+- **Enumerate pages with `use_figma` — this is the only reliable way:**
 
 ```js
 const pages = figma.root.children.map(p => `${p.name} id=${p.id} children=${p.children.length}`);
