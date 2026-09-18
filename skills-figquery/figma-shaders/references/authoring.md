@@ -1,12 +1,13 @@
 # Shader source authoring
 
-Use this reference when producing the complete `main.ts` replacement passed to `update_shader` as `{ path: "main.ts", content: "..." }`. The internal shader workflow can edit `features.json`; this MCP workflow cannot. The deployed scaffold keeps `isAnimated: false` and `usesMouse: false`, so all source authored here must be static and must not read time, frame, delta-time, or mouse inputs.
+Use this reference when producing the complete `main.ts` replacement passed to `update_shader` as `{ path: "main.ts", content: "..." }`. This MCP workflow cannot replace `features.json` directly, but `update_shader.metadata.isAnimated` and `update_shader.metadata.usesMouse` update its capability fields.
 
 ## Contents
 
 - [Plan before writing](#plan-before-writing)
 - [Required module contract](#required-module-contract)
 - [Runtime lifecycle](#runtime-lifecycle)
+- [Animation and mouse input](#animation-and-mouse-input)
 - [WebGPU patterns](#webgpu-patterns)
 - [Controls and parameters](#controls-and-parameters)
 - [Effect and fill contracts](#effect-and-fill-contracts)
@@ -19,10 +20,11 @@ Resolve these pieces together before coding:
 
 1. Kind: `effect` or `fill`.
 2. Visible controls: names, types, defaults, ranges, units, and which values stay hardcoded.
-3. GPU resources: shader modules, buffers, samplers, textures, layouts, and passes.
-4. Bindings: every WGSL binding must match the JavaScript bind group.
-5. Uniform layout: field order, padding, and total byte size.
-6. Alpha contract: premultiplied for effects, straight for fills.
+3. Capabilities: whether the source reads time or mouse input and which metadata flags that requires.
+4. GPU resources: shader modules, buffers, samplers, textures, layouts, and passes.
+5. Bindings: every WGSL binding must match the JavaScript bind group.
+6. Uniform layout: field order, padding, and total byte size.
+7. Alpha contract: premultiplied for effects, straight for fills.
 
 Do not write until the controls, uniforms, WGSL bindings, and JavaScript resources agree.
 
@@ -71,10 +73,26 @@ Rules:
 | `frame.output` | Target texture. Render into `frame.output.createView()`. |
 | `frame.params` | Values declared by `defineProperties`. |
 | `frame.state` | Persistent mutable bag for modules, buffers, samplers, layouts, and pipelines. |
+| `frame.time` | Absolute animation clock in milliseconds. |
+| `frame.deltaTime` | Milliseconds since the previous rendered frame. |
+| `frame.frame` | Zero-based rendered-frame counter. |
+| `frame.mousePosition` | Layer-local mouse position. |
 
 Use `frame.output.width` and `frame.output.height` for dimensions. Allocate format-independent resources once in `setup`. Write live params into buffers and construct input-dependent bind groups in `render`, because the input texture may be recreated.
 
 Available JavaScript includes WebGPU enums, `Float32Array`, integer typed arrays, `Math`, collections, JSON, and promises. There is no DOM, `window`, `document`, `navigator`, `fetch`, console, timer, animation-frame, microtask, `Float64Array`, or `Float16Array`. Use `Math.sin`, `Math.max`, and similar JavaScript forms—not bare WGSL-style math in JavaScript.
+
+## Animation and mouse input
+
+Animation and mouse-driven shaders require source and manifest metadata to agree:
+
+- If the source reads `frame.time`, `frame.deltaTime`, or `frame.frame`, pass `metadata: { isAnimated: true }` to `update_shader`.
+- If the source reads `frame.mousePosition`, pass `metadata: { usesMouse: true }`.
+- When removing the last use of one capability, pass its metadata value as `false`. Omitted metadata preserves the existing manifest value.
+
+Prefer the absolute `frame.time` clock over accumulating `frame.deltaTime` in `frame.state`; absolute time remains stable when rendering skips frames.
+
+`frame.mousePosition.x` and `.y` are local layer pixels. Normalize coordinates against the output dimensions when the visual should resize with the layer.
 
 ## WebGPU patterns
 
@@ -215,14 +233,16 @@ Before calling `update_shader` with `files: [{ path: "main.ts", content: source 
 
 1. Kind matches the existing resource.
 2. Source is the complete module, not a diff.
-3. No time, frame, delta-time, or mouse reads.
-4. No top-level runtime declarations.
-5. Bindings and bind-group entries match exactly.
-6. Uniform sizes and writes match and are 16-byte aligned.
-7. Pipelines track `frame.output.format`.
-8. Effects guard and sample input; fills never bind input.
-9. Alpha handling matches the kind.
-10. WGSL starts with the diagnostic directive and uses valid entrypoint names.
-11. No mutated `let`, swizzle assignment, bracket array literal, GLSL builtin, or non-uniform implicit-derivative sample.
+3. `metadata.isAnimated` matches any use of `frame.time`, `frame.deltaTime`, or `frame.frame`.
+4. `metadata.usesMouse` matches any use of `frame.mousePosition`.
+5. Time values are treated as milliseconds and preferably derive from the absolute clock.
+6. No top-level runtime declarations.
+7. Bindings and bind-group entries match exactly.
+8. Uniform sizes and writes match and are 16-byte aligned.
+9. Pipelines track `frame.output.format`.
+10. Effects guard and sample input; fills never bind input.
+11. Alpha handling matches the kind.
+12. WGSL starts with the diagnostic directive and uses valid entrypoint names.
+13. No mutated `let`, swizzle assignment, bracket array literal, GLSL builtin, or non-uniform implicit-derivative sample.
 
 On a build error, fix the specific compiler failure with the smallest change and retry once.

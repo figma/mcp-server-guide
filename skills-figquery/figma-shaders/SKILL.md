@@ -22,7 +22,7 @@ Do not silently switch kinds during an update. The `kind` passed to `update_shad
 3. Call `create_shader` once with a concise name, description, selected `kind`, and `planKey`. This creates a starter scaffold, not the requested final shader.
 4. Call `get_shader` with the returned `id`, then read every source URI. If the client cannot read MCP resources, call `get_shader` with `includeSource: true` instead. This establishes the runtime imports and the scaffold's fixed metadata contract.
 5. Author the complete replacement `main.ts` for the requested result.
-6. Call `update_shader` with the returned `id`, the same `kind`, `files: [{ path: "main.ts", content: "..." }]`, and a specific `commitMessage`. Use `metadata` when changing the name or description.
+6. Call `update_shader` with the returned `id`, the same `kind`, `files: [{ path: "main.ts", content: "..." }]`, and a specific `commitMessage`. Use `metadata` when changing the name, description, or animation capabilities. Set `metadata.isAnimated: true` when the source reads time-related frame inputs and `metadata.usesMouse: true` when it reads `frame.mousePosition`.
 
 Never stop after `create_shader`: the starter scaffold is only a structural starting point.
 
@@ -36,13 +36,21 @@ Never stop after `create_shader`: the starter scaffold is only a structural star
 ## Authoring rules
 
 - Before writing the `main.ts` replacement, read [Shader source authoring](references/authoring.md). It contains the required module shape, WebGPU lifecycle, supported parameter schemas, effect/fill alpha rules, and WGSL failure checklist.
-- Shaders authored through these MCP tools must be static. `update_shader` replaces only `main.ts`; it cannot change the scaffold's `features.json`, where animation and mouse capabilities remain disabled. Do not read time or mouse inputs or claim they are supported. If the user asks for animation, build the static shader only after explaining that its exposed properties can instead be keyframed in Motion mode.
+- Match animation metadata to the source. Set `metadata.isAnimated: true` if `main.ts` reads `frame.time`, `frame.deltaTime`, or `frame.frame`, and set `metadata.usesMouse: true` if it reads `frame.mousePosition`. Set the corresponding value to `false` when removing the last such use. `update_shader` applies these metadata fields to the fixed `features.json` manifest even though that file cannot be replaced directly.
+- Prefer `frame.time` for animation so skipped frames do not change the result. It is an absolute millisecond clock; convert it to seconds with `Number(frame.time) * 0.001` when useful.
 - Expose controls for values users are likely to tune per layer; hardcode implementation details.
 - Keep numeric ranges bounded and defaults visually useful.
 - For effects, sample the input raster intentionally. For fills, do not assume an input raster exists.
 - Treat a non-error `update_shader` result as success. Record the returned version when present; a successful response may omit it.
 - On a build error, use the returned compiler output to make the smallest source correction and retry once. If it still fails, surface the error instead of repeatedly rewriting the shader.
+- If the tool reports that animation or mouse input is unavailable, treat that as a terminal capability gate: do not retry or attempt to bypass it. Offer to author a static shader whose exposed properties can be keyframed in Motion mode instead.
 
 ## Completion
 
-Report the shader name, kind, and id, plus the returned version when present. Briefly identify the controls or behavior that were added.
+Report the shader name, kind, and id, plus the returned version when present. Briefly identify the controls or behavior that were added. Construct and include a clickable URL that opens a new Design file with the unpublished shader ready to try, using the exact shader id as `try-tool-resource-content-id`. Set `try-tool-resource-type` from the shader kind: `gen_effect` for an effect and `gen_fill` for a fill.
+
+`https://www.figma.com/file/new?try-tool-resource-content-id=<id>&try-tool-resource-type=<gen_effect|gen_fill>&type=design&mode=design`
+
+After presenting the new-file link, ask whether the user wants to open the shader in an existing Figma Design file instead. If yes, reuse a file URL already provided or ask for one, then add the same `try-tool-resource-content-id` and resolved `try-tool-resource-type` query parameters to that URL. Never guess the file URL.
+
+Replace the type placeholder with exactly one value; do not include angle brackets or the pipe in the returned URL.
