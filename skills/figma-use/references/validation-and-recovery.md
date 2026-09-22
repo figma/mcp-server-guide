@@ -11,7 +11,7 @@
 
 ## `get_metadata` vs `get_screenshot`
 
-After each `use_figma` call, validate results using the right tool for the job. Do NOT reach for `get_screenshot` every time — it is expensive and should be reserved for visual checks.
+Prefer structural evidence returned by the write itself. Run a separate audit only when required evidence is missing or after a relevant mutation. Do NOT reach for `get_screenshot` every time — it is expensive and should be reserved for visual checks.
 
 ### `get_metadata` — Use for intermediate validation (preferred)
 
@@ -37,9 +37,9 @@ ComponentSet node to verify all 120 children exist with correct names, sizes, an
 - After binding variables — to verify node properties (use use_figma to read bound variables if needed)
 - Between multi-step workflows — to confirm step N succeeded before starting step N+1
 
-### `get_screenshot` — Use after each major creation milestone
+### `get_screenshot` — Use after composition or a visual fix
 
-`get_screenshot` renders a pixel-accurate image. It is the only way to verify visual correctness (colors, typography rendering, effects, variable mode resolution). It is slower and produces large responses, so don't call it after every single `use_figma` — but do call it after each major milestone to catch visual problems early.
+`get_screenshot` renders a pixel-accurate image. It is the only way to verify visual correctness (colors, typography rendering, effects, variable mode resolution). Normally take one screenshot after composition. If a visual fix follows, take one post-fix screenshot; the latest passing screenshot is final. Do not add another screenshot when nothing relevant changed.
 
 **When to use `get_screenshot`:**
 - **After creating a component set** — verify variants look correct, grid is readable, nothing is collapsed or overlapping

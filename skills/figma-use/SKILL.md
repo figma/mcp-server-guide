@@ -27,7 +27,7 @@ IMPORTANT: Whenever you work with design systems, start with [working-with-desig
 3a. **Return node IDs and keep workflow state outside the Figma file.** Set human-readable component purpose and usage in `node.description` only on a `COMPONENT` or `COMPONENT_SET` — never on a frame or instance.
 3b. **Narrow before accessing type-specific properties.** Check `node.type`, use a capability guard such as `"characters" in node`, or prefilter with `findAllWithCriteria`. `characters` requires a text-capable node; optional chaining does not protect unsupported property access.
 4.  `console.log()` is NOT returned — use `return` for output
-5.  **Work incrementally in small steps.** Break large operations into multiple `use_figma` calls. Validate after each step. This is the single most important practice for avoiding bugs.
+5.  **Size construction calls for safe retry and validate from evidence.** Do not split a working operation solely to create validation checkpoints. Batch related work when the resulting script remains safe to retry; a complete section or page may be built in one call. Split when crossing page context, when partial execution would be difficult to recover, or after an actual failure requires a targeted retry. Return affected IDs and relevant counts, names, or bounds from each write—this counts as structural validation. Run a separate structural check only when required evidence is missing or after a relevant mutation. Normally take one screenshot after composition and one after a visual fix. The most recent passing screenshot is the final check; do not repeat it when nothing relevant changed. Stop once requirements pass.
 6.  Colors are **0–1 range** (not 0–255): `{r: 1, g: 0, b: 0}` = red. Paint `color` objects use `{r, g, b}` **only — no `a` field**; opacity goes at the paint level (`{ type: 'SOLID', color: {...}, opacity: 0.5 }`).
 7.  Fills/strokes are **read-only arrays** — clone, modify, reassign
 8.  **Every text edit follows the canonical recipe: load font → `await` → mutate → return affected node IDs.** Skipping the load throws `Cannot write to node with unloaded font "<family> <style>"`. The rule covers more than `characters` — it applies to any operation on nodes with unloaded fonts (`appendChild`, `insertChild`, `setBoundVariable`, `setExplicitVariableModeForCollection`, `setValueForMode`, `findAll` callbacks touching text). When mutating existing text, load the node's *current* fonts via `getStyledTextSegments(['fontName'])`, not a hardcoded default. Inter is preloaded in most environments so other families surface this bug more often — the recipe is the same for every font. Use `await figma.listAvailableFontsAsync()` first if the style string is unverified — **never guess** (`"SemiBold"` vs `"Semi Bold"` is a common footgun). For `FONT_FAMILY`-scoped variables, load every value across every relevant mode before `setBoundVariable("fontFamily", …)`, `setValueForMode`, or `setExplicitVariableModeForCollection`. `lineHeight`/`letterSpacing` take `{unit, value}`, not bare numbers. See [Canonical text-edit recipe](references/gotchas.md#canonical-text-edit-recipe-font-load--await--mutate--return-ids).
@@ -237,7 +237,7 @@ await frame.screenshot({ scale: 2 })
 await frame.screenshot({ contentsOnly: false })
 ```
 
-**When to use:** After creating or modifying nodes, call `screenshot()` to visually verify the result within the same script. No need for a separate `get_screenshot` call.
+**When to use:** Follow Rule 5. Take a composition screenshot when visual evidence is needed. If a visual fix follows, take one post-fix screenshot; that passing screenshot is final. Do not take an additional unchanged “final” screenshot.
 
 **Auto-naming:** The image caption includes node metadata — `"Card (300x150 at 0,60).png"` — giving spatial context without parsing the image.
 
@@ -245,20 +245,20 @@ await frame.screenshot({ contentsOnly: false })
 
 ## 6. Incremental Workflow (How to Avoid Bugs)
 
-The most common cause of bugs is trying to do too much in a single `use_figma` call. **Work in small steps and validate after each one.**
+The most common causes of waste are unnecessary fragmentation, redundant validation, and scripts that cannot be retried safely. **Use Rule 5's safe-retry and evidence-based validation contract.**
 
 ### Key rules
 
-- **At most 10 logical operations per `use_figma` call.** A "logical operation" is creating a node, setting its properties, and parenting it. If you need to create 20 nodes, split across 2-3 calls. **Slides override:** in Slides files, slides are isolated subtrees — the relevant limit is complexity per slide, not total nodes across slides. Building 3–5 new slides in one call is safe, and so is applying the same edit (e.g. adding a footer, recoloring a heading) across every slide in the deck in a single call. See [figma-use-slides](../figma-use-slides/SKILL.md) for the deck-building workflow.
+- **Choose call boundaries for recoverability, not validation cadence.** Batch related creation, property updates, parenting, and targeted diagnostics when safe. A complete page may be one call; do not split it into header/content/footer calls merely to validate each section. **Slides override:** in Slides files, slides are isolated subtrees — the relevant limit is complexity per slide, not total nodes across slides. Building 3–5 new slides in one call is safe, and so is applying the same edit (e.g. adding a footer, recoloring a heading) across every slide in the deck in a single call. See [figma-use-slides](../figma-use-slides/SKILL.md) for the deck-building workflow.
 - **Build top-down, starting with placeholders.** Create the outer structure first with `placeholder = true` on each section, then incrementally replace placeholders with real content in subsequent calls.
 
 ### The pattern
 
 1. **Inspect first.** Before creating anything, run a read-only `use_figma` to discover what already exists in the file — pages, components, variables, naming conventions. Match what's there.
 2. **Build the skeleton.** Create the top-level structure with placeholder sections. Set `placeholder = true` on each section so the user sees progress.
-3. **Fill in sections incrementally.** In each subsequent call, populate one section and set its `placeholder = false` when done. Take a `screenshot()` to verify.
+3. **Fill in content in retry-safe batches.** Multiple related sections may be populated together when the operation remains safe to retry. Set each section's `placeholder = false` when done.
 4. **Return IDs from every call** (Rule 15) — you'll need created node/variable/collection IDs as inputs to subsequent calls.
-5. **Validate after each step.** Use `get_metadata` to verify structure (counts, names, hierarchy, positions). Use `await node.screenshot()` inline or `get_screenshot` after major milestones to catch visual issues.
+5. **Return validation evidence from writes.** Return IDs and the relevant counts, names, hierarchy, or bounds. Add a separate audit only for missing evidence or after a mutation invalidates earlier evidence. Follow Rule 5 for visual checks.
 6. **Fix before moving on.** If validation reveals a problem, fix it before proceeding to the next step. Don't build on a broken foundation.
 
 ### Suggested step order for complex tasks
@@ -266,12 +266,14 @@ The most common cause of bugs is trying to do too much in a single `use_figma` c
 ```
 Step 1: Inspect file — discover existing pages, components, variables, conventions
 Step 2: Create tokens/variables (if needed)
-       → validate with get_metadata
+       → return collection, variable, and mode counts
 Step 3: Create individual components
-       → validate with get_metadata + get_screenshot
+       → return component IDs and relevant child/variant counts
 Step 4: Compose layouts from component instances
-       → validate with get_screenshot
-Step 5: Final verification
+       → return layout IDs/bounds + take a composition screenshot
+Step 5: Apply a targeted visual fix only if needed
+       → take one post-fix screenshot; this is final
+Step 6: Stop if nothing relevant changed
 ```
 
 ### What to validate at each step
@@ -285,7 +287,7 @@ Step 5: Final verification
 
 ## 7. Error Recovery & Self-Correction
 
-On any `use_figma` error, obey `safeToRetryWithoutCanvasRead` (Rule 14): `true` → fix and retry; `false` → read the canvas, determine what changed, then make changes. Errors whose fix is already a Critical Rule are diagnosed there — `"not implemented"` (`figma.notify`, Rule 3), the `layoutSizing*` HUG/FILL rejections (Rules 12, 12b), `"Setting figma.currentPage is not supported"` (Rule 9), `componentPropertyDefinitions` on a variant (Rule 18), and `characters`/`description` on the wrong node type (Rules 3a, 3b). The rows below cover failures the contract doesn't name:
+On any `use_figma` error, obey `safeToRetryWithoutCanvasRead` (Rule 14): `true` → correct the identified error and retry without adding a diagnostic canvas read; `false` → read the canvas, determine what changed, then make changes. If the same API or property error occurs twice, inspect its definition once and fix the root cause before retrying; do not continue decomposing the operation around the same invalid mutation. Errors whose fix is already a Critical Rule are diagnosed there — `"not implemented"` (`figma.notify`, Rule 3), the `layoutSizing*` HUG/FILL rejections (Rules 12, 12b), `"Setting figma.currentPage is not supported"` (Rule 9), `componentPropertyDefinitions` on a variant (Rule 18), and `characters`/`description` on the wrong node type (Rules 3a, 3b). The rows below cover failures the contract doesn't name:
 
 | Error message | Likely cause | How to fix |
 |---|---|---|
