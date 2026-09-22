@@ -7,7 +7,7 @@
     "url": "https://github.com/figma/mcp-server-guide",
     "source": "github"
   },
-  "version": "2.2.118",
+  "version": "2.2.120",
   "remotes": [
     {
       "type": "streamable-http",

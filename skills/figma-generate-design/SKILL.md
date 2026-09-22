@@ -258,9 +258,9 @@ wrapper.y = 0;
 return { success: true, wrapperId: wrapper.id };
 ```
 
-### Step 4: Build Each Section Inside the Wrapper
+### Step 4: Build the Sections Inside the Wrapper
 
-**This is the most important step.** Build one section at a time, each in its own `use_figma` call. At the start of each script, fetch the wrapper by ID and append new content directly to it.
+**This is the most important step.** Build in retry-safe construction phases: related sections may share one `use_figma` call when the resulting script is safe to retry. Split a phase only when it would cross page context, when partial execution would be hard to recover, or when an actual failure requires a targeted retry — not merely to create a validation checkpoint. At the start of each script, fetch the wrapper by ID and append new content directly to it.
 
 ```js
 const createdNodeIds = [];
@@ -305,7 +305,7 @@ createdNodeIds.push(section.id);
 return { success: true, createdNodeIds };
 ```
 
-After each section, validate with `get_screenshot` before moving on. Look closely for cropped/clipped text (line heights cutting off content) and overlapping elements — these are the most common issues and easy to miss at a glance.
+Return the created node IDs plus the relevant counts, names, and bounds from each call — this is your default structural validation. Run a separate structural read only when that evidence is missing or when a relevant mutation has invalidated it. Save the visual pass for Step 5.
 
 #### Override instance text with setProperties()
 
@@ -373,9 +373,9 @@ slotFrame.appendChild(icon);
 
 ### Step 5: Validate the Full View and Transfer Images
 
-After composing all sections, call `get_screenshot` on the wrapper frame and compare against the source. Fix any issues with targeted `use_figma` calls — don't rebuild the entire view.
+After composing all sections, take **one full-view composition screenshot** of the wrapper frame and compare against the source. If it reveals a meaningful visual defect, apply targeted `use_figma` fixes — don't rebuild the entire view — then take **one** post-fix screenshot. The most recent passing screenshot is the final check: do not take an additional unchanged "final" shot, and do not screenshot every section individually.
 
-**Screenshot individual sections, not just the full view.** A full-view screenshot at reduced resolution hides text truncation, wrong colors, and placeholder text that hasn't been overridden. Take a screenshot of each section by node ID to catch:
+Inspect the composition screenshot for:
 - **Cropped/clipped text** — line heights or frame sizing cutting off descenders, ascenders, or entire lines
 - **Overlapping content** — elements stacking on top of each other due to incorrect sizing or missing auto-layout
 - Placeholder text still showing ("Title", "Heading", "Button")
@@ -423,7 +423,7 @@ When updating rather than creating from scratch:
    - Update text content, variant properties, or layout as needed
    - Remove deprecated sections
    - Add new sections
-4. Validate with `get_screenshot` after each modification.
+4. Follow the same evidence and screenshot cadence as Steps 4–5: rely on returned IDs plus relevant counts, names, and bounds for structural validation, then take one full-view screenshot after the updates (and one post-fix screenshot only if a targeted visual fix is needed).
 
 ```js
 // Example: Swap a button variant in an existing screen.
@@ -459,7 +459,7 @@ Follow [figma-use error recovery](../figma-use/SKILL.md#7-error-recovery--self-c
 - If `safeToRetryWithoutCanvasRead` is `true`, fix the error and retry.
 - If `false`, read the canvas, determine what changed, then make changes.
 
-Because this skill works incrementally (one section per call), errors are naturally scoped to a single section. Previous sections from successful calls remain intact.
+Because this skill works in retry-safe construction phases, errors are naturally scoped to the current phase. Content from previous successful calls remains intact.
 
 ## Best Practices
 
@@ -468,8 +468,8 @@ Because this skill works incrementally (one section per call), errors are natura
 - **Prefer design system tokens over hardcoded values.** Use variable bindings for colors, spacing, and radii. Use text styles for typography. Use effect styles for shadows. This keeps the screen linked to the design system.
 - **Prefer component instances over manual builds.** Instances stay linked to the source component and update automatically when the design system evolves.
 - **Componentize by default.** Build repeated or reusable elements as a component once, then place instances. Do not ship a flat tree of one-off frames that needs a second "make it componentized" pass.
-- **Work section by section.** Never build more than one major section per `use_figma` call.
-- **Return node IDs from every call.** You'll need them to compose sections and for error recovery.
-- **Validate visually after each section.** Use `get_screenshot` to catch issues early.
+- **Work in retry-safe construction phases.** Batch related sections into one `use_figma` call when the script stays safe to retry; split only at page-context boundaries, hard-to-recover mutations, or a targeted retry after an actual failure.
+- **Return node IDs and validation evidence from every call.** Return created IDs plus the relevant counts, names, and bounds — this is your default structural validation, and you'll need the IDs to compose sections and for error recovery.
+- **Validate visually with one composition screenshot.** Take one full-view screenshot after composition, and one more only after a targeted visual fix; the most recent passing screenshot is final.
 - **Assert the font family, not just a successful load.** A script can load the wrong font without error. After building, verify rendered text uses the product font identified in Step 1 (see Step 5).
 - **Match existing conventions.** If the file already has screens, match their naming, sizing, and layout patterns.

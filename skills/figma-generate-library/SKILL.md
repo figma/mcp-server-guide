@@ -6,7 +6,7 @@ disable-model-invocation: false
 
 # Design System Builder — Figma MCP Skill
 
-Build professional-grade design systems in Figma that match code. This skill orchestrates multi-phase workflows across 20–100+ `use_figma` calls, enforcing quality patterns from real-world design systems (Material 3, Polaris, Figma UI3, Simple DS).
+Build professional-grade design systems in Figma that match code. This skill orchestrates multi-phase workflows across coherent, safely retryable construction phases, enforcing quality patterns from real-world design systems (Material 3, Polaris, Figma UI3, Simple DS).
 
 **Prerequisites**: The `figma-use` skill MUST also be loaded for every `use_figma` call. It provides Plugin API syntax rules (return pattern, page reset, ID return, font loading, color range). This skill provides design system domain knowledge and workflow orchestration.
 
@@ -50,7 +50,7 @@ Rules:
 
 **No setup exception:** Creating a new Figma file, importing a library, creating pages, variables, collections, styles, or components all count as creation/mutation. Do not treat any of them as harmless setup.
 
-**This is NEVER a one-shot task.** Building a design system requires 20–100+ `use_figma` calls across multiple phases, with mandatory progress between them. Any attempt to create everything in one call WILL produce broken, incomplete, or unrecoverable results. Break every operation to the smallest useful unit, validate, get feedback, proceed.
+**This is NEVER a one-shot task.** Building a design system spans multiple phases with mandatory progress between them. Any attempt to create everything in one call WILL produce broken, incomplete, or unrecoverable results. Organize the work into coherent, safely retryable construction phases: batch related operations when the resulting script stays safe to retry, and split only at page-context boundaries, hard-to-recover mutations, or a targeted retry after an actual failure — never split a working operation solely to create a validation checkpoint. Keep mutations strictly sequential, validate from evidence, get feedback, proceed.
 
 ---
 
@@ -83,12 +83,12 @@ Work through the phases in order. Do not move to the next phase until the curren
 
 - [ ] 2a. Create page skeleton: Cover → Getting Started → Foundations → --- → Components → --- → Utilities
 - [ ] 2b. Create foundations documentation pages (color swatches, type specimens, spacing bars)
-- [ ] 2c. Capture a `get_screenshot` of every foundations page and print the **page list** to chat alongside the screenshots
+- [ ] 2c. After composing the foundations pages, take **one visual review** of the phase and print the **page list** to chat alongside it. If the review reveals a meaningful visual defect, apply targeted fixes and take one post-fix screenshot; the latest passing screenshot is final (no unchanged final screenshot needed)
 - [ ] Exit criteria met: all planned pages exist, foundations docs are navigable
 
-### Phase 3: COMPONENTS (one at a time — never batch)
+### Phase 3: COMPONENTS (retry-safe phases, dependency order preserved)
 
-For EACH component (in dependency order: atoms before molecules), run the checklist below. Finish the current component before starting the next.
+Work through components in dependency order (atoms before molecules). A construction phase may include multiple related components, but work on different pages must be split across coherent, safely retryable `use_figma` calls. Each mutating call must target one page and call `figma.setCurrentPageAsync` at most once. Run the required checklist items for every component, and meet its exit criteria before starting work that depends on it.
 
 - [ ] 3a. Create dedicated page
 - [ ] 3b. Build base component with auto-layout + full variable bindings
@@ -96,9 +96,9 @@ For EACH component (in dependency order: atoms before molecules), run the checkl
 - [ ] 3d. Add component properties (TEXT, BOOLEAN, INSTANCE_SWAP)
 - [ ] 3e. Link properties to child nodes
 - [ ] 3f. Add page documentation (title, description, usage notes)
-- [ ] 3g. Validate: `get_metadata` (structure) + `get_screenshot` (visual)
+- [ ] 3g. Validate from the structural evidence returned by the writes (IDs plus relevant counts, names, bounds); run a separate structural audit only when that evidence is missing or a mutation invalidated it. Take **one visual review** per coherent composition phase, and one post-fix screenshot only if a targeted visual fix is needed
 - [ ] 3h. Optional: lightweight Code Connect mapping while context is fresh
-- [ ] Exit criteria met: variant count correct, all bindings verified, screenshot looks right
+- [ ] Exit criteria met: variant count correct, all bindings verified, latest passing screenshot looks right
 
 ### Phase 4: INTEGRATION + QA (final pass)
 
@@ -106,7 +106,7 @@ For EACH component (in dependency order: atoms before molecules), run the checkl
 - [ ] 4b. Accessibility audit (contrast, min touch targets, focus visibility)
 - [ ] 4c. Naming audit (no duplicates, no unnamed nodes, consistent casing)
 - [ ] 4d. Unresolved bindings audit (no hardcoded fills/strokes remaining)
-- [ ] 4e. Final review screenshots of every page
+- [ ] 4e. One final visual review per composition phase that changed during integration; the latest passing screenshot is final (no unchanged final screenshot needed)
 
 ---
 
@@ -132,7 +132,7 @@ For EACH component (in dependency order: atoms before molecules), run the checkl
 9. **INSTANCE_SWAP for icons** — never create a variant per icon. Cap variant matrices: if Size × Style × State > 30 combinations, split into sub-component.
 10. **Deterministic naming** — use consistent, unique node names for idempotent cleanup and resumability. Track created node IDs via return values and the state ledger.
 11. **No destructive cleanup** — cleanup scripts identify nodes by name convention or returned IDs, not by guessing.
-12. **Validate before proceeding** — never build on unvalidated work. `get_metadata` after every create, `get_screenshot` after each component.
+12. **Validate from evidence before proceeding** — never build on unvalidated work. Rely on the structural evidence returned by writes (IDs plus relevant counts, names, bounds); run one batched structural audit per coherent phase only when needed to establish the phase exit criteria or when a relevant mutation invalidated prior evidence. Take one visual review per coherent composition phase (plus one post-fix screenshot only after a targeted visual fix).
 13. **NEVER parallelize `use_figma` calls** — Figma state mutations must be strictly sequential. Even if your tool supports parallel calls, never run two use_figma calls simultaneously.
 14. **Never hallucinate Node IDs** — always read IDs from the state ledger returned by previous calls. Never reconstruct or guess an ID from memory.
 15. **Use the helper scripts** — embed scripts from `scripts/` into your use_figma calls. Don't write 200-line inline scripts from scratch.
