@@ -93,24 +93,45 @@ Batch multiple lookups in a single call. Use the returned keys with `importCompo
 
 Mark resolved components. If all components are resolved, skip 2a-ii and 2a-iii. If none of the needed components have Code Connect files, proceed to 2a-ii.
 
-**2a-ii — REQUIRED if unresolved components remain: Inspect existing screens.** Check if the target file already contains screens using the same design system. A single `use_figma` call that walks an existing frame's instances gives you an exact, authoritative component map:
+**2a-ii — REQUIRED if unresolved components remain: Inspect existing screens.** Check if the target file already contains screens using the same design system. One read-only `use_figma` call inventories an existing frame — its component keys, bound variables, and text/effect styles — in a single authoritative pass. Run it once here and reuse the result in 2b and 2c rather than re-walking the frame:
 
 ```js
 const frame = figma.currentPage.findOne(n => n.name === "Existing Screen");
-const uniqueSets = new Map();
-frame.findAllWithCriteria({ types: ["INSTANCE"] }).forEach(inst => {
-  const mc = inst.mainComponent;
-  const cs = mc?.parent?.type === "COMPONENT_SET" ? mc.parent : null;
-  const key = cs ? cs.key : mc?.key;
-  const name = cs ? cs.name : mc?.name;
-  if (key && !uniqueSets.has(key)) {
-    uniqueSets.set(key, { name, key, isSet: !!cs, sampleVariant: mc.name });
+const components = new Map();
+const styles = { text: new Map(), effect: new Map() };
+const variableIds = new Set();
+
+// boundVariables and style ids can sit on any scene node, so walk them all.
+for (const node of frame?.findAll(() => true) ?? []) {
+  if (node.type === "INSTANCE") {
+    const mc = node.mainComponent;
+    const cs = mc?.parent?.type === "COMPONENT_SET" ? mc.parent : null;
+    const key = cs ? cs.key : mc?.key;
+    if (key && !components.has(key)) {
+      components.set(key, { name: cs ? cs.name : mc.name, key, isSet: !!cs, sampleVariant: mc.name });
+    }
   }
-});
-return [...uniqueSets.values()];
+  for (const b of Object.values(node.boundVariables ?? {}).flat()) {
+    if (b?.id) variableIds.add(b.id);
+  }
+  for (const [prop, bucket] of [["textStyleId", "text"], ["effectStyleId", "effect"]]) {
+    if (prop in node && typeof node[prop] === "string" && node[prop]) {
+      const s = figma.getStyleById(node[prop]);
+      if (s) styles[bucket].set(s.id, { name: s.name, id: s.id, key: s.key });
+    }
+  }
+}
+const vars = await Promise.all([...variableIds].map(id => figma.variables.getVariableByIdAsync(id)));
+
+return {
+  components: [...components.values()],
+  variables: vars.filter(Boolean).map(v => ({ name: v.name, id: v.id, key: v.key, type: v.resolvedType, remote: v.remote })),
+  textStyles: [...styles.text.values()],
+  effectStyles: [...styles.effect.values()],
+};
 ```
 
-Match results against your unresolved components. Mark any newly resolved. If all components are resolved, skip 2a-iii.
+Match `components` against your unresolved components; Code Connect keys from 2a-i stay authoritative. Mark any newly resolved. If all components are resolved, skip 2a-iii.
 
 **2a-iii — LAST RESORT: `search_design_system`.** Only if components remain unresolved after completing both 2a-i and 2a-ii.
 
@@ -151,7 +172,7 @@ Component Map:
 
 #### 2b: Discover variables (colors, spacing, radii)
 
-**Inspect existing screens first** (same as components). Or use `search_design_system` with `queries` entries whose `entity` is `"variable"`.
+**Inspect existing screens first.** Reuse `variables` from the 2a-ii inventory; if that step was skipped, run the inventory here when an existing screen is available. For unresolved variables, use `search_design_system` with `queries` entries whose `entity` is `"variable"`.
 
 > **WARNING: Two different variable discovery methods — do not confuse them.**
 >
@@ -168,61 +189,13 @@ Component Map:
 
 If initial searches return empty, try shorter fragments or different naming conventions — libraries vary widely ("grey" vs "gray", "spacing" vs "space", "color/bg" vs "background").
 
-Inspect an existing screen's bound variables for the most authoritative results:
-
-```js
-const frame = figma.currentPage.findOne(n => n.name === "Existing Screen");
-
-// boundVariables can live on any scene node — enumerating every scene type
-// just to feed findAllWithCriteria is roughly the same as findAll(() => true)
-// and is much noisier in script output.
-const uniqueIds = new Set(
-  frame.findAll(() => true).flatMap(n =>
-    Object.values(n.boundVariables ?? {})
-      .flatMap(b => Array.isArray(b) ? b : [b])
-      .map(b => b?.id)
-      .filter(Boolean)
-  )
-);
-const variables = await Promise.all(
-  [...uniqueIds].map(id => figma.variables.getVariableByIdAsync(id))
-);
-return variables
-  .filter(Boolean)
-  .map(v => ({ name: v.name, id: v.id, key: v.key, type: v.resolvedType, remote: v.remote }));
-```
-
 For library variables (remote = true), import them by key with `figma.variables.importVariableByKeyAsync(key)`. For local variables, use `figma.variables.getVariableByIdAsync(id)` directly.
 
 See [variable-patterns.md](../figma-use/references/variable-patterns.md) for binding patterns.
 
 #### 2c: Discover styles (text styles, effect styles)
 
-Search for styles using `search_design_system` with `entity: "style"` query entries and terms like "heading", "body", "shadow", "elevation". Or inspect what an existing screen uses:
-
-```js
-const frame = figma.currentPage.findOne(n => n.name === "Existing Screen");
-const styles = { text: new Map(), effect: new Map() };
-
-for (const node of frame.findAll(() => true)) {
-  // textStyleId is on TEXT and TEXT_PATH; effectStyleId is on most scene
-  // shape/container types. Use `in` guards to handle both without an
-  // exhaustive type list.
-  if ('textStyleId' in node && node.textStyleId) {
-    const s = figma.getStyleById(node.textStyleId);
-    if (s) styles.text.set(s.id, { name: s.name, id: s.id, key: s.key });
-  }
-  if ('effectStyleId' in node && node.effectStyleId) {
-    const s = figma.getStyleById(node.effectStyleId);
-    if (s) styles.effect.set(s.id, { name: s.name, id: s.id, key: s.key });
-  }
-}
-
-return {
-  textStyles: [...styles.text.values()],
-  effectStyles: [...styles.effect.values()]
-};
-```
+Reuse `textStyles` and `effectStyles` from the inventory in 2a-ii or 2b. If no inventory exists, inspect an available screen with the same script or search with `search_design_system` using `entity: "style"` query entries and terms like "heading", "body", "shadow", "elevation". Search for any styles still missing.
 
 Import library styles with `figma.importStyleByKeyAsync(key)`, then apply with `node.textStyleId = style.id` or `node.effectStyleId = style.id`.
 
