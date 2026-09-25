@@ -6,7 +6,7 @@ disable-model-invocation: false
 
 # Design System Builder — Figma MCP Skill
 
-Build professional-grade design systems in Figma that match code. This skill orchestrates multi-phase workflows across coherent, safely retryable construction phases, enforcing quality patterns from real-world design systems (Material 3, Polaris, Figma UI3, Simple DS).
+Build professional-grade design-system assets in Figma that match code. Scale the workflow to the requested deliverable: a token set, one component, a complete library, or a targeted reconciliation. Run the selected path in coherent, safely retryable construction phases with evidence-based validation.
 
 **Prerequisites**: The `figma-use` skill MUST also be loaded for every `use_figma` call. It provides Plugin API syntax rules (return pattern, page reset, ID return, font loading, color range). This skill provides design system domain knowledge and workflow orchestration.
 
@@ -14,99 +14,75 @@ Build professional-grade design systems in Figma that match code. This skill orc
 
 ---
 
-## 1. The One Rule That Matters Most
+## 1. Scope and Completion Contract
 
-For every phase, follow this communication contract.
+Before the first mutation, choose one primary scope from the user's request and record its included deliverables and acceptance checks. Do not silently promote a narrower request into a full-library project.
 
-Before starting a phase:
-- Post a user-facing checklist titled `Phase N Checklist`.
-- Include every task/subtask that will be attempted in that phase.
-- Include the phase exit criteria.
-- Do not begin mutating work for the phase until this checklist has been posted.
+| Requested scope | Required work | Excluded unless requested or necessary |
+|---|---|---|
+| **Tokens / foundations only** | Requested variables, modes, scopes, code syntax, styles, and any requested specimen sheet | Components, component pages, Code Connect, full-library navigation |
+| **Single component or family** | Inspect and reuse compatible foundations; create only missing tokens the component requires; build requested variants/properties/bindings; validate the component | Unrelated foundations, other components, full file skeleton, broad documentation or audits |
+| **Full library / design system** | Discovery, foundations, file structure, requested component inventory, documentation, integration, and final QA | Work outside the agreed v1 inventory |
+| **Reconciliation / update** | Diff code and Figma, then update only affected tokens, styles, components, docs, and dependents | Rebuilding valid assets or expanding the library |
 
-During execution:
-- Before each major subsection, post a short update naming the exact section being worked on, using this format:
-  `Working on Phase N.X: <section name>`
-- Keep updates concise, but make the current work visible.
-- When a subsection completes, mark it as completed in the running checklist if the interface supports checklist/status updates; otherwise mention completion in the next progress update.
+Communicate proportionally: post one concise scope-and-acceptance checklist before mutations, give updates at meaningful boundaries, and finish with one summary of created or changed objects, validation evidence, and unresolved limitations. Do not repeat unchanged checklists or narrate every API call.
 
-At the end of each phase:
-- Post a `Phase N Summary` with:
-  - Completed tasks
-  - Created or changed Figma objects
-  - Validations performed
-  - Decisions or conflicts resolved
-  - Remaining risks or follow-ups
-- Then show the required phase artifact for that phase and continue automatically.
+Batch related operations when the resulting script stays safe to retry. Split at page-context boundaries, hard-to-recover mutations, or for a targeted retry after an actual failure; never split a working operation only to create a validation checkpoint. Keep mutations sequential. Use structural evidence returned by writes (IDs plus relevant counts, names, and bounds), and run a separate audit only when evidence is missing or a later mutation made it stale. Take one visual review per coherent composition phase and one post-fix screenshot only after a targeted visual fix; the latest passing screenshot is final.
 
-### Stable Task IDs
+### Definition of done
 
-Use one task ID format everywhere: `P{phase}.{step}`.
+Stop when all conditions for the chosen scope are true:
 
-Rules:
-- Use lettered step IDs only: `P0.a`, `P0.b`, `P1.a`, `P3.d`.
-- Do not use plain bullet points for task lists.
-- Every phase checklist, progress update, validation note, and phase summary MUST reference the same task IDs
+- The final deliverable covers the locked inventory and is materially faithful to the applicable source of truth, including requested variant/state coverage, required assets, and in-scope review examples.
+- For component tasks, keep main components and construction assets outside the final review frame, and show the requested states as instances in one compact frame. Before stopping, inspect that frame at normal scale and repair clipped, truncated, low-contrast, empty, misplaced, or detached content.
+- Required variable scopes, aliases, code syntax, component properties, variants, and bindings are verified.
+- The requested artifact passes applicable structural and visual validation. Confirm requested content is fully visible unless clipping or truncation is intentional; repair defects and recheck only the affected output.
+- Replace placeholders when the source provides the required asset; remove temporary instances, test frames, captures, abandoned artifacts, and unrelated stray nodes.
+- No known defect or unresolved decision prevents the agreed acceptance checks from passing. Report limitations outside the scope without starting extra work.
 
-**No setup exception:** Creating a new Figma file, importing a library, creating pages, variables, collections, styles, or components all count as creation/mutation. Do not treat any of them as harmless setup.
+Additional documentation, components, Code Connect mappings, accessibility sweeps, or speculative audits are follow-up work unless the chosen scope requires them. Once the definition of done passes, stop.
 
-**This is NEVER a one-shot task.** Building a design system spans multiple phases with mandatory progress between them. Any attempt to create everything in one call WILL produce broken, incomplete, or unrecoverable results. Organize the work into coherent, safely retryable construction phases: batch related operations when the resulting script stays safe to retry, and split only at page-context boundaries, hard-to-recover mutations, or a targeted retry after an actual failure — never split a working operation solely to create a validation checkpoint. Keep mutations strictly sequential, validate from evidence, get feedback, proceed.
+### Scope changes
+
+If the user changes the deliverable, update the scope and acceptance checklist. Preserve verified work, run only newly applicable steps, and do not retroactively add work from an unselected path.
 
 ---
 
-## 2. Mandatory Workflow
+## 2. Scoped Workflow
 
-Work through the phases in order. Do not move to the next phase until the current phase's required actions and acceptance checks are complete. If a phase cannot pass, stop and report the blocker. Do not approximate, skip, or defer a failed phase unless the user explicitly approves the limitation. No best-effort substitutions. No quiet approximations. No handoff with missing source truth, missing visual truth, fake assets, approximate typography, broken interactions, or unverified states.
+Every scope begins with focused discovery: analyze the relevant code, inspect the target Figma assets and conventions, call `get_libraries` before `search_design_system`, and resolve code/Figma conflicts before mutation. Batch independent searches and reuse their results. Lock the requested inventory, then run only its path below.
 
-### Phase 0: DISCOVERY (always first — no `use_figma` writes yet)
+### Tokens / foundations
 
-- [ ] 0a. Analyze codebase → extract tokens, components, naming conventions
-- [ ] 0b. Inspect Figma file → pages, variables, components, styles, existing conventions
-- [ ] 0c. Discover and search libraries → call `get_libraries` for the target file before `search_design_system`
-- [ ] 0d. Lock v1 scope → exact token set + component list recorded before any creation
-- [ ] 0e. Map code → Figma → every conflict (code disagrees with Figma) resolved and recorded
-- [ ] 0f. Print a **gap analysis** to chat: what exists in code but not Figma, what exists in Figma but not code, and every conflict from 0e with its resolution
+1. Create or update the requested collections, modes, primitives, semantic aliases, scopes, and code syntax.
+2. Create requested text and effect styles.
+3. Create a specimen or documentation page only when requested.
+4. Validate counts, mode values, aliases, scopes, syntax, styles, and any requested visual artifact; then stop.
 
-### Phase 1: FOUNDATIONS (tokens first — always before components)
+### Single component or family
 
-- [ ] 1a. Create variable collections and modes
-- [ ] 1b. Create primitive variables (raw values, 1 mode)
-- [ ] 1c. Create semantic variables (aliased to primitives, mode-aware)
-- [ ] 1d. Set scopes on ALL variables (never `ALL_SCOPES`)
-- [ ] 1e. Set code syntax on ALL variables
-- [ ] 1f. Create effect styles (shadows) and text styles (typography)
-- [ ] 1g. Print a **variable summary** to chat: N collections, M variables, K modes, broken down by collection
-- [ ] 1h. Print the **style list** to chat: every effect style and text style created, with names
-- [ ] Exit criteria met: every token from the agreed plan exists, all scopes set, all code syntax set
+1. Inspect and reuse compatible local or library variables, text styles, and effect styles. Create only the missing foundations required by the component. For source-defined, library-standard, or repeated component roles, create or reuse a shared text or effect style and apply it to every matching component node; keep one-off documentation inline.
+2. Build the requested base component, variants, properties, bindings, and dependency components.
+3. Use a dedicated page when it matches the file convention or the request needs a documented showcase; otherwise place it in the existing component area.
+4. Validate variant count, properties, variable bindings, applied text/effect style IDs on representative nodes, structure, and appearance; then stop.
 
-### Phase 2: FILE STRUCTURE (before components)
+### Full library / design system
 
-- [ ] 2a. Create page skeleton: Cover → Getting Started → Foundations → --- → Components → --- → Utilities
-- [ ] 2b. Create foundations documentation pages (color swatches, type specimens, spacing bars)
-- [ ] 2c. After composing the foundations pages, take **one visual review** of the phase and print the **page list** to chat alongside it. If the review reveals a meaningful visual defect, apply targeted fixes and take one post-fix screenshot; the latest passing screenshot is final (no unchanged final screenshot needed)
-- [ ] Exit criteria met: all planned pages exist, foundations docs are navigable
+1. **Discovery:** lock the token and component inventory and print the gap analysis.
+2. **Foundations:** create collections, variables, aliases, scopes, code syntax, and styles.
+3. **File structure:** create the agreed cover, getting-started, foundations, component, and utility pages plus requested documentation.
+4. **Components:** build the agreed inventory in dependency order, with properties, bindings, documentation, and validation.
+5. **Integration and QA:** complete Code Connect mappings for the agreed component inventory; audit accessibility, naming, and bindings; and visually validate every agreed page.
 
-### Phase 3: COMPONENTS (retry-safe phases, dependency order preserved)
+### Reconciliation / update
 
-Work through components in dependency order (atoms before molecules). A construction phase may include multiple related components, but work on different pages must be split across coherent, safely retryable `use_figma` calls. Each mutating call must target one page and call `figma.setCurrentPageAsync` at most once. Run the required checklist items for every component, and meet its exit criteria before starting work that depends on it.
+1. Inventory existing assets and identify exact drift from the current code source.
+2. Update affected assets in place, preserving valid names, IDs, bindings, and library structure where possible.
+3. Validate the changed assets and their known dependents; then stop.
 
-- [ ] 3a. Create dedicated page
-- [ ] 3b. Build base component with auto-layout + full variable bindings
-- [ ] 3c. Create all variant combinations (`combineAsVariants` + grid layout)
-- [ ] 3d. Add component properties (TEXT, BOOLEAN, INSTANCE_SWAP)
-- [ ] 3e. Link properties to child nodes
-- [ ] 3f. Add page documentation (title, description, usage notes)
-- [ ] 3g. Validate from the structural evidence returned by the writes (IDs plus relevant counts, names, bounds); run a separate structural audit only when that evidence is missing or a mutation invalidated it. Take **one visual review** per coherent composition phase, and one post-fix screenshot only if a targeted visual fix is needed
-- [ ] 3h. Optional: lightweight Code Connect mapping while context is fresh
-- [ ] Exit criteria met: variant count correct, all bindings verified, latest passing screenshot looks right
+If a required acceptance check fails, fix the scoped defect before continuing. Do not substitute fake assets, approximate typography, broken interactions, or unverified state.
 
-### Phase 4: INTEGRATION + QA (final pass)
-
-- [ ] 4a. Finalize all Code Connect mappings
-- [ ] 4b. Accessibility audit (contrast, min touch targets, focus visibility)
-- [ ] 4c. Naming audit (no duplicates, no unnamed nodes, consistent casing)
-- [ ] 4d. Unresolved bindings audit (no hardcoded fills/strokes remaining)
-- [ ] 4e. One final visual review per composition phase that changed during integration; the latest passing screenshot is final (no unchanged final screenshot needed)
+The selected path and definition of done take precedence over broader examples or full-library phase labels in the references. Load only references needed for that path.
 
 ---
 
@@ -121,9 +97,9 @@ Work through components in dependency order (atoms before molecules). A construc
 - Font MUST be loaded before any text write: `await figma.loadFontAsync({family, style})`. Use `await figma.listAvailableFontsAsync()` to discover available fonts and verify exact style strings — if a load fails, query available fonts to find the correct name or a fallback.
 
 **Design system rules**:
-1. **Variables BEFORE components** — components bind to variables. No token = no component.
+1. **Foundations before dependent components** — reuse compatible existing variables and styles. Create missing foundations before building a component that depends on them; do not recreate valid foundations.
 2. **Inspect before creating** — run read-only `use_figma` to discover existing conventions. Match them.
-3. **One page per component** *(default)* — exception: tightly related families (e.g., Input + helpers) may share a page with clear section separation.
+3. **Match the file's component organization** — full libraries usually use one page per component; tightly related families may share a page. A single-component task may use an existing component area instead of creating a library skeleton.
 4. **Bind visual properties to variables** *(default)* — fills, strokes, padding, radius, gap. Exceptions: intentionally fixed geometry (icon pixel-grid sizes, static dividers).
 5. **Scopes on every variable** — NEVER leave as `ALL_SCOPES`. Background: `FRAME_FILL, SHAPE_FILL`. Text: `TEXT_FILL`. Border: `STROKE_COLOR`. Spacing: `GAP`. Radii: `CORNER_RADIUS`. Primitives: `[]` (hidden).
 6. **Code syntax on every variable** — WEB syntax MUST use the `var()` wrapper: `var(--color-bg-primary)`, not `--color-bg-primary`. Use the actual CSS variable name from the codebase. ANDROID/iOS do NOT use a wrapper.
@@ -132,7 +108,7 @@ Work through components in dependency order (atoms before molecules). A construc
 9. **INSTANCE_SWAP for icons** — never create a variant per icon. Cap variant matrices: if Size × Style × State > 30 combinations, split into sub-component.
 10. **Deterministic naming** — use consistent, unique node names for idempotent cleanup and resumability. Track created node IDs via return values and the state ledger.
 11. **No destructive cleanup** — cleanup scripts identify nodes by name convention or returned IDs, not by guessing.
-12. **Validate from evidence before proceeding** — never build on unvalidated work. Rely on the structural evidence returned by writes (IDs plus relevant counts, names, bounds); run one batched structural audit per coherent phase only when needed to establish the phase exit criteria or when a relevant mutation invalidated prior evidence. Take one visual review per coherent composition phase (plus one post-fix screenshot only after a targeted visual fix).
+12. **Validate from evidence before proceeding** — never build on unvalidated work. Rely on the structural evidence returned by writes (IDs plus relevant counts, names, and bounds); run one batched structural audit per coherent phase only when needed to establish the acceptance checks or when a relevant mutation invalidated prior evidence. Take one visual review per coherent composition phase, plus one post-fix screenshot only after a targeted visual fix.
 13. **NEVER parallelize `use_figma` calls** — Figma state mutations must be strictly sequential. Even if your tool supports parallel calls, never run two use_figma calls simultaneously.
 14. **Never hallucinate Node IDs** — always read IDs from the state ledger returned by previous calls. Never reconstruct or guess an ID from memory.
 15. **Use the helper scripts** — embed scripts from `scripts/` into your use_figma calls. Don't write 200-line inline scripts from scratch.
@@ -162,7 +138,7 @@ Maintain a state ledger tracking:
 ```json
 {
   "runId": "ds-build-2024-001",
-  "phase": "phase3",
+  "scope": "single-component",
   "step": "component-button",
   "entities": {
     "collections": { "primitives": "id:...", "color": "id:..." },
@@ -171,7 +147,7 @@ Maintain a state ledger tracking:
     "components": { "Button": "id:..." }
   },
   "pendingValidations": ["Button:screenshot"],
-  "completedSteps": ["phase0", "phase1", "phase2", "component-avatar"]
+  "completedSteps": ["discovery", "foundations/verified", "component-button/base"]
 }
 ```
 
@@ -186,7 +162,7 @@ Maintain a state ledger tracking:
 
 ## 5. Library Discovery and search_design_system — Reuse Decision Matrix
 
-Search FIRST in Phase 0, then again immediately before each component creation.
+Search during the scoped discovery pass and reuse the results. Search again before a component only when it was outside the original inventory, the available libraries changed, or the earlier result did not resolve it.
 
 Before calling `search_design_system` for a target file, you MUST call `get_libraries` first for that file. You MUST NOT assume libraries are added or available.
 
@@ -195,7 +171,7 @@ An empty `get_libraries` result does NOT excuse skipping the search — it only 
 - **Libraries returned** — run `search_design_system` scoped with `includeLibraryKeys`. Libraries in `libraries_available_to_add` are NOT searched by default; pass their `libraryKey`s to reach them.
 - **No libraries returned** — still run `search_design_system`, but omit `includeLibraryKeys`. Omitting it scopes the search to the file itself, which is exactly what you want when discovery returned nothing to scope by.
 
-Only once the search itself comes back empty may you record "no design system assets available" in the Phase 0f gap analysis and build from code tokens. Never infer "no libraries" from a failed or unattempted `get_libraries` call.
+Only once the search itself comes back empty may you record "no design system assets available" in the gap analysis and build from code tokens. Never infer "no libraries" from a failed or unattempted `get_libraries` call.
 
 ```
 // Discover all libraries accessible to the file
@@ -307,56 +283,46 @@ Collection: "Spacing"       modes: ["Value"]
 
 ---
 
-## 9. Per-Phase Anti-Patterns
+## 9. Anti-Patterns
 
-**Phase 0 anti-patterns:**
-- ❌ Ignoring existing file conventions and imposing new ones
-- ❌ Skipping `search_design_system` before planning component creation
+**Discovery and scope:**
+- ❌ Ignoring existing conventions or skipping relevant code, file, and library discovery
+- ❌ Expanding a narrow request into unrelated foundations, documentation, or a full library
 
-**Phase 1 anti-patterns:**
-- ❌ Using `ALL_SCOPES` on any variable
-- ❌ Duplicating raw values in semantic layer instead of aliasing
-- ❌ Not setting code syntax (breaks Dev Mode and round-tripping)
-- ❌ Creating component tokens before agreeing on token taxonomy
+**Foundations:**
+- ❌ Using `ALL_SCOPES`, duplicating primitive values in the semantic layer, or omitting code syntax
+- ❌ Creating dependent components before their foundations exist
 
-**Phase 2 anti-patterns:**
-- ❌ Skipping the cover page or foundations docs
-- ❌ Putting multiple unrelated components on one page
+**Components:**
+- ❌ Hardcoding component fills, strokes, spacing, or radii when compatible variables exist
+- ❌ Creating a variant per icon instead of using INSTANCE_SWAP
+- ❌ Leaving variants stacked at (0,0) after `combineAsVariants`
+- ❌ Building a variant matrix larger than 30 without splitting it
+- ❌ Importing remote components and immediately detaching them
 
-**Phase 3 anti-patterns:**
-- ❌ Creating components before foundations exist
-- ❌ Hardcoding any fill/stroke/spacing/radius value in a component
-- ❌ Creating a variant per icon (use INSTANCE_SWAP instead)
-- ❌ Not positioning variants after combineAsVariants (they all stack at 0,0)
-- ❌ Building variant matrix > 30 without splitting (variant explosion)
-- ❌ Importing remote components then immediately detaching them
-
-**General anti-patterns:**
+**Execution and recovery:**
 - ❌ Retrying when `safeToRetryWithoutCanvasRead` is `false` before reading the canvas
 - ❌ Using name-prefix matching for cleanup (deletes user-owned nodes)
 - ❌ Building on unvalidated work from the previous step
 - ❌ Parallelizing use_figma calls (always sequential)
 - ❌ Guessing/hallucinating node IDs from memory (always read from state ledger)
 - ❌ Writing massive inline scripts instead of using the provided helper scripts
-- ❌ Starting Phase 3 because the user said "build the button" without completing Phases 0-2
 
 ---
 
 ## 10. Reference Docs
 
-Load on demand — each reference is authoritative for its phase:
+Read references on demand; do not infer their contents from the filename.
 
-Use your file reading tool to read these docs when needed. Do not assume their contents from the filename.
-
-| Doc | Phase | Required / Optional | Load when |
-|-----|-------|---------------------|-----------|
-| [discovery-phase.md](references/discovery-phase.md) | 0 | **Required** | Starting any build — codebase analysis + Figma inspection |
-| [token-creation.md](references/token-creation.md) | 1 | **Required** | Creating variables, collections, modes, styles |
-| [documentation-creation.md](references/documentation-creation.md) | 2 | Required | Creating cover page, foundations docs, swatches |
-| [component-creation.md](references/component-creation.md) | 3 | **Required** | Creating any component or variant |
-| [code-connect-setup.md](references/code-connect-setup.md) | 3–4 | Required | Setting up Code Connect or variable code syntax |
-| [naming-conventions.md](references/naming-conventions.md) | Any | Optional | Naming anything — variables, pages, variants, styles |
-| [error-recovery.md](references/error-recovery.md) | Any | **Required on error** | Script fails, multi-step workflow recovery, cleanup of abandoned workflow state |
+| Doc | Load when |
+|-----|-----------|
+| [discovery-phase.md](references/discovery-phase.md) | Analyzing relevant code and Figma assets before mutation |
+| [token-creation.md](references/token-creation.md) | Creating variables, collections, modes, or styles |
+| [documentation-creation.md](references/documentation-creation.md) | The selected scope includes cover or foundations documentation |
+| [component-creation.md](references/component-creation.md) | Creating a component or variant |
+| [code-connect-setup.md](references/code-connect-setup.md) | The selected scope includes Code Connect or variable code syntax |
+| [naming-conventions.md](references/naming-conventions.md) | Naming variables, pages, variants, or styles |
+| [error-recovery.md](references/error-recovery.md) | A script fails or abandoned workflow state needs cleanup |
 
 ---
 

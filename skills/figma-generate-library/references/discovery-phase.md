@@ -179,7 +179,7 @@ interface ButtonProps {
 
 ## 2. Figma File Inspection
 
-Run these `use_figma` snippets at the start of every build. All are read-only and safe to run before any user checkpoint.
+Run these `use_figma` snippets during scoped discovery. All are read-only and safe to run before any mutation.
 
 ### List All Pages
 
@@ -427,8 +427,8 @@ const componentSet = await figma.importComponentSetByKeyAsync("abc123def");
 
 ### When to Search
 
-- **Phase 0, step 0c**: Search broadly (`queries: [{ entity: "component", query: "button" }, { entity: "variable", query: "color" }, { entity: "variable", query: "spacing" }]`) before planning anything. This establishes the reuse baseline.
-- **Immediately before each component creation**: Search for the specific component name before writing any `use_figma` creation code.
+- **During scoped discovery:** Search broadly for the selected inventory (`queries: [{ entity: "component", query: "button" }, { entity: "variable", query: "color" }, { entity: "variable", query: "spacing" }]`). This establishes the reuse baseline.
+- **Search again only when needed:** Repeat a component search when it was outside the selected inventory, available libraries changed, or the earlier result did not resolve it. Reuse current results for in-scope components.
 
 **Reuse decision:**
 
@@ -474,7 +474,7 @@ Compare what was found in code vs what already exists in Figma:
 
 ### User-Facing Discovery Summary Template
 
-Present this message before proceeding, then continue automatically into Phase 1 unless an unresolved conflict requires a user decision.
+Present one concise scope and acceptance summary, then continue into the selected workflow path. Ask the user only when an unresolved conflict requires a decision.
 
 ```
 Here's what I found and what I plan to build:
@@ -497,7 +497,7 @@ PLAN
   New variables: ~{N} ({breakdown by collection})
   New styles: {N} text, {M} effect
   New components: {list}
-  Libraries to search before each component: {list}
+  Reusable library results for the selected inventory: {list}
 
 GAPS / CONFLICTS NEEDING DECISIONS
   ⚠ {conflict description} — Code says X, Figma already has Y. Which wins?
