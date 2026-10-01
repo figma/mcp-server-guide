@@ -359,7 +359,7 @@ type BaseNode   (L10862) = DocumentNode | PageNode | SceneNode
 
 **ViewportAPI (L3086):** `center: Vector`, `zoom: number`, `scrollAndZoomIntoView(nodes)`, `bounds: Rect`
 
-**UtilAPI (L2691):** `solidPaint(hex, opacity?)`, `rgba(r,g,b,a?)`, `rgb(r,g,b)`, `colorToHex(color)`, `loadImageAsync(url)`, `clone(val)`
+**UtilAPI (L2717):** `solidPaint(color, overrides?)`, `rgba(color)`, `rgb(color)`, `normalizeMarkdown(markdown)`. Color inputs accept CSS strings (including hex), `RGB`, or `RGBA`. Use `solidPaint` for complete solid paints (alpha becomes opacity), `rgb` for RGB fields (alpha is ignored), and `rgba` for gradient-stop/effect colors.
 
 **TeamLibraryAPI (L2372):** `getAvailableLibraryVariableCollectionsAsync()`, `importVariableByKeyAsync(key)`
 

@@ -398,7 +398,7 @@ $fig.instance(component, { x: 200, y: 100 })
 
 ### Use Components by Key (Team Libraries)
 
-Pass the `componentKey` straight into `$fig.get(...)` / `$fig.instance(...)`. The plan queues the library import automatically — there is no need to call `importComponentByKeyAsync` / `importComponentSetByKeyAsync` yourself, or to pick a variant child of a component set by hand.
+Pass the matching `componentKey` or `componentSetKey` straight into `$fig.get(...)` / `$fig.instance(...)`. The plan queues the library import automatically — there is no need to call `importComponentByKeyAsync` / `importComponentSetByKeyAsync` yourself, or to pick a variant child of a component set by hand.
 
 ```javascript
 // Component
