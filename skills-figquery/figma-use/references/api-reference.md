@@ -52,7 +52,7 @@ figma.combineAsVariants(components, parent?)    // Combine ComponentNodes into C
 
 ## Library Component / Style / Variable Lookup by Key
 
-`search_design_system` returns `componentKey` for components / component sets and `key` for styles and variables. Pass any of these straight into the unified `$fig` lookup — the plan queues the library import automatically. Same call sites also accept node IDs and real style / variable IDs for assets already in the current file.
+`search_design_system` returns `componentKey` for components and `componentSetKey` for component sets and `key` for styles and variables. Pass any of these straight into the unified `$fig` lookup — the plan queues the library import automatically. Same call sites also accept node IDs and real style / variable IDs for assets already in the current file.
 
 ```js
 // Components / component sets

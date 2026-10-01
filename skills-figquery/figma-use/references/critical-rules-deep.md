@@ -70,7 +70,7 @@ for (const { name, color } of FX_COLORS) {
 ### When NOT to use $fig
 Mid-script reading real `SceneNode` state, or operations on non-SceneNode types (Variables, Components themselves). For those, raw Plugin API in a single `use_figma` call is correct.
 
-Note: "I need a library component" alone is **not** a reason to leave `$fig`. Pass the `componentKey` from `search_design_system` straight into `$fig.get(...)` / `$fig.instance(...)` — same for style `key` (`$fig.getStyle`) and variable `key` (`$fig.getVar`). For component sets, pass variant property values in `props` and `$fig.instance` resolves the matching variant via `setProperties` — you do not need to import the set and drill into `compSet.children`.
+Note: "I need a library component" alone is **not** a reason to leave `$fig`. Pass the matching `componentKey` or `componentSetKey` from `search_design_system` straight into `$fig.get(...)` / `$fig.instance(...)` — same for style `key` (`$fig.getStyle`) and variable `key` (`$fig.getVar`). For component sets, pass variant property values in `props` and `$fig.instance` resolves the matching variant via `setProperties` — you do not need to import the set and drill into `compSet.children`.
 
 ---
 
