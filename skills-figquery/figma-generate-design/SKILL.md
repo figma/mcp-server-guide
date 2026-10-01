@@ -12,6 +12,15 @@ Use this skill to create or update **screens, views, and multi-section UI contai
 
 **Always pass `skillNames: "figma-generate-design"` when calling `use_figma` as part of this skill.** This is a logging parameter — it does not affect execution.
 
+## HTML-to-Figma Exceptions
+
+Use `html_to_figma` for initial creation in these cases:
+
+- The input is an existing raw or static HTML document. Pass it directly to `html_to_figma`.
+- The prompt asks to create a new design and there is no rendered UI implementation to reproduce. Create a self-contained HTML document and pass it to `html_to_figma`.
+
+If `html_to_figma` is unavailable, follow the existing workflow below.
+
 ## Skill Boundaries
 
 - Use this skill when the deliverable is a **composed Figma view** (new or updated) — full-page screens, modals, dialogs, drawers, sidebars, panels, or any multi-section container — built from design system component instances.
