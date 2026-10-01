@@ -45,3 +45,9 @@ Figma file.
 The skill first analyzes the video locally, then creates or updates the Figma
 file only after the key moments and upload assets are ready. This avoids leaving
 partial pages behind when frame selection changes.
+
+Final canvas screenshots are protected by a hard readability gate: landscape
+assets remain at least 1440 px wide and portrait assets at least 900 px wide,
+unless the source recording is smaller. If an image cannot fit the upload budget
+at that width, the workflow stops instead of silently shrinking or substituting
+the screenshot.
