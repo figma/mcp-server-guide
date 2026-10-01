@@ -750,7 +750,7 @@ return { removed, count: removed.length };
 
 ## 9. Validation — Verify Counts, Aliases, and Scopes
 
-Run the applicable scripts after creating or updating the selected tokens. Use the results to stop a token-only workflow or to continue to an in-scope dependent asset.
+Run these scripts after Phase 1 to verify everything was created correctly before proceeding to Phase 2.
 
 ### Verify Collection and Variable Counts
 
@@ -833,9 +833,9 @@ return {
 };
 ```
 
-### Token Exit Criteria Checklist
+### Phase 1 Exit Criteria Checklist
 
-Before declaring token work complete or proceeding to an in-scope dependent asset, verify all of the following:
+Before proceeding to Phase 2, verify all of the following:
 
 - Every planned collection exists with the correct number of modes
 - Primitive variables: `scopes = []`, code syntax set

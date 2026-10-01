@@ -179,7 +179,7 @@ interface ButtonProps {
 
 ## 2. Figma File Inspection
 
-Run these `use_figma` snippets during scoped discovery. All are read-only and safe to run before any mutation.
+Run these `use_figma` snippets at the start of every build. All are read-only and safe to run before any user checkpoint.
 
 ### List All Pages
 
@@ -497,7 +497,7 @@ PLAN
   New variables: ~{N} ({breakdown by collection})
   New styles: {N} text, {M} effect
   New components: {list}
-  Reusable library results for the selected inventory: {list}
+  Libraries to search before each component: {list}
 
 GAPS / CONFLICTS NEEDING DECISIONS
   ⚠ {conflict description} — Code says X, Figma already has Y. Which wins?
