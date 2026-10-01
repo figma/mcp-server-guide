@@ -17,13 +17,13 @@ description: Plan-based builder for creating and editing Figma nodes with automa
 
 Fall back to the raw Plugin API (`figma.createFrame()`, direct property assignment, `findAll`) **only** when `$fig` genuinely cannot express the operation:
 
-- You need the result of an async call mid-build — e.g. `setCurrentPageAsync` or `loadFontAsync` that must complete before the next create decision. (You do NOT need raw `importComponentByKeyAsync` / `importComponentSetByKeyAsync` to use a library component: pass the `componentKey` straight into `$fig.get(...)` / `$fig.instance(...)`. For component sets, variant selection happens via `{ props: {...} }` — no need to inspect `compSet.children` yourself.)
+- You need the result of an async call mid-build — e.g. `setCurrentPageAsync` or `loadFontAsync` that must complete before the next create decision. (You do NOT need raw `importComponentByKeyAsync` / `importComponentSetByKeyAsync` to use a library component: pass the matching `componentKey` or `componentSetKey` straight into `$fig.get(...)` / `$fig.instance(...)`. For component sets, variant selection happens via `{ props: {...} }` — no need to inspect `compSet.children` yourself.)
 - You need to read a real node's computed property (e.g. measured `width` after auto-layout) to decide what to create next
 - You need tight per-node control flow where each node's shape depends on the previous one's state
 
 These cases are the minority. If your first instinct is "I'll just call `figma.createRectangle()` once," rewrite it as `$fig.rectangle(...)`. If you're assigning properties one line at a time, rewrite it as `$fig.set(node, { ... })` or inline the props into the create call.
 
-You can freely mix: call `$fig` for the bulk of the build, `await $fig.done()` to materialize, then inspect or tweak real nodes before a second `$fig` pass.
+You can mix the APIs explicitly: build with `$fig`, `await $fig.done()` to materialize, then access real nodes through `planNode.node`. The original plan node and its `.children` remain plan nodes after the flush. Keep creation and supported mutations in `$fig`; flushing does not make raw methods or direct property assignments work on plan nodes.
 
 ## Creating nodes
 
@@ -64,7 +64,7 @@ card.text({ characters: 'Description', fontSize: 14 })
 | `$fig.component(opts?, children?)` | `SYMBOL` (main component) |
 | `$fig.page(opts?, children?)` | `PAGE` (new page node) |
 | `$fig.svg(svgString, opts?)` | Node tree parsed from SVG |
-| `$fig.instance(compRef, opts?)` | `INSTANCE` — `compRef` is a component plan node, a node ID string, OR a library asset key (`componentKey` from `search_design_system`); the import is queued in the plan automatically. |
+| `$fig.instance(compRef, opts?)` | `INSTANCE` — `compRef` is a component plan node, a node ID string, OR a library asset key (`componentKey` or `componentSetKey` from `search_design_system`); the import is queued in the plan automatically. |
 
 FigJam-only types (`$fig.sticky`, `$fig.connector`, `$fig.shapeWithText`, `$fig.codeBlock`, `$fig.table`) are available when the script runs in a FigJam file; Slides-only types (`$fig.slide`, `$fig.slideRow`) are available in Slides.
 
@@ -107,7 +107,7 @@ await $fig.done()
 
 // 3) Grid the variants with the raw Plugin API, using MEASURED sizes.
 const cs = set.node                 // the live ComponentSetNode
-const variants = cs.children        // the live variant ComponentNodes
+const variants = cs.children        // live ComponentNodes; set.children would still be plan nodes
 const GRID_GAP = 16, PADDING = 40
 const cols = 2                      // # of values on the axis you want across the top (e.g. State)
 const cellW = Math.max(...variants.map((v) => v.width))   // uniform cells → aligned columns
@@ -129,6 +129,20 @@ cs.y = 80
 ```
 
 Skipping step 2–4 is the single most common variant bug — the set collapses to one visible variant with the rest hidden behind it. For the full multi-axis version (State on columns, Size/Style on rows) plus doc frames and grid labels, see [Laying Out Variants After combineAsVariants (Required)](component-patterns.md#laying-out-variants-after-combineasvariants-required) and the complete [`createComponentWithVariants.js`](../../figma-generate-library/scripts/createComponentWithVariants.js) script.
+
+## Creating instances from component plan nodes
+
+`$fig.instance(componentPlanNode, opts)` accepts a newly created component plan node without an intermediate `done()`. `componentPlanNode.createInstance(opts)` is an alias with the same queued behavior and returns an instance **plan node**, not a raw `InstanceNode`. `parentPlanNode.instance(componentPlanNode, opts)` instead creates the instance under that parent.
+
+```js
+const component = $fig.component({ name: 'Card' })
+const instance = component.createInstance({ name: 'Card preview' })
+$fig.get('DESTINATION_FRAME_ID').append(instance)
+instance.set({ x: 20, y: 20 })
+// Auto-flush creates and places the instance. Use instance.node only after a flush.
+```
+
+The same calls work after `await $fig.done()`. A subsequent flush applies newly queued operations. Never pass the returned plan node to raw `appendChild` or assign `instance.name` directly; use the options, `.set()`, and plan node `.append()` as above.
 
 ## Component properties
 
@@ -301,7 +315,7 @@ const bgPrimary = semantic.colorVar({
 
 ### Building a component with bound variables (the default for components)
 
-When you build a **component or reusable UI** — even a single component — binding its tokenized visual properties is part of finishing the work, not an optional nicety. The component is **not complete** while a value that *has* a corresponding token (colors, radii, spacing the source defines, or that you created) is still a hardcoded literal. Pass the variable **handle straight into the property** (same routing as above). **Do not** copy resolved token values into local JS constants (e.g. `const VARIANTS = [{ bg: '#2c2c2c' }]`) and paint with `hex(...)` — that bypasses variables entirely. **Only bind values that have a token**; values with genuinely no token (one-off geometry, static dividers) correctly stay literal — don't fabricate tokens to bind. Build a primitive tier, alias a semantic tier to it, then bind the semantic vars into `$fig.component`:
+When you build a **component or reusable UI** — even a single component — binding its tokenized visual properties is part of finishing the work, not an optional nicety. The component is **not complete** while a value that *has* a corresponding token (colors, radii, spacing the source defines, or that you created) is still a hardcoded literal. Pass the variable **handle straight into the property** (same routing as above). **Do not** copy resolved token values into local JS constants (e.g. `const VARIANTS = [{ bg: '#2c2c2c' }]`) and paint with resolved literal colors — that bypasses variables entirely. **Only bind values that have a token**; values with genuinely no token (one-off geometry, static dividers) correctly stay literal — don't fabricate tokens to bind. Build a primitive tier, alias a semantic tier to it, then bind the semantic vars into `$fig.component`:
 
 ```js
 const prims = $fig.varCollection({ name: 'Primitives', modes: ['Value'] })
@@ -336,14 +350,14 @@ For a full variant set, build each variant this way, then wrap them in `$fig.var
 
 ## Reading / referencing existing nodes
 
-`$fig.get(idOrKey)` accepts a real node ID (`'123:456'`) or a library `componentKey` from `search_design_system`. For an asset key, the plan queues a library import automatically — you don't need a separate `await figma.importComponentByKeyAsync(...)` step.
+`$fig.get(idOrKey)` accepts a real node ID (`'123:456'`) or a library `componentKey` or `componentSetKey` from `search_design_system`. For an asset key, the plan queues a library import automatically — you don't need a separate `await figma.importComponentByKeyAsync(...)` step.
 
 ```js
 // Wrap an existing node by ID so it can be mutated in the plan
 const card = $fig.get('123:456')
 $fig.set(card, { name: 'Updated Card', opacity: 0.8 })
 
-// Wrap a library component / component set by its componentKey
+// Wrap a library component / component set by its asset key
 const button = $fig.get(BUTTON_KEY)
 $fig.instance(button, { name: 'Submit' })
 
@@ -470,6 +484,33 @@ const png = await rect.node?.exportAsync({ ... })    // any SceneNode method
 ## Auto-flush and `done()`
 
 The plan is automatically materialized when your `use_figma` script finishes — you do **not** need to call `$fig.done()`. The runtime registers a shutdown action that flushes any pending plan state before the script returns. The tool result will include a `FigDoneResult` object containing the created/updated/deleted node IDs and names.
+
+**All queued roots are materialized, including unused drafts.** Calling a constructor such as `$fig.autoLayout(...)` registers creation immediately. JavaScript variable usage does not determine which nodes are built: ignoring the plan node, returning a different node, or screenshotting only one screen does not discard other queued roots. Unattached roots are placed under the current page.
+
+A root cannot use `layoutSizingHorizontal: 'FILL'` or `layoutSizingVertical: 'FILL'`: the page is not an auto-layout parent. Setting `layoutMode: 'VERTICAL'` on the root controls its own children and does not satisfy this requirement. Attach a section before the next flush:
+
+```js
+const body = $fig.autoLayout({
+  name: 'Body', layoutMode: 'VERTICAL',
+  layoutSizingHorizontal: 'FILL', layoutSizingVertical: 'FILL',
+})
+$fig.autoLayout({
+  name: 'Screen', layoutMode: 'VERTICAL', width: 390, height: 844,
+}, [body]) // Use the same body; do not build a duplicate and leave this one unattached.
+// Automatic flush now sees an auto-layout parent for body.
+```
+
+**Queued versus immediate sizing:** with `$fig`, establish the planned parent before flush. With the raw Plugin API, append the actual node before assigning `FILL`; the raw setter validates the current parent immediately. For an existing raw node and a verified auto-layout destination:
+
+```js
+// Both variables here are raw nodes, not Figquery wrappers.
+parentNode.appendChild(childNode)
+childNode.layoutSizingHorizontal = 'FILL'
+```
+
+Also inspect the arguments passed to `.append(...)`. Passing `...children.map(() => null).filter(() => false)` is an empty append, not attachment of `children`. Pass the actual intended wrappers, for example `parentHandle.append(...children)`, and check whether filtering accidentally removed every intended child.
+
+Before flushing, check that every intended section is attached and every remaining root is intentional with `FIXED`/`HUG` sizing. Remove abandoned constructor calls from the generated script. Do not fix an accidental orphan by merely dropping `FILL` or adding another `done()`; remove it or attach it to its intended parent.
 
 You can still call `$fig.done()` explicitly if you need to materialize partway through a script and then read real node properties (e.g. measuring `width`/`height` that depend on auto-layout). `done()` returns a promise that you need to `await`.
 

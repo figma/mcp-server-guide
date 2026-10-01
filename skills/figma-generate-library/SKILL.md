@@ -6,7 +6,7 @@ disable-model-invocation: false
 
 # Design System Builder — Figma MCP Skill
 
-Build professional-grade design-system assets in Figma that match code. Scale the workflow to the requested deliverable: a token set, one component, a complete library, or a targeted reconciliation. Run the selected path in coherent, safely retryable construction phases with evidence-based validation.
+Build professional-grade design systems in Figma that match code. This skill orchestrates multi-phase workflows across 20–100+ `use_figma` calls, enforcing quality patterns from real-world design systems (Material 3, Polaris, Figma UI3, Simple DS).
 
 **Prerequisites**: The `figma-use` skill MUST also be loaded for every `use_figma` call. It provides Plugin API syntax rules (return pattern, page reset, ID return, font loading, color range). This skill provides design system domain knowledge and workflow orchestration.
 
@@ -14,7 +14,7 @@ Build professional-grade design-system assets in Figma that match code. Scale th
 
 ---
 
-## 1. Scope and Completion Contract
+## 1. The One Rule That Matters Most
 
 For every phase, follow this communication contract.
 
@@ -54,7 +54,7 @@ Rules:
 
 ---
 
-## 2. Scoped Workflow
+## 2. Mandatory Workflow
 
 Work through the phases in order. Do not move to the next phase until the current phase's required actions and acceptance checks are complete. If a phase cannot pass, stop and report the blocker. Do not approximate, skip, or defer a failed phase unless the user explicitly approves the limitation. No best-effort substitutions. No quiet approximations. No handoff with missing source truth, missing visual truth, fake assets, approximate typography, broken interactions, or unverified states.
 
@@ -121,7 +121,7 @@ For EACH component (in dependency order: atoms before molecules), run the checkl
 - Font MUST be loaded before any text write: `await figma.loadFontAsync({family, style})`. Use `await figma.listAvailableFontsAsync()` to discover available fonts and verify exact style strings — if a load fails, query available fonts to find the correct name or a fallback.
 
 **Design system rules**:
-1. **Foundations before dependent components** — reuse compatible existing variables and styles. Create missing foundations before building a component that depends on them; do not recreate valid foundations.
+1. **Variables BEFORE components** — components bind to variables. No token = no component.
 2. **Inspect before creating** — run read-only `use_figma` to discover existing conventions. Match them.
 3. **One page per component** *(default)* — exception: tightly related families (e.g., Input + helpers) may share a page with clear section separation.
 4. **Bind visual properties to variables** *(default)* — fills, strokes, padding, radius, gap. In `$fig`, bind by passing the variable handle straight into the property (`fills` color, `cornerRadius`, `itemSpacing`, padding); whenever a token exists for a value, prefer binding it over a literal ([worked recipe](../figma-use/references/fig-builder.md#building-a-component-with-bound-variables-the-default-for-components)). Because components are usually built in a **separate `use_figma` call** from the token foundations, rehydrate the variable IDs in the build call (`figma.variables.getVariableByIdAsync` / `$fig.getVar`) before binding — handles don't survive across calls, and skipping this is why a build silently falls back to literals. Exceptions: intentionally fixed geometry (icon pixel-grid sizes, static dividers).
@@ -132,7 +132,7 @@ For EACH component (in dependency order: atoms before molecules), run the checkl
 9. **INSTANCE_SWAP for icons** — never create a variant per icon. Cap variant matrices: if Size × Style × State > 30 combinations, split into sub-component.
 10. **Deterministic naming** — use consistent, unique node names for idempotent cleanup and resumability. Track created node IDs via return values and the state ledger.
 11. **No destructive cleanup** — cleanup scripts identify nodes by name convention or returned IDs, not by guessing.
-12. **Validate from evidence before proceeding** — never build on unvalidated work. Rely on the structural evidence returned by writes (IDs plus relevant counts, names, and bounds); run one batched structural audit per coherent phase only when needed to establish the acceptance checks or when a relevant mutation invalidated prior evidence. Take one visual review per coherent composition phase, plus one post-fix screenshot only after a targeted visual fix.
+12. **Validate before proceeding** — never build on unvalidated work. `get_metadata` after every create, `get_screenshot` after each component.
 13. **NEVER parallelize `use_figma` calls** — Figma state mutations must be strictly sequential. Even if your tool supports parallel calls, never run two use_figma calls simultaneously.
 14. **Never hallucinate Node IDs** — always read IDs from the state ledger returned by previous calls. Never reconstruct or guess an ID from memory.
 15. **Use the helper scripts** — embed scripts from `scripts/` into your use_figma calls. Don't write 200-line inline scripts from scratch.
@@ -162,7 +162,7 @@ Maintain a state ledger tracking:
 ```json
 {
   "runId": "ds-build-2024-001",
-  "scope": "single-component",
+  "phase": "phase3",
   "step": "component-button",
   "entities": {
     "collections": { "primitives": "id:...", "color": "id:..." },
@@ -171,7 +171,7 @@ Maintain a state ledger tracking:
     "components": { "Button": "id:..." }
   },
   "pendingValidations": ["Button:screenshot"],
-  "completedSteps": ["discovery", "foundations/verified", "component-button/base"]
+  "completedSteps": ["phase0", "phase1", "phase2", "component-avatar"]
 }
 ```
 
@@ -186,7 +186,7 @@ Maintain a state ledger tracking:
 
 ## 5. Library Discovery and search_design_system — Reuse Decision Matrix
 
-Search during the scoped discovery pass and reuse the results. Search again before a component only when it was outside the original inventory, the available libraries changed, or the earlier result did not resolve it.
+Search FIRST in Phase 0, then again immediately before each component creation.
 
 Before calling `search_design_system` for a target file, you MUST call `get_libraries` first for that file. You MUST NOT assume libraries are added or available.
 
@@ -307,22 +307,21 @@ Collection: "Spacing"       modes: ["Value"]
 
 ---
 
-## 9. Anti-Patterns
+## 9. Per-Phase Anti-Patterns
 
 **Phase 0 anti-patterns:**
 - ❌ Ignoring existing file conventions and imposing new ones
 - ❌ Skipping `search_design_system` before planning component creation
 
-**Foundations:**
-- ❌ Using `ALL_SCOPES`, duplicating primitive values in the semantic layer, or omitting code syntax
-- ❌ Creating dependent components before their foundations exist
+**Phase 1 anti-patterns:**
+- ❌ Using `ALL_SCOPES` on any variable
+- ❌ Duplicating raw values in semantic layer instead of aliasing
+- ❌ Not setting code syntax (breaks Dev Mode and round-tripping)
+- ❌ Creating component tokens before agreeing on token taxonomy
 
-**Components:**
-- ❌ Hardcoding component fills, strokes, spacing, or radii when compatible variables exist
-- ❌ Creating a variant per icon instead of using INSTANCE_SWAP
-- ❌ Leaving variants stacked at (0,0) after `combineAsVariants`
-- ❌ Building a variant matrix larger than 30 without splitting it
-- ❌ Importing remote components and immediately detaching them
+**Phase 2 anti-patterns:**
+- ❌ Skipping the cover page or foundations docs
+- ❌ Putting multiple unrelated components on one page
 
 **Phase 3 anti-patterns:**
 - ❌ Creating components before foundations exist
@@ -339,22 +338,25 @@ Collection: "Spacing"       modes: ["Value"]
 - ❌ Parallelizing use_figma calls (always sequential)
 - ❌ Guessing/hallucinating node IDs from memory (always read from state ledger)
 - ❌ Writing massive inline scripts instead of using the provided helper scripts
+- ❌ Starting Phase 3 because the user said "build the button" without completing Phases 0-2
 
 ---
 
 ## 10. Reference Docs
 
-Read references on demand; do not infer their contents from the filename.
+Load on demand — each reference is authoritative for its phase:
 
-| Doc | Load when |
-|-----|-----------|
-| [discovery-phase.md](references/discovery-phase.md) | Analyzing relevant code and Figma assets before mutation |
-| [token-creation.md](references/token-creation.md) | Creating variables, collections, modes, or styles |
-| [documentation-creation.md](references/documentation-creation.md) | The selected scope includes cover or foundations documentation |
-| [component-creation.md](references/component-creation.md) | Creating a component or variant |
-| [code-connect-setup.md](references/code-connect-setup.md) | The selected scope includes Code Connect or variable code syntax |
-| [naming-conventions.md](references/naming-conventions.md) | Naming variables, pages, variants, or styles |
-| [error-recovery.md](references/error-recovery.md) | A script fails or abandoned workflow state needs cleanup |
+Use your file reading tool to read these docs when needed. Do not assume their contents from the filename.
+
+| Doc | Phase | Required / Optional | Load when |
+|-----|-------|---------------------|-----------|
+| [discovery-phase.md](references/discovery-phase.md) | 0 | **Required** | Starting any build — codebase analysis + Figma inspection |
+| [token-creation.md](references/token-creation.md) | 1 | **Required** | Creating variables, collections, modes, styles |
+| [documentation-creation.md](references/documentation-creation.md) | 2 | Required | Creating cover page, foundations docs, swatches |
+| [component-creation.md](references/component-creation.md) | 3 | **Required** | Creating any component or variant |
+| [code-connect-setup.md](references/code-connect-setup.md) | 3–4 | Required | Setting up Code Connect or variable code syntax |
+| [naming-conventions.md](references/naming-conventions.md) | Any | Optional | Naming anything — variables, pages, variants, styles |
+| [error-recovery.md](references/error-recovery.md) | Any | **Required on error** | Script fails, multi-step workflow recovery, cleanup of abandoned workflow state |
 
 ---
 

@@ -11,7 +11,7 @@
 
 ## `get_metadata` vs `get_screenshot`
 
-Prefer structural evidence returned by the write itself. Run a separate audit only when required evidence is missing or after a relevant mutation. Do NOT reach for `get_screenshot` every time — it is expensive and should be reserved for visual checks.
+After each `use_figma` call, validate results using the right tool for the job. Do NOT reach for `get_screenshot` every time — it is expensive and should be reserved for visual checks.
 
 ### `get_metadata` — Use for intermediate validation (preferred)
 
@@ -37,9 +37,9 @@ ComponentSet node to verify all 120 children exist with correct names, sizes, an
 - After binding variables — to verify node properties (use use_figma to read bound variables if needed)
 - Between multi-step workflows — to confirm step N succeeded before starting step N+1
 
-### `get_screenshot` — Use after composition or a visual fix
+### `get_screenshot` — Use after each major creation milestone
 
-`get_screenshot` renders a pixel-accurate image. It is the only way to verify visual correctness (colors, typography rendering, effects, variable mode resolution). Normally take one screenshot after composition. If a visual fix follows, take one post-fix screenshot; the latest passing screenshot is final. Do not add another screenshot when nothing relevant changed.
+`get_screenshot` renders a pixel-accurate image. It is the only way to verify visual correctness (colors, typography rendering, effects, variable mode resolution). It is slower and produces large responses, so don't call it after every single `use_figma` — but do call it after each major milestone to catch visual problems early.
 
 **When to use `get_screenshot`:**
 - **After creating a component set** — verify variants look correct, grid is readable, nothing is collapsed or overlapping
@@ -55,9 +55,14 @@ ComponentSet node to verify all 120 children exist with correct names, sizes, an
 
 ## Error Recovery After Failed `use_figma`
 
+**`use_figma` is atomic — failed scripts do not execute.** If a script errors, no changes are made to the file. The file remains in exactly the same state as before the call. There are no partial nodes, no orphaned elements, and retrying after a fix is safe.
+
 **Recovery steps when `use_figma` returns an error:**
-- If `safeToRetryWithoutCanvasRead` is `true`, fix the error and retry.
-- If `false`, read the canvas, determine what changed, then make changes.
+1. **STOP — do NOT immediately fix the code and retry.** Read the error message carefully first.
+2. **Understand the error.** Most errors are caused by wrong API usage, missing font loads, invalid property values, or referencing nodes that don't exist.
+3. **If the error is unclear**, call `get_metadata` or `get_screenshot` to understand the current file state and confirm nothing has changed.
+4. **Fix the script** based on the error message.
+5. **Retry** the corrected script.
 
 ## Recommended Workflow
 
@@ -70,6 +75,8 @@ ComponentSet node to verify all 120 children exist with correct names, sizes, an
 6. get_screenshot   →  Visual check after each major milestone
 
 ⚠️ ON ERROR at any step:
-   a. safeToRetryWithoutCanvasRead=true  →  Fix the error and retry
-   b. safeToRetryWithoutCanvasRead=false →  Read the canvas, determine changes, then change
+   a. Read the error message carefully
+   b. get_metadata / get_screenshot  →  If the error is unclear, inspect file state
+   c. Fix the script based on the error
+   d. Retry the corrected script (safe — failed scripts don't modify the file)
 ```

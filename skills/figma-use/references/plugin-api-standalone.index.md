@@ -2,31 +2,34 @@
 
 > Full typings: `plugin-api-standalone.d.ts` (12,216 lines)
 > Grep by symbol name to jump to definition. All `L#` line numbers refer to that file.
-> This index describes the APIs available through `use_figma`. See the `.d.ts` for full type declarations.
 
 ---
 
-## figma.\* — PluginAPI (L4)
+## figma.\* — PluginAPI (L24)
 
 ### Identity & State
 
-| Member                          | Type                                                                                                                                             |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `apiVersion`                    | `'1.0.0'`                                                                                                                                        |
-| `editorType`                    | `'figma' \| 'figjam' \| 'dev' \| 'slides' \| 'buzz'`                                                                                             |
-| `fileKey`                       | `string \| undefined`                                                                                                                            |
-| `root`                          | `DocumentNode`                                                                                                                                   |
+| Member                          | Type                                                                             |
+| ------------------------------- | -------------------------------------------------------------------------------- |
+| `apiVersion`                    | `'1.0.0'`                                                                        |
+| `editorType`                    | `'figma' \| 'figjam' \| 'dev' \| 'slides' \| 'buzz'`                             |
+| `mode`                          | `'default' \| 'textreview' \| 'inspect' \| 'codegen' \| 'linkpreview' \| 'auth'` |
+| `fileKey`                       | `string \| undefined`                                                            |
+| `root`                          | `DocumentNode`                                                                   |
 | `currentPage`                   | `PageNode` — **read-only**; sync setter `figma.currentPage = page` does NOT work and throws; use `await figma.setCurrentPageAsync(page)` instead |
-| `mixed`                         | `unique symbol` — sentinel for mixed values in selection                                                                                         |
-| `skipInvisibleInstanceChildren` | `boolean`                                                                                                                                        |
+| `currentUser`                   | `User \| null`                                                                   |
+| `mixed`                         | `unique symbol` — sentinel for mixed values in selection                         |
+| `skipInvisibleInstanceChildren` | `boolean`                                                                        |
 
 ### Navigation & Lookup
 
-| Method                      | Returns                                                                                   |
-| --------------------------- | ----------------------------------------------------------------------------------------- |
+| Method                      | Returns                                                 |
+| --------------------------- | ------------------------------------------------------- |
 | `setCurrentPageAsync(page)` | `Promise<void>` — **MUST use this**; sync setter `figma.currentPage = page` does NOT work |
-| `getNodeByIdAsync(id)`      | `Promise<BaseNode \| null>`                                                               |
-| `getStyleByIdAsync(id)`     | `Promise<BaseStyle \| null>`                                                              |
+| `getNodeByIdAsync(id)`      | `Promise<BaseNode \| null>`                             |
+| `getNodeById(id)`           | `BaseNode \| null`                                      |
+| `getStyleByIdAsync(id)`     | `Promise<BaseStyle \| null>`                            |
+| `getStyleById(id)`          | `BaseStyle \| null`                                     |
 
 ### Create Nodes
 
@@ -57,21 +60,16 @@
 
 ### Styles (Local)
 
-| Method                        | Returns                  |
-| ----------------------------- | ------------------------ |
-| `createPaintStyle()`          | `PaintStyle`             |
-| `createTextStyle()`           | `TextStyle`              |
-| `createEffectStyle()`         | `EffectStyle`            |
-| `createGridStyle()`           | `GridStyle`              |
-| `getLocalPaintStylesAsync()`  | `Promise<PaintStyle[]>`  |
-| `getLocalTextStylesAsync()`   | `Promise<TextStyle[]>`   |
-| `getLocalEffectStylesAsync()` | `Promise<EffectStyle[]>` |
-| `getLocalGridStylesAsync()`   | `Promise<GridStyle[]>`   |
-| `createCustomAnimationStyle()` | `CustomAnimationStyle` |
-| `getLocalCustomAnimationStylesAsync()` | `Promise<CustomAnimationStyle[]>` |
-| `getLocalCustomAnimationStyles()` | `CustomAnimationStyle[]` (deprecated; use async) |
-| `moveLocalCustomAnimationStyleAfter(targetNode, reference)` | `void`; reference may be `null` |
-| `moveLocalCustomAnimationFolderAfter(targetFolder, reference)` | `void`; reference may be `null` |
+| Method                             | Returns         |
+| ---------------------------------- | --------------- |
+| `createPaintStyle()`               | `PaintStyle`    |
+| `createTextStyle()`                | `TextStyle`     |
+| `createEffectStyle()`              | `EffectStyle`   |
+| `createGridStyle()`                | `GridStyle`     |
+| `getLocalPaintStyles()` / `Async`  | `PaintStyle[]`  |
+| `getLocalTextStyles()` / `Async`   | `TextStyle[]`   |
+| `getLocalEffectStyles()` / `Async` | `EffectStyle[]` |
+| `getLocalGridStyles()` / `Async`   | `GridStyle[]`   |
 
 ### Fonts
 
@@ -83,29 +81,38 @@
 
 ### Plugin Lifecycle
 
-| Method                  | Notes                                                  |
-| ----------------------- | ------------------------------------------------------ |
-| `closePlugin(message?)` | Auto-called; use `return` instead to pass results back |
-
-> Undo, notifications, external URLs, version-history saves, and `closePluginWithFailure` are not available through `use_figma`.
+| Method                                  | Notes                                                        |
+| --------------------------------------- | ------------------------------------------------------------ |
+| `closePlugin(message?)`                 | Auto-called; use `return` instead to pass results back       |
+| `closePluginWithFailure(message?)`      | Auto-called on errors; do not call manually                  |
+| `commitUndo()`                          | Snapshot to undo history                                     |
+| `triggerUndo()`                         | Revert to last snapshot                                      |
+| `saveVersionHistoryAsync(title, desc?)` | `Promise<VersionHistoryResult>`                              |
+| `notify(message, options?)`             | **throws "not implemented" in use_figma — do not use** |
+| `openExternal(url)`                     | Opens URL in browser                                         |
 
 ### Sub-APIs (properties on figma)
 
-| Property            | Interface        | L#    |
-| ------------------- | ---------------- | ----- |
-| `figma.variables`   | `VariablesAPI`   | L1141 |
-| `figma.motion`      | `MotionAPI`      | L1381 |
-| `figma.util`        | `UtilAPI`        | L1419 |
-| `figma.viewport`    | `ViewportAPI`    | L1543 |
-| `figma.parameters`  | `ParametersAPI`  | L1661 |
-| `figma.teamLibrary` | `TeamLibraryAPI` | L1337 |
-| `figma.annotations` | `AnnotationsAPI` | L1271 |
-
-> UI, client storage, codegen, payments, text review, timers, Buzz, and constants are not available through `use_figma`.
+| Property              | Interface                | L#    |
+| --------------------- | ------------------------ | ----- |
+| `figma.variables`     | `VariablesAPI`           | L2016 |
+| `figma.ui`            | `UIAPI`                  | L2604 |
+| `figma.util`          | `UtilAPI`                | L2691 |
+| `figma.constants`     | `ConstantsAPI`           | L2809 |
+| `figma.clientStorage` | `ClientStorageAPI`       | L2531 |
+| `figma.viewport`      | `ViewportAPI`            | L3086 |
+| `figma.parameters`    | `ParametersAPI`          | L3292 |
+| `figma.teamLibrary`   | `TeamLibraryAPI`         | L2372 |
+| `figma.annotations`   | `AnnotationsAPI`         | L2187 |
+| `figma.codegen`       | `CodegenAPI`             | L2871 |
+| `figma.textreview?`   | `TextReviewAPI`          | L3166 |
+| `figma.payments?`     | `PaymentsAPI`            | L2420 |
+| `figma.buzz`          | `BuzzAPI`                | L2211 |
+| `figma.timer?`        | `TimerAPI` (FigJam only) | L3053 |
 
 ---
 
-## VariablesAPI — figma.variables (L1141)
+## VariablesAPI — figma.variables (L2016)
 
 ```
 getVariableByIdAsync(id)                 Promise<Variable | null>    ← preferred; sync deprecated
@@ -121,13 +128,13 @@ setBoundVariableForEffect(effect, field, variable)  → returns NEW effect — r
 setBoundVariableForLayoutGrid(grid, field, variable)
 ```
 
-**Variable (L9228):** `name`, `resolvedType`, `codeSyntax`, `scopes`, `hiddenFromPublishing`, `valuesByMode`, `variableCollectionId`
+**Variable (L10153):** `name`, `resolvedType`, `codeSyntax`, `scopes`, `hiddenFromPublishing`, `valuesByMode`, `variableCollectionId`
 
 - `setVariableCodeSyntax(platform, value)` — platform: `'WEB' | 'ANDROID' | 'iOS'`
 - `setValueForMode(modeId, value)`
 - `remove()`
 
-**VariableCollection (L9442):** `name`, `modes`, `variableIds`, `defaultModeId`, `hiddenFromPublishing`
+**VariableCollection (L10367):** `name`, `modes`, `variableIds`, `defaultModeId`, `hiddenFromPublishing`
 
 - `addMode(name)` → `modeId`; `removeMode(modeId)`; `renameMode(modeId, name)`
 
@@ -137,39 +144,39 @@ setBoundVariableForLayoutGrid(grid, field, variable)
 
 ### Concrete Scene Nodes
 
-| Node                   | L#    | Key characteristics                                |
-| ---------------------- | ----- | -------------------------------------------------- |
-| `DocumentNode`         | L8040 | Root; `children: PageNode[]`                       |
-| `PageNode`             | L8187 | `children`, local styles, `backgrounds`            |
-| `FrameNode`            | L8321 | `DefaultFrameMixin` — auto-layout, clips, children |
-| `GroupNode`            | L8331 | Children only, no auto-layout                      |
-| `ComponentNode`        | L8695 | Like Frame + publishable                           |
-| `ComponentSetNode`     | L8678 | Variant set container                              |
-| `InstanceNode`         | L8730 | Like Frame; `mainComponent`, `detach()`            |
-| `RectangleNode`        | L8388 | `DefaultShapeMixin` + corners                      |
-| `EllipseNode`          | L8418 | + `arcData`                                        |
-| `LineNode`             | L8407 |                                                    |
-| `PolygonNode`          | L8439 |                                                    |
-| `StarNode`             | L8460 |                                                    |
-| `VectorNode`           | L8487 | Vector paths                                       |
-| `TextNode`             | L8505 | Rich text, fonts, segments                         |
-| `TextPathNode`         | L8577 | Text along path                                    |
-| `BooleanOperationNode` | L8823 | `booleanOperation` property                        |
-| `SliceNode`            | L8378 | Export only                                        |
-| `SectionNode`          | L9719 | Grouping + fills                                   |
-| `TableNode`            | L8884 | `TableCellNode` children                           |
+| Node                   | L#     | Key characteristics                                |
+| ---------------------- | ------ | -------------------------------------------------- |
+| `DocumentNode`         | L8909  | Root; `children: PageNode[]`                       |
+| `PageNode`             | L9068  | `children`, local styles, `backgrounds`            |
+| `FrameNode`            | L9260  | `DefaultFrameMixin` — auto-layout, clips, children |
+| `GroupNode`            | L9270  | Children only, no auto-layout                      |
+| `ComponentNode`        | L9627  | Like Frame + publishable                           |
+| `ComponentSetNode`     | L9602  | Variant set container                              |
+| `InstanceNode`         | L9668  | Like Frame; `mainComponent`, `detach()`            |
+| `RectangleNode`        | L9327  | `DefaultShapeMixin` + corners                      |
+| `EllipseNode`          | L9359  | + `arcData`                                        |
+| `LineNode`             | L9345  |                                                    |
+| `PolygonNode`          | L9379  |                                                    |
+| `StarNode`             | L9399  |                                                    |
+| `VectorNode`           | L9425  | Vector paths                                       |
+| `TextNode`             | L9442  | Rich text, fonts, segments                         |
+| `TextPathNode`         | L9513  | Text along path                                    |
+| `BooleanOperationNode` | L9741  | `booleanOperation` property                        |
+| `SliceNode`            | L9317  | Export only                                        |
+| `SectionNode`          | L10703 | Grouping + fills                                   |
+| `TableNode`            | L9811  | `TableCellNode` children                           |
 
-**FigJam only:** `StickyNode` L8844, `ConnectorNode` L9145, `ShapeWithTextNode` L9026, `StampNode` L8870, `CodeBlockNode` L9104, `EmbedNode` L9626, `LinkUnfurlNode` L9666, `MediaNode` L9686
+**FigJam only:** `StickyNode` L9761, `ConnectorNode` L10070, `ShapeWithTextNode` L9948, `StampNode` L9787, `CodeBlockNode` L10029, `EmbedNode` L10610, `LinkUnfurlNode` L10650, `MediaNode` L10670
 
-**Slides only:** `SlideNode` L9762, `SlideRowNode` L9792, `SlideGridNode` L9805
+**Slides only:** `SlideNode` L10733, `SlideRowNode` L10758, `SlideGridNode` L10771
 
 **Union types:**
 
 ```
-type SceneNode  (L9893) = FrameNode | GroupNode | SliceNode | RectangleNode | LineNode
+type SceneNode  (L10866) = FrameNode | GroupNode | SliceNode | RectangleNode | LineNode
   | EllipseNode | PolygonNode | StarNode | VectorNode | TextNode | ComponentSetNode
   | ComponentNode | InstanceNode | BooleanOperationNode | SectionNode | ...
-type BaseNode   (L9889) = DocumentNode | PageNode | SceneNode
+type BaseNode   (L10862) = DocumentNode | PageNode | SceneNode
 ```
 
 ---
@@ -178,61 +185,62 @@ type BaseNode   (L9889) = DocumentNode | PageNode | SceneNode
 
 | Mixin                        | L#    | Provides                                                                                        |
 | ---------------------------- | ----- | ----------------------------------------------------------------------------------------------- |
-| `BaseNodeMixin`              | L4033 | `id`, `name`, `type`, `parent`, `remove()`, plugin data                                         |
-| `SceneNodeMixin`             | L4181 | `visible`, `locked`, `opacity`, variable bindings                                               |
-| `ChildrenMixin`              | L4559 | `children`, `appendChild()`, `insertChild()`, `findAll()`, `findOne()`, `findAllWithCriteria()` |
-| `LayoutMixin`                | L4924 | `x`, `y`, `width`, `height`, `rotation`, `resize()`, `rescale()`                                |
-| `AutoLayoutMixin`            | L5204 | `layoutMode`, axis alignment, padding, `itemSpacing`, `layoutSizingHorizontal/Vertical`         |
-| `AutoLayoutChildrenMixin`    | L6024 | `layoutAlign`, `layoutGrow`, sizing — **set AFTER `appendChild()`**                             |
-| `GridLayoutMixin`            | L5766 | CSS Grid tracks, gap, template                                                                  |
-| `GridChildrenMixin`          | L6087 | grid child positioning                                                                          |
-| `GeometryMixin`              | L6446 | `fills`, `strokes`, `strokeWeight`, `strokeAlign`                                               |
-| `MinimalFillsMixin`          | L6290 | `fills` only                                                                                    |
-| `MinimalStrokesMixin`        | L6208 | `strokes`, `strokeWeight`                                                                       |
-| `BlendMixin`                 | L5120 | `opacity`, `blendMode`, `isMask`, `effects`                                                     |
-| `CornerMixin`                | L6498 | `cornerRadius`, `cornerSmoothing`                                                               |
-| `RectangleCornerMixin`       | L6521 | Per-corner radii                                                                                |
-| `ExportMixin`                | L6542 | `exportSettings`, `exportAsync()`                                                               |
-| `ReactionMixin`              | L6691 | `reactions` (prototyping)                                                                       |
-| `PublishableMixin`           | L6862 | `description`, `key`, `getPublishStatusAsync()`                                                 |
-| `ComponentPropertiesMixin`   | L7163 | `componentProperties`, `addComponentProperty()`                                                 |
-| `PluginDataMixin`            | L4124 | `getSharedPluginData()`, `setSharedPluginData()`, `getSharedPluginDataKeys()`                   |
-| `FramePrototypingMixin`      | L6638 | `overflowDirection`, `numberOfFixedChildren`                                                    |
-| `BaseFrameMixin`             | L6928 | ChildrenMixin + LayoutMixin + AutoLayoutMixin + GeometryMixin + …                               |
-| `DefaultFrameMixin`          | L6985 | BaseFrameMixin + FramePrototypingMixin + ReactionMixin                                          |
-| `DefaultShapeMixin`          | L6916 | BlendMixin + GeometryMixin + LayoutMixin + ExportMixin + ReactionMixin                          |
-| `ExplicitVariableModesMixin` | L8164 | `setExplicitVariableModeForCollection()`                                                        |
+| `BaseNodeMixin`              | L5284 | `id`, `name`, `type`, `parent`, `remove()`, plugin data                                         |
+| `SceneNodeMixin`             | L5535 | `visible`, `locked`, `opacity`, variable bindings                                               |
+| `ChildrenMixin`              | L5747 | `children`, `appendChild()`, `insertChild()`, `findAll()`, `findOne()`, `findAllWithCriteria()` |
+| `LayoutMixin`                | L6084 | `x`, `y`, `width`, `height`, `rotation`, `resize()`, `rescale()`                                |
+| `AutoLayoutMixin`            | L6385 | `layoutMode`, axis alignment, padding, `itemSpacing`, `layoutSizingHorizontal/Vertical`         |
+| `AutoLayoutChildrenMixin`    | L7013 | `layoutAlign`, `layoutGrow`, sizing — **set AFTER `appendChild()`**                             |
+| `GridLayoutMixin`            | L6888 | CSS Grid tracks, gap, template                                                                  |
+| `GridChildrenMixin`          | L7076 | grid child positioning                                                                          |
+| `GeometryMixin`              | L7434 | `fills`, `strokes`, `strokeWeight`, `strokeAlign`                                               |
+| `MinimalFillsMixin`          | L7277 | `fills` only                                                                                    |
+| `MinimalStrokesMixin`        | L7195 | `strokes`, `strokeWeight`                                                                       |
+| `BlendMixin`                 | L6288 | `opacity`, `blendMode`, `isMask`, `effects`                                                     |
+| `CornerMixin`                | L7486 | `cornerRadius`, `cornerSmoothing`                                                               |
+| `RectangleCornerMixin`       | L7509 | Per-corner radii                                                                                |
+| `ExportMixin`                | L7526 | `exportSettings`, `exportAsync()`                                                               |
+| `ReactionMixin`              | L7653 | `reactions` (prototyping)                                                                       |
+| `PublishableMixin`           | L7824 | `description`, `key`, `getPublishStatusAsync()`                                                 |
+| `VariantMixin`               | L8131 | `variantProperties`                                                                             |
+| `ComponentPropertiesMixin`   | L8178 | `componentProperties`, `addComponentProperty()`                                                 |
+| `PluginDataMixin`            | L5443 | `getSharedPluginData()`, `setSharedPluginData()`, `getSharedPluginDataKeys()`                     |
+| `FramePrototypingMixin`      | L7600 | `overflowDirection`, `numberOfFixedChildren`                                                    |
+| `BaseFrameMixin`             | L7888 | ChildrenMixin + LayoutMixin + AutoLayoutMixin + GeometryMixin + …                               |
+| `DefaultFrameMixin`          | L7946 | BaseFrameMixin + FramePrototypingMixin + ReactionMixin                                          |
+| `DefaultShapeMixin`          | L7877 | BlendMixin + GeometryMixin + LayoutMixin + ExportMixin + ReactionMixin                          |
+| `ExplicitVariableModesMixin` | L9033 | `setExplicitVariableModeForCollection()`                                                        |
 
 ---
 
-## Paint & Fill (L2741)
+## Paint & Fill (L4302)
 
 | Type            | L#    | Notes                                                                             |
 | --------------- | ----- | --------------------------------------------------------------------------------- |
-| `SolidPaint`    | L2538 | `type:'SOLID'`, `color: RGB`, `opacity`, `visible`, `blendMode`                   |
-| `GradientPaint` | L2593 | `type: 'GRADIENT_LINEAR\|RADIAL\|ANGULAR\|DIAMOND'`, `gradientStops: ColorStop[]` |
-| `ImagePaint`    | L2613 | `type:'IMAGE'`, `imageHash`, `scaleMode`                                          |
-| `VideoPaint`    | L2649 | `type:'VIDEO'`                                                                    |
-| `PatternPaint`  | L2685 | `type:'PATTERN'`                                                                  |
-| `type Paint`    | L2741 | Union of all five                                                                 |
-| `ColorStop`     | L2507 | `{ position: number, color: RGBA }`                                               |
-| `ImageFilters`  | L2526 | exposure, contrast, saturation, etc.                                              |
+| `SolidPaint`    | L4302 | `type:'SOLID'`, `color: RGB`, `opacity`, `visible`, `blendMode`                   |
+| `GradientPaint` | L4357 | `type: 'GRADIENT_LINEAR\|RADIAL\|ANGULAR\|DIAMOND'`, `gradientStops: ColorStop[]` |
+| `ImagePaint`    | L4377 | `type:'IMAGE'`, `imageHash`, `scaleMode`                                          |
+| `VideoPaint`    | L4413 | `type:'VIDEO'`                                                                    |
+| `PatternPaint`  | L4449 | `type:'PATTERN'`                                                                  |
+| `type Paint`    | L4481 | Union of all five                                                                 |
+| `ColorStop`     | L4271 | `{ position: number, color: RGBA }`                                               |
+| `ImageFilters`  | L4290 | exposure, contrast, saturation, etc.                                              |
 
 > **CRITICAL**: Fills/strokes are **read-only arrays** — clone, modify, reassign.
 
 ---
 
-## Effects (L2163)
+## Effects (L3966)
 
 | Type                               | L#    |
 | ---------------------------------- | ----- |
-| `DropShadowEffect`                 | L2163 |
-| `InnerShadowEffect`                | L2206 |
-| `BlurEffect` (Normal/Progressive)  | L2298 |
-| `NoiseEffect` (Mono/Duo/Multitone) | L2379 |
-| `TextureEffect`                    | L2383 |
-| `GlassEffect`                      | L2419 |
-| `type Effect`                      | L2485 |
+| `DropShadowEffect`                 | L3966 |
+| `InnerShadowEffect`                | L4009 |
+| `BlurEffect` (Normal/Progressive)  | L4048 |
+| `NoiseEffect` (Mono/Duo/Multitone) | L4105 |
+| `TextureEffect`                    | L4180 |
+| `GlassEffect`                      | L4209 |
+| `type Effect`                      | L4250 |
 
 ---
 
@@ -240,33 +248,33 @@ type BaseNode   (L9889) = DocumentNode | PageNode | SceneNode
 
 | Type                | L#    | Notes                                                                                  |
 | ------------------- | ----- | -------------------------------------------------------------------------------------- |
-| `FontName`          | L1850 | `{ family: string, style: string }`                                                    |
-| `TextNode`          | L8505 | `characters`, `textAlignHorizontal`, `fontSize`, `fontName`, `getStyledTextSegments()` |
-| `StyledTextSegment` | L3255 | Per-range text properties                                                              |
-| `LetterSpacing`     | L3195 | `{ value, unit: 'PIXELS'\|'PERCENT' }`                                                 |
-| `LineHeight`        | L3199 | `{ value, unit } \| { unit: 'AUTO' }`                                                  |
-| `TextCase`          | L1898 | `'ORIGINAL'\|'UPPER'\|'LOWER'\|'TITLE'\|'SMALL_CAPS'`                                  |
-| `TextDecoration`    | L1899 | `'NONE'\|'UNDERLINE'\|'STRIKETHROUGH'`                                                 |
-| `OpenTypeFeature`   | L1925 | Ligatures, numerals, etc.                                                              |
+| `FontName`          | L3697 | `{ family: string, style: string }`                                                    |
+| `TextNode`          | L9442 | `characters`, `textAlignHorizontal`, `fontSize`, `fontName`, `getStyledTextSegments()` |
+| `StyledTextSegment` | L4882 | Per-range text properties                                                              |
+| `LetterSpacing`     | L4826 | `{ value, unit: 'PIXELS'\|'PERCENT' }`                                                 |
+| `LineHeight`        | L4830 | `{ value, unit } \| { unit: 'AUTO' }`                                                  |
+| `TextCase`          | L3701 | `'ORIGINAL'\|'UPPER'\|'LOWER'\|'TITLE'\|'SMALL_CAPS'`                                  |
+| `TextDecoration`    | L3702 | `'NONE'\|'UNDERLINE'\|'STRIKETHROUGH'`                                                 |
+| `OpenTypeFeature`   | L3728 | Ligatures, numerals, etc.                                                              |
 
 ---
 
 ## Variables & Bindings
 
-| Type                          | L#    | Notes                                                                         |
-| ----------------------------- | ----- | ----------------------------------------------------------------------------- |
-| `Variable`                    | L9228 | Core variable object                                                          |
-| `VariableCollection`          | L9442 | Collection of variables + modes                                               |
-| `VariableAlias`               | L9196 | Reference to another variable                                                 |
-| `VariableValue`               | L9200 | `boolean \| string \| number \| RGB \| RGBA \| MotionEasing \| VariableAlias` |
-| `VariableResolvedDataType`    | L9195 | `'BOOLEAN' \| 'COLOR' \| 'FLOAT' \| 'STRING' \| 'TIMING' \| 'EASING'`         |
-| `VariableDataType`            | L3396 | Includes `'VARIABLE_ALIAS' \| 'EXPRESSION'`                                   |
-| `VariableScope`               | L9201 | Where variable can be applied                                                 |
-| `CodeSyntaxPlatform`          | L9227 | `'WEB' \| 'ANDROID' \| 'iOS'`                                                 |
-| `VariableBindableNodeField`   | L4497 | Node fields that accept variable binding                                      |
-| `VariableBindableTextField`   | L4525 | Text-specific bindable fields                                                 |
-| `VariableBindablePaintField`  | L4534 | `'color'`                                                                     |
-| `VariableBindableEffectField` | L4537 | `'color'\|'radius'\|'spread'\|'offsetX'\|'offsetY'`                           |
+| Type                          | L#     | Notes                                                         |
+| ----------------------------- | ------ | ------------------------------------------------------------- |
+| `Variable`                    | L10153 | Core variable object                                          |
+| `VariableCollection`          | L10367 | Collection of variables + modes                               |
+| `VariableAlias`               | L10121 | Reference to another variable                                 |
+| `VariableValue`               | L10125 | `boolean \| string \| number \| RGB \| RGBA \| VariableAlias` |
+| `VariableResolvedDataType`    | L10120 | `'BOOLEAN' \| 'COLOR' \| 'FLOAT' \| 'STRING'`                 |
+| `VariableDataType`            | L5023  | Includes `'VARIABLE_ALIAS' \| 'EXPRESSION'`                   |
+| `VariableScope`               | L10126 | Where variable can be applied                                 |
+| `CodeSyntaxPlatform`          | L10152 | `'WEB' \| 'ANDROID' \| 'iOS'`                                 |
+| `VariableBindableNodeField`   | L5686  | Node fields that accept variable binding                      |
+| `VariableBindableTextField`   | L5713  | Text-specific bindable fields                                 |
+| `VariableBindablePaintField`  | L5722  | `'color'`                                                     |
+| `VariableBindableEffectField` | L5725  | `'color'\|'radius'\|'spread'\|'offsetX'\|'offsetY'`           |
 
 ---
 
@@ -274,30 +282,13 @@ type BaseNode   (L9889) = DocumentNode | PageNode | SceneNode
 
 | Interface        | L#     | Notes                                                  |
 | ---------------- | ------ | ------------------------------------------------------ |
-| `BaseStyleMixin` | L9954  | `name`, `id`, `key`, `type`, `description`, `remove()` |
-| `PaintStyle`     | L9974  | `type:'PAINT'`, `paints: Paint[]`                      |
-| `TextStyle`      | L9990  | `type:'TEXT'`, font properties                         |
-| `EffectStyle`    | L10063  | `type:'EFFECT'`, `effects: Effect[]`                   |
-| `GridStyle`      | L10079  | `type:'GRID'`, `layoutGrids`                           |
-| `CustomAnimationStyle` | L10095 | `type:'CUSTOM_ANIMATION'`, `animationEntries`, `addAnimationEntryAsync()`, `removeAnimationEntry()` |
-| `type BaseStyle` | L10145 | Union of all five                                      |
-| `type StyleType` | L9932  | `'PAINT' \| 'TEXT' \| 'EFFECT' \| 'GRID' \| 'CUSTOM_ANIMATION'`              |
-
----
-
-## Animation Styles
-
-`AnimationStyleConfiguration` and `AppliedAnimationStyle` distinguish Figma animations (`type: 'FIGMA'`) from custom styles (`type: 'CUSTOM'`). Narrow applied styles by `type` before reading Figma-only properties such as `props`. Custom styles accept `timelineOffset`; entry properties belong to `AnimationEntry`.
-
-| Type | L# |
-| ---- | -- |
-| `FigmaAnimationStyleConfiguration` | L3639 |
-| `CustomAnimationStyleConfiguration` | L3657 |
-| `AnimationStyleConfiguration` | L3667 |
-| `AppliedFigmaAnimationStyle` | L3672 |
-| `AppliedCustomAnimationStyle` | L3684 |
-| `AppliedAnimationStyle` | L3691 |
-| `AnimationEntry` | L3698 |
+| `BaseStyleMixin` | L10926 | `name`, `id`, `key`, `type`, `description`, `remove()` |
+| `PaintStyle`     | L10951 | `type:'PAINT'`, `paints: Paint[]`                      |
+| `TextStyle`      | L10967 | `type:'TEXT'`, font properties                         |
+| `EffectStyle`    | L11036 | `type:'EFFECT'`, `effects: Effect[]`                   |
+| `GridStyle`      | L11052 | `type:'GRID'`, `layoutGrids`                           |
+| `type BaseStyle` | L11068 | Union of all four                                      |
+| `type StyleType` | L10904 | `'PAINT' \| 'TEXT' \| 'EFFECT' \| 'GRID'`              |
 
 ---
 
@@ -305,17 +296,17 @@ type BaseNode   (L9889) = DocumentNode | PageNode | SceneNode
 
 | Type             | L#    | Shape                                         |
 | ---------------- | ----- | --------------------------------------------- |
-| `Vector`         | L1799 | `{ x: number, y: number }`                    |
-| `Rect`           | L1803 | `{ x, y, width, height }`                     |
-| `RGB`            | L1812 | `{ r, g, b }` — **0–1 range, not 0–255**      |
-| `RGBA`           | L1820 | `{ r, g, b, a }` — **0–1 range**              |
-| `Transform`      | L1798 | `[[a,b,tx],[c,d,ty]]` 2×3 affine matrix       |
-| `ArcData`        | L2155 | `{ startingAngle, endingAngle, innerRadius }` |
-| `Constraints`    | L2500 | `{ horizontal, vertical }: ConstraintType`    |
-| `ConstraintType` | L2496 | `'MIN'\|'CENTER'\|'MAX'\|'STRETCH'\|'SCALE'`  |
-| `VectorPath`     | L3161 | `{ windingRule, data: string }`               |
-| `VectorNetwork`  | L3144 | vertices + segments + regions                 |
-| `Guide`          | L2851 | `{ axis, offset }`                            |
+| `Vector`         | L3667 | `{ x: number, y: number }`                    |
+| `Rect`           | L3671 | `{ x, y, width, height }`                     |
+| `RGB`            | L3680 | `{ r, g, b }` — **0–1 range, not 0–255**      |
+| `RGBA`           | L3688 | `{ r, g, b, a }` — **0–1 range**              |
+| `Transform`      | L3666 | `[[a,b,tx],[c,d,ty]]` 2×3 affine matrix       |
+| `ArcData`        | L3958 | `{ startingAngle, endingAngle, innerRadius }` |
+| `Constraints`    | L4264 | `{ horizontal, vertical }: ConstraintType`    |
+| `ConstraintType` | L4260 | `'MIN'\|'CENTER'\|'MAX'\|'STRETCH'\|'SCALE'`  |
+| `VectorPath`     | L4792 | `{ windingRule, data: string }`               |
+| `VectorNetwork`  | L4775 | vertices + segments + regions                 |
+| `Guide`          | L4482 | `{ axis, offset }`                            |
 
 ---
 
@@ -323,14 +314,30 @@ type BaseNode   (L9889) = DocumentNode | PageNode | SceneNode
 
 | Type                  | L#    | Notes                                                     |
 | --------------------- | ----- | --------------------------------------------------------- |
-| `Reaction`            | L3392 | trigger + action pair                                     |
-| `Trigger`             | L3504 | what initiates the reaction                               |
-| `Action`              | L3431 | what happens                                              |
-| `Transition`          | L3503 | `SimpleTransition \| DirectionalTransition`               |
-| `Easing`              | L3540 | easing curve definition                                   |
-| `Navigation`          | L3536 | `'NAVIGATE'\|'SWAP'\|'OVERLAY'\|'SCROLL_TO'\|'CHANGE_TO'` |
-| `OverflowDirection`   | L3958 | `'NONE'\|'HORIZONTAL'\|'VERTICAL'\|'BOTH'`                |
-| `OverlayPositionType` | L3962 | overlay placement                                         |
+| `Reaction`            | L5015 | trigger + action pair                                     |
+| `Trigger`             | L5146 | what initiates the reaction                               |
+| `Action`              | L5064 | what happens                                              |
+| `Transition`          | L5145 | `SimpleTransition \| DirectionalTransition`               |
+| `Easing`              | L5182 | easing curve definition                                   |
+| `Navigation`          | L5178 | `'NAVIGATE'\|'SWAP'\|'OVERLAY'\|'SCROLL_TO'\|'CHANGE_TO'` |
+| `OverflowDirection`   | L5215 | `'NONE'\|'HORIZONTAL'\|'VERTICAL'\|'BOTH'`                |
+| `OverlayPositionType` | L5219 | overlay placement                                         |
+
+---
+
+## Events & Changes
+
+| Type                  | L#    | Notes                                                           |
+| --------------------- | ----- | --------------------------------------------------------------- |
+| `ArgFreeEventType`    | L11   | `'selectionchange'\|'currentpagechange'\|'close'\|timer events` |
+| `RunEvent`            | L3321 | plugin run with parameters                                      |
+| `DropEvent`           | L3339 | drag-and-drop                                                   |
+| `DocumentChangeEvent` | L3359 | any document change                                             |
+| `NodeChangeEvent`     | L3626 | node property changes                                           |
+| `NodeChangeProperty`  | L3499 | all watchable property names                                    |
+| `StyleChangeEvent`    | L3365 | style create/delete/update                                      |
+| `DocumentChange`      | L3489 | `CreateChange \| DeleteChange \| PropertyChange`                |
+| `TextReviewEvent`     | L3657 | text review mode                                                |
 
 ---
 
@@ -338,23 +345,25 @@ type BaseNode   (L9889) = DocumentNode | PageNode | SceneNode
 
 | Type                        | L#    | Notes                                         |
 | --------------------------- | ----- | --------------------------------------------- |
-| `ExportSettingsImage`       | L2930 | PNG/JPG/WEBP/BMP                              |
-| `ExportSettingsSVG`         | L3003 |                                               |
-| `ExportSettingsPDF`         | L3022 |                                               |
-| `ExportSettingsREST`        | L3036 |                                               |
-| `ExportSettingsConstraints` | L2923 | `{ type: 'SCALE'\|'WIDTH'\|'HEIGHT', value }` |
+| `ExportSettingsImage`       | L4561 | PNG/JPG/WEBP/BMP                              |
+| `ExportSettingsSVG`         | L4634 |                                               |
+| `ExportSettingsPDF`         | L4653 |                                               |
+| `ExportSettingsREST`        | L4667 |                                               |
+| `ExportSettingsConstraints` | L4554 | `{ type: 'SCALE'\|'WIDTH'\|'HEIGHT', value }` |
 
 ---
 
 ## Key Sub-API Surfaces
 
-**ViewportAPI (L1543):** `center: Vector`, `zoom: number`, `scrollAndZoomIntoView(nodes)`, `bounds: Rect`
+**ClientStorageAPI (L2531):** `getAsync(key)`, `setAsync(key, value)`, `keysAsync()`, `deleteAsync(key)`
 
-**UtilAPI (L1419):** `solidPaint(color, overrides?)`, `rgba(color)`, `rgb(color)`, `normalizeMarkdown(markdown)`, `getSfSymbolCharacter(name)`
+**ViewportAPI (L3086):** `center: Vector`, `zoom: number`, `scrollAndZoomIntoView(nodes)`, `bounds: Rect`
 
-**TeamLibraryAPI (L1337):** `getAvailableLibraryVariableCollectionsAsync()`, `importVariableByKeyAsync(key)`
+**UtilAPI (L2717):** `solidPaint(color, overrides?)`, `rgba(color)`, `rgb(color)`, `normalizeMarkdown(markdown)`. Color inputs accept CSS strings (including hex), `RGB`, or `RGBA`. Use `solidPaint` for complete solid paints (alpha becomes opacity), `rgb` for RGB fields (alpha is ignored), and `rgba` for gradient-stop/effect colors.
 
-**Image (L10146):** `hash`, `getBytesAsync()`, `getSizeAsync()`
+**TeamLibraryAPI (L2372):** `getAvailableLibraryVariableCollectionsAsync()`, `importVariableByKeyAsync(key)`
+
+**Image (L11069):** `hash`, `getBytesAsync()`, `getSizeAsync()`
 
 ---
 
@@ -436,25 +445,23 @@ GradientStop
 
 ---
 
-## use_figma Conveniences
-
-These helpers are available when running code with `use_figma`.
+## Additional APIs (available via use_figma)
 
 ### Node Methods
 
-| Method / Property                 | Returns / Type  | Description                                |
-| --------------------------------- | --------------- | ------------------------------------------ |
-| `node.query(selector)`            | `QueryResult`   | CSS-like selector search within subtree    |
-| `node.matches(selector)`          | `boolean`       | Test if node matches a selector            |
-| `node.set(props)`                 | `this`          | Set multiple properties at once, chainable |
-| `await node.screenshot(options?)` | `Promise<void>` | Capture PNG inline in tool response        |
-| `node.placeholder`                | `boolean`       | Show/hide shimmer overlay                  |
+| Method / Property             | Returns / Type    | Description |
+| ----------------------------- | ----------------- | ----------- |
+| `node.query(selector)`        | `QueryResult`     | CSS-like selector search within subtree |
+| `node.matches(selector)`      | `boolean`         | Test if node matches a selector |
+| `node.set(props)`             | `this`            | Set multiple properties at once, chainable |
+| `await node.screenshot(opts?)` | `Promise<void>`  | Capture PNG inline in tool response |
+| `node.placeholder`            | `boolean`         | Show/hide shimmer overlay |
 
 ### figma.io Namespace
 
-| Method                       | Returns | Description                                      |
-| ---------------------------- | ------- | ------------------------------------------------ |
-| `figma.io.write(path, data)` | `void`  | Write image/data to be returned in tool response |
+| Method                        | Returns           | Description |
+| ----------------------------- | ----------------- | ----------- |
+| `figma.io.write(path, data)`  | `void`            | Write image/data to be returned in tool response |
 
 ### `$fig` Builder API
 
@@ -490,8 +497,8 @@ Plan nodes returned by create methods are chainable — `.frame()`, `.text()`, `
 
 ### Types
 
-| Type                | Description                                                                                                                         |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Type                | Description |
+| ------------------- | ----------- |
 | `QueryResult`       | Iterable result from `node.query()` with `.first()`, `.last()`, `.each()`, `.map()`, `.filter()`, `.values()`, `.set()`, `.query()` |
 | `FigQueryResult`    | Result from `$fig.query()` / `planNode.query()` with `.toArray()`, `.map()`, `.values()`, `.set()`, `.remove()`, `.moveTo()`, `.each()`, `.first()`, `.last()`, `.filter()` |
 | `ScreenshotOptions` | `{ scale?: number, contentsOnly?: boolean }` — `contentsOnly` defaults to `false` |

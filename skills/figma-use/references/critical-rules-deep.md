@@ -70,7 +70,7 @@ for (const { name, color } of FX_COLORS) {
 ### When NOT to use $fig
 Mid-script reading real `SceneNode` state, or operations on non-SceneNode types (Variables, Components themselves). For those, raw Plugin API in a single `use_figma` call is correct.
 
-Note: "I need a library component" alone is **not** a reason to leave `$fig`. Pass the `componentKey` from `search_design_system` straight into `$fig.get(...)` / `$fig.instance(...)` — same for style `key` (`$fig.getStyle`) and variable `key` (`$fig.getVar`). For component sets, pass variant property values in `props` and `$fig.instance` resolves the matching variant via `setProperties` — you do not need to import the set and drill into `compSet.children`.
+Note: "I need a library component" alone is **not** a reason to leave `$fig`. Pass the matching `componentKey` or `componentSetKey` from `search_design_system` straight into `$fig.get(...)` / `$fig.instance(...)` — same for style `key` (`$fig.getStyle`) and variable `key` (`$fig.getVar`). For component sets, pass variant property values in `props` and `$fig.instance` resolves the matching variant via `setProperties` — you do not need to import the set and drill into `compSet.children`.
 
 ---
 
@@ -102,10 +102,11 @@ fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0 } }]
 fills = [{ type: 'SOLID', color: { r: 1, g: 0, b: 0 }, opacity: 0.5 }]
 ```
 
-Helper at top of script:
+Use built-in utilities for literal colors; they are available in every `use_figma` call:
 ```js
-const hex = h => { const n = parseInt(h.replace('#',''), 16); return { r: ((n>>16)&255)/255, g: ((n>>8)&255)/255, b: (n&255)/255 } }
-// then: color: hex('#2563eb')
+$fig.rectangle({ fills: [figma.util.solidPaint('#2563eb80')] }) // alpha becomes paint opacity
+const rgb = figma.util.rgb('#2563eb') // RGB only; ignores input alpha
+const rgba = figma.util.rgba('#2563eb80') // RGBA for gradient stops/effects
 ```
 
 ---
@@ -191,7 +192,7 @@ NOT: "Explore page 1", "Explore page 2"... each costs ~30s + thinking tax. One `
 
 ## "An unexpected error occurred" handling
 
-When `use_figma` returns exactly `"An unexpected error occurred. Figma Debug UUID: <uuid>"` (no JS stack), the request hit a server-side path error. Do NOT retry the same script unchanged — that has near-zero success probability.
+When `use_figma` returns an error message `"An unexpected error occurred"` (no JS stack), the request hit a server-side path error. Do NOT retry the same script unchanged — that has near-zero success probability.
 
 Change approach: break into smaller batches, switch from `$fig.query(...).set(...)` to per-node `node.set(...)` (or vice versa), pick a tighter selector, or drop one node-property to isolate which triggers the server error. If the same shape recurs after 2 different attempts, stop and report.
 

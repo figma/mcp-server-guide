@@ -211,7 +211,7 @@ return "Done!"
 
 ## Prefer returned IDs for workflow state
 
-Return node IDs and keep workflow state outside the Figma file. Put human-readable component purpose and usage in `node.description` only on a `COMPONENT` or `COMPONENT_SET`.
+Return node IDs and keep workflow state outside the Figma file. Put human-readable component purpose and usage in `description`.
 
 ```js
 const rect = figma.createRectangle()

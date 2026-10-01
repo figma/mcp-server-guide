@@ -2,7 +2,7 @@
 
 # Error Recovery Reference
 
-Protocol for handling failures and incomplete runs in multi-call design-system work.
+Protocol for handling failures and incomplete runs across a 20–100+ call design system build.
 
 > **Design files only.** Every snippet here (including `figma.createPage()`) targets Figma Design files (`figma.com/design/...`). `figma.createPage()` throws in both FigJam (`figma.com/board/...`) and Slides (`figma.com/slides/...`).
 
@@ -129,13 +129,17 @@ Maintain a state ledger in your context (not in the Figma file) across calls. Th
 ```json
 {
   "runId": "ds-build-2024-001",
-  "scope": "single-component",
+  "phase": "phase3",
   "step": "component-button/combine-variants",
   "completedSteps": [
-    "discovery",
-    "foundations/verified",
-    "component-button/base",
-    "component-button/variants"
+    "phase0",
+    "phase1/collections",
+    "phase1/primitives",
+    "phase1/semantics",
+    "phase2/pages",
+    "phase2/foundations-docs",
+    "phase3/component-avatar",
+    "phase3/component-icon"
   ],
   "entities": {
     "collections": {
@@ -159,7 +163,11 @@ Maintain a state ledger in your context (not in the Figma file) across calls. Th
       "color/light": "2345:1",
       "color/dark":  "2345:2"
     },
-    "pages": { "Button": "0:3" },
+    "pages": {
+      "Cover":       "0:1",
+      "Foundations": "0:2",
+      "Button":      "0:3"
+    },
     "components": {
       "Icon":        "3456:1",
       "Avatar":      "3456:2",
@@ -169,7 +177,16 @@ Maintain a state ledger in your context (not in the Figma file) across calls. Th
       "Button": "4567:1"
     }
   },
-  "pendingValidations": ["Button:metadata", "Button:screenshot"]
+  "pendingValidations": [
+    "Button:metadata",
+    "Button:screenshot"
+  ],
+  "userCheckpoints": {
+    "phase0": "approved-2024-01-15",
+    "phase1": "approved-2024-01-15",
+    "phase2": "approved-2024-01-15",
+    "component-avatar": "approved-2024-01-15"
+  }
 }
 ```
 
@@ -180,7 +197,7 @@ After every successful `use_figma` call:
 2. Add them to the appropriate `entities` section of the ledger
 3. Add the completed step to `completedSteps`
 4. Remove from `pendingValidations` if this call validated something
-5. Update `scope` and `step` to the current position
+5. Update `phase` and `step` to the current position
 
 ### Rehydrating at session start
 
@@ -257,13 +274,13 @@ component set named 'Button' on that page                → entities.componentS
 
 The resume point is the first step in the workflow that is NOT in `completedSteps`. If the inventory shows the Button component set exists but the pending validations list shows `'Button:screenshot'`, the resume point is the screenshot validation call, not re-creation.
 
-Use the selected scope's acceptance checks to determine where to continue:
+Use the checkpoint table from the workflow to determine which phase to continue from:
 
 ```
-Discovery complete: relevant source and Figma assets inspected; conflicts resolved
-Foundation dependency complete: required variables and styles exist and are verified
-Component complete: requested component set exists with no pending validations
-Full-library presentation complete: only the agreed pages and documentation exist and validate
+Phase 0 complete: all planned pages listed in entities.pages
+Phase 1 complete: all planned variables listed in entities.variables with correct scopes
+Phase 2 complete: all structural pages + foundations doc frames present
+Phase 3 complete (per component): componentSet exists + no pending validations + user checkpoint recorded
 ```
 
 ---
@@ -290,13 +307,13 @@ These errors leave the file in a state where continuing forward is unreliable:
 
 | Category | Examples | Recovery |
 |---|---|---|
-| Component cycle | A component instance was accidentally nested inside itself | Fully clean up the affected component and restart from its first in-scope creation step |
+| Component cycle | A component instance was accidentally nested inside itself | Full cleanup of the affected component, restart that component from Call 1 |
 | combineAsVariants with non-components | Mixed node types passed to combineAsVariants, causing unexpected merges | Remove the malformed component set, re-run from variant creation |
-| Variable collection ID drift | Collection was deleted and re-created, old IDs in state ledger are stale | Re-run the affected foundation step; update all dependent IDs in the ledger |
-| In-scope page deletion | A required page was deleted after component sets were created on it | Re-create that page and re-run only affected component creations |
-| Mode limit exceeded | `addMode` threw because the plan is Starter or Professional | Redesign the in-scope collection architecture to fit mode limits, restart that foundation step |
+| Variable collection ID drift | Collection was deleted and re-created, old IDs in state ledger are stale | Re-run Phase 1 completely; update all IDs in state ledger |
+| Page deletion | A page was deleted after component sets were created on it | Treat as Phase 2 incomplete; re-create the page + re-run affected component creations |
+| Mode limit exceeded | `addMode` threw because the plan is Starter or Professional | Redesign variable collection architecture to fit mode limits, restart Phase 1 |
 
-**Recovery from structural corruption**: run `cleanupOrphans` with the exact state-ledger IDs for the affected scoped step, then restart that step. Do NOT attempt to patch corrupted structure in-place.
+**Recovery from structural corruption**: run `cleanupOrphans` with the exact state-ledger IDs for the affected phase, then restart that phase. Do NOT attempt to patch corrupted structure in-place.
 
 ---
 
@@ -321,25 +338,27 @@ These errors leave the file in a state where continuing forward is unreliable:
 
 ---
 
-## 8. Recovery Guidance by Asset Type
+## 8. Per-Phase Recovery Guidance
 
-### Variable creation fails
+### Phase 1 fails (variable creation)
 
 - If `safeToRetryWithoutCanvasRead` is `true`, fix the error and retry.
 - If `false`, inventory variables, determine what changed, then resume idempotently. Do not proceed to Phase 2 until all planned variables are correct.
 
-### In-scope page or file structure fails
+**The most common Phase 1 failure:** script timeout when creating many variables. Fix: batch variable creation — create at most 20–30 variables per call.
 
-This section applies only when the selected scope includes those pages or documentation. Symptoms: some agreed pages exist, others are missing; requested documentation frames are incomplete.
+### Phase 2 fails mid-execution (page/file structure)
+
+Symptoms: some pages exist, others are missing; foundations doc frames are incomplete.
 
 Recovery steps:
 1. Identify which pages were successfully created by their deterministic names and state-ledger IDs
 2. Mark remaining pages as pending and create them in subsequent calls
-3. If an in-scope documentation frame is malformed, pass its exact state-ledger ID to `cleanupOrphans`, then recreate it
+3. If a foundations doc frame is malformed, pass its exact state-ledger ID to `cleanupOrphans`, then recreate it
 
-Page failures rarely require foundation rollback unless the page structure itself is corrupted.
+Phase 2 failures rarely require Phase 1 rollback unless the page structure itself is corrupted (which is unusual).
 
-### Component creation fails
+### Phase 3 fails (component creation)
 
 This is the most common failure mode in long builds. Previous successful calls persist. If `safeToRetryWithoutCanvasRead` is `false`, inspect the component page and state ledger before resuming idempotently.
 
@@ -353,9 +372,9 @@ const labelKey = Object.keys(existingDefs).find(key => key.startsWith('Label#'))
   ?? candidate.addComponentProperty('Label', 'TEXT', 'Button');
 ```
 
-### In-scope QA or Code Connect fails
+### Phase 4 fails mid-execution (QA / Code Connect)
 
-This section applies only when the selected scope includes the relevant audit or mapping. These failures do not corrupt completed component work. Common failures:
+Phase 4 is non-destructive. Failures here do not corrupt Phase 3 work. Common failures:
 
 - **Accessibility audit finds contrast failures:** do not attempt auto-fix. Report the specific variable IDs and token names that fail, then ask the user which value to update.
 - **Naming audit finds duplicates:** list all duplicates with their `key` values, ask user which to keep, then remove the duplicates.
