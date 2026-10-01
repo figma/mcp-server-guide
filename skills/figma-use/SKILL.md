@@ -18,6 +18,18 @@ IMPORTANT: Whenever you work with design systems, start with [working-with-desig
 
 `$fig` is a global that is responsible for all node creation. It auto-flushes at script end (no `$fig.done()` needed), handles font preloading, batches mutations, and orders property assignment correctly. **Use it for all node creation and mutation operations.** Never use `figma.createFrame()`, `figma.createText()` or any `figma.create*` methods. They do not exist in this environment.
 
+**Constructors queue creation, not inert templates.** Every `$fig` node constructor like `$fig.frame(...)` queues a node creation in the plan, even if its returned plan node is never used, returned, or screenshotted. Unattached nodes become top-level nodes at flush. Plan nodes meant to be used as children should be appended or used in `$fig.frame(opts, children)` **before flushing**.
+
+**layoutSizingHorizontal/Vertical = 'FILL' is for auto-layout children only.** Do not set FILL for top-level nodes.
+
+### Plan nodes vs real nodes
+
+`$fig.component(...)`, `$fig.variants(...)`, `$fig.instance(...)`, `$fig.get(...)`, and `$fig.frame(...)` return **plan nodes**, not raw Plugin API nodes. `await $fig.done()` materializes the plan nodes and makes `planNode.node` available for accessing real nodes. Do not use plan nodes like real nodes.
+
+- Use `planNode.set({ name, x, y })` and `planNode.append(childPlanNode)` for queued mutations. Do not make direct assignments like `planNode.x = 100`. Do not mix plan nodes into raw plugin APIs like `node.appendChild(planNode)`.
+- Prefer `$fig.instance(componentPlanNode, opts)` or `planNode.instance(componentPlanNode, opts)` to create instances of plan component nodes, with no intermediate flush.
+- Use `planNode.node` only when you need raw state or an operation `$fig` or plan nodes do not expose. Flush pending changes first. Do not mix raw plugin code amongst pending changes.
+
 ### Copy these patterns
 
 **Build an auto-layout frame with children — single call:**
@@ -27,7 +39,7 @@ $fig.autoLayout(
   { name: 'Todo List', layoutMode: 'VERTICAL', width: 480 },
   ['item 1', 'item 2', 'item 3'].map((item) =>
     $fig.autoLayout(
-      // Set `layoutSizingHorizontal` to FILL since auto-layout is hug x hug by default
+      // FILL is valid because this item is attached to the auto-layout Todo List
       { name: 'Todo Item', layoutSizingHorizontal: 'FILL' },
       [$fig.text({ characters: item, fontName: { family: 'Inter', style: 'Bold' } })],
     ),
@@ -38,12 +50,12 @@ $fig.autoLayout(
 **N parallel items for repeated small UI elements like swatches, list items, etc.:**
 ```js
 const ITEMS = [
-  { name: 'A', bg: hex('#ffffff'), accent: hex('#0969da') },
-  { name: 'B', bg: hex('#fff8f1'), accent: hex('#bf5af2') },
+  { name: 'A', bg: '#ffffff', accent: '#0969da' },
+  { name: 'B', bg: '#fff8f1', accent: '#bf5af2' },
   // ...add more here
 ]
-ITEMS.forEach((v, i) => $fig.autoLayout({ name: v.name, x: i * 410, width: 390, fills: [{ type:'SOLID', color: v.bg }] }, [
-  $fig.text({ characters: v.name, fills: [{ type:'SOLID', color: v.accent }] }),
+ITEMS.forEach((v, i) => $fig.autoLayout({ name: v.name, x: i * 410, width: 390, fills: [figma.util.solidPaint(v.bg)] }, [
+  $fig.text({ characters: v.name, fills: [figma.util.solidPaint(v.accent)] }),
 ]))
 ```
 
@@ -58,19 +70,27 @@ $fig.get('1:42').set({ opacity: 0.8, cornerRadius: 12 })
 $fig.get('1:42').append($fig.autoLayout({ name: 'New Frame' }))
 ```
 
-**Create a component with a few different variants**
+`parent.append(a, b, c)` and `$fig.append(parent, a, b, c)` append every child in order and return the parent for chaining.
+
+**Create variants and place an instance**
 ```js
 const SIZES = ['Small', 'Medium', 'Large']
-$fig.variants({ name: 'Button' }, SIZES.map((size) => $fig.component({ name: `Size=${size}`, layoutMode: 'HORIZONTAL', /** other props */ })))
+const buttonComponentSet = $fig.variants({ name: 'Button' }, SIZES.map((size) => $fig.component({ name: `Size=${size}`, layoutMode: 'HORIZONTAL', /** other props */ })))
+const buttonInst = $fig.instance(buttonComponentSet, { props: { Size: 'Medium' } })
+$fig.get('DESTINATION_FRAME_ID').append(buttonInst)
+// Creation and placement are queued; no intermediate done() is needed.
 ```
+Select variants through `props` on the component set. This also works with published sets when individual variant references are unavailable.
+If an earlier measurement required `await $fig.done()`, continue using plan node `.set(...)` and `.append(...)` for changes and placement.
+
 > ⚠️ `$fig.variants` does **not** position the variants — they stack at (0,0) and the set renders as one collapsed, overlapping element. You must grid the variants and resize the set afterward. See [`fig-builder.md`](references/fig-builder.md#required-follow-up--grid-the-variants-fig-build--raw-layout) for the required follow-up recipe.
 
-> **Building a component — even a single one? Binding tokenized values is part of finishing the job, not a preference.** A component is **not complete** while any value that *has* a corresponding design token — one that already exists in the file, or that you created from the source — is still a hardcoded literal. When a token exists for a `fills` color / `cornerRadius` / padding / `itemSpacing`, bind it: build a `$fig.varCollection` (primitive tier + semantic tier aliased to it) and pass the variable **handle straight into the property**. **Anti-pattern to avoid:** do NOT copy resolved token values into local JS constants (e.g. `const VARIANTS = [{ bg: '#2c2c2c' }]`) and paint with `hex(...)` — that silently bypasses variables even though the source defines tokens. This applies to a single component as much as a full design system. **Only bind values that actually have a token** — values with genuinely no token (one-off geometry, icon pixel sizes, static 1px dividers) correctly stay literal; don't invent tokens to bind. **If you create the variables in one `use_figma` call and build the component in a later one, rehydrate the handles first** (`$fig.getVar(id)` or `figma.variables.getVariableByIdAsync` using the IDs you returned) — a handle from a previous call isn't in scope. Worked recipe: [fig-builder.md → Building a component with bound variables](references/fig-builder.md#building-a-component-with-bound-variables-the-default-for-components).
+> **Building a component — even a single one? Binding tokenized values is part of finishing the job, not a preference.** A component is **not complete** while any value that *has* a corresponding design token — one that already exists in the file, or that you created from the source — is still a hardcoded literal. When a token exists for a `fills` color / `cornerRadius` / padding / `itemSpacing`, bind it: build a `$fig.varCollection` (primitive tier + semantic tier aliased to it) and pass the variable **handle straight into the property**. **Anti-pattern to avoid:** do NOT copy resolved token values into local JS constants (e.g. `const VARIANTS = [{ bg: '#2c2c2c' }]`) and paint with resolved literal colors — that silently bypasses variables even though the source defines tokens. This applies to a single component as much as a full design system. **Only bind values that actually have a token** — values with genuinely no token (one-off geometry, icon pixel sizes, static 1px dividers) correctly stay literal; don't invent tokens to bind. **If you create the variables in one `use_figma` call and build the component in a later one, rehydrate the handles first** (`$fig.getVar(id)` or `figma.variables.getVariableByIdAsync` using the IDs you returned) — a handle from a previous call isn't in scope. Worked recipe: [fig-builder.md → Building a component with bound variables](references/fig-builder.md#building-a-component-with-bound-variables-the-default-for-components).
 
 **Create an instance of a component**
 ```js
-// First arg can be a node ID ('1:2') OR a library asset key
-// from `search_design_system` results (the `componentKey` field).
+// First arg can be a component plan wrapper, a node ID ('1:2'), OR a library asset key
+// from `search_design_system` results (the `componentKey` or `componentSetKey` field, according to `assetType`).
 $fig.instance('1:2', { name: 'Cancel Btn', props: { label: 'Cancel'}})
 ```
 
@@ -85,7 +105,7 @@ $fig.rectangle({ fills: [{ type: 'SOLID', color: $fig.getVar(BRAND_VAR_KEY) }] }
 
 **Use design-system assets by key (from `search_design_system`)**
 
-`search_design_system` returns `componentKey` for components and component sets, and `key` for styles and variables. Pass these straight into the unified `$fig` lookup — the plan queues the library import automatically, so you don't need a separate `await figma.importComponentByKeyAsync(...)` / `importStyleByKeyAsync(...)` / `importVariableByKeyAsync(...)` step.
+`search_design_system` returns `componentKey` for components, `componentSetKey` for component sets, and `key` for styles and variables. Pass these straight into the unified `$fig` lookup — the plan queues the library import automatically, so you don't need a separate `await figma.importComponentByKeyAsync(...)` / `importStyleByKeyAsync(...)` / `importVariableByKeyAsync(...)` step.
 ```js
 // One call site, many input shapes — node IDs, real variable/style ids,
 // AND 40-char asset keys (e.g. '49c8754d4b898e176148650df612a47998a8c4a1')
@@ -100,7 +120,7 @@ $fig.text({ characters: 'Hello', textStyle: heading })
 $fig.rectangle({ fills: [{ type: 'SOLID', color: brand }] })
 ```
 
-**Discover a set's variant props from its key** — `search_design_system` returns a set's `componentKey`, not its variant properties. This is **two `use_figma` calls**: call 1 `return`s the set's property definitions and its variants so their props come back to you in the tool result; then, knowing the valid props, call 2 instantiates the variant you want.
+**Discover a set's variant props from its key** — `search_design_system` returns a set's `componentSetKey`, not its variant properties. This is **two `use_figma` calls**: call 1 `return`s the set's property definitions and its variants so their props come back to you in the tool result; then, knowing the valid props, call 2 instantiates the variant you want.
 ```js
 const setHandle = $fig.get(BUTTON_SET_KEY)
 await $fig.done()
@@ -148,17 +168,20 @@ $fig.query('INSTANCE[name=arrow_drop_down]').set({ ... })
 
 **Gradient via helper — no manual transform matrix needed:**
 ```js
+const node = $fig.rectangle({ width: 240, height: 120 })
 $fig.gradient(node, 'LINEAR', [
-  { position: 0, color: { r: 0, g: 0, b: 0 } },
-  { position: 1, color: { r: 1, g: 1, b: 1 } },
+  { pos: 0, color: figma.util.rgba('#000000') },
+  { pos: 1, color: figma.util.rgba('#ffffff') },
 ])
 ```
 
-**Hex helper at script top:**
+**Literal colors — use the built-in utilities, available in every call:**
 ```js
-const hex = h => { const n = parseInt(h.replace('#',''), 16); return { r:((n>>16)&255)/255, g:((n>>8)&255)/255, b:(n&255)/255 } }
-// then: color: hex('#2563eb')
+$fig.rectangle({ fills: [figma.util.solidPaint('#2563eb80')] }) // alpha becomes paint opacity
+const rgb = figma.util.rgb('#2563eb') // { r, g, b }; ignores input alpha
+const rgba = figma.util.rgba('#2563eb80') // { r, g, b, a }; for gradient stops/effects
 ```
+Use these utilities directly instead of defining a hex parser or relying on helpers from a previous `use_figma` call. For token-backed properties, keep passing the variable handle directly; converting its resolved color to a paint would lose the binding.
 
 **Chaining on plan nodes — alternative to children array:**
 ```js
@@ -171,17 +194,20 @@ card.text({ characters: 'Description', fontSize: 14 })
 
 - **Create:** `$fig.autoLayout / .frame / .text / .rectangle / .ellipse / .polygon / .star / .line / .vector / .section / .component / .page` — all `(opts?, children?)`. Plan nodes are chainable.
 - **Create from SVG — the preferred ICON path:** `$fig.svg(svgStr, opts?)` builds a vector node tree from an SVG string. **Prefer real vector icons:** import the icon's SVG source (inline `<svg>`, the `.svg` asset, or the source icon-library glyph — e.g. lucide/heroicons) via `$fig.svg(...)` rather than approximating an icon with a typed emoji/Unicode glyph (★ ⚙ 🔍 ☰ ▾) or a plain rectangle. A simple glyph or shape is a fine fallback when the real SVG genuinely can't be obtained — just reach for the SVG first. (Don't reconstruct an icon from rotated line/rect primitives, though — that renders broken.) Full recipe (viewBox+width/height sizing, `currentColor`, INSTANCE_SWAP for design-system icons): [figma-generate-design → Icons](../figma-generate-design/SKILL.md#icons-import-the-svg-never-reconstruct-from-rotated-primitives).
-- **Create an instance of a component:** `$fig.instance(compRef, opts?)` — `compRef` is a component plan node, a node ID string, OR a library asset key (`componentKey` from `search_design_system`); the import is queued in the plan automatically.
+- **Create an instance of a component:** `$fig.instance(compRef, opts?)` — `compRef` is a component plan node, a node ID string, OR a library asset key (`componentKey` or `componentSetKey` from `search_design_system`); the import is queued in the plan automatically.
 - **Grouping/boolean:** `$fig.group / .union / .subtract / .intersect / .exclude / .variants` — all `(opts?, children?)`.
-- **Read:** `$fig.get(id)` wraps an existing `SceneNode` — `id` can be a real node ID OR a library asset key (`componentKey` from `search_design_system`); the import is queued in the plan automatically. `$fig.query(selector, scope?)` returns `{ length, values(paths), first(), last(), each(fn), filter(fn), set(props), moveTo(parent, idx?), remove() }`. Selectors are CSS-like (e.g. `'FRAME[name*=Card] TEXT'`). `$fig.getStyle(nameOrIdOrKey)` and `$fig.getVar(nameOrIdOrKey)` accept the matching `key` values from `search_design_system`.
+- **Read:** `$fig.get(id)` wraps an existing `SceneNode` — `id` can be a real node ID OR a library asset key (`componentKey` or `componentSetKey` from `search_design_system`); the import is queued in the plan automatically. `$fig.query(selector, scope?)` returns `{ length, values(paths), first(), last(), each(fn), filter(fn), set(props), moveTo(parent, idx?), remove() }`. Selectors are CSS-like (e.g. `'FRAME[name*=Card] TEXT'`). `$fig.getStyle(nameOrIdOrKey)` and `$fig.getVar(nameOrIdOrKey)` accept the matching `key` values from `search_design_system`.
 - **Mutate:** `$fig.set(target, props)`, `.delete(...nodes)`, `.move(target, parent, idx?)`, `.clone(target, props?)`, `.append(parent, child)`, `.addAt(parent, idx, child)`, `.replace(old, new)`, `.reorder(parent, children)`, `.gradient(node, type, stops, transform?)`, `.image(node, hash, scaleMode?)`.
 - **Plan-node methods (chainable):** `.set()`, `.remove()`, `.clone()`, `.moveTo(parent, idx?)`, `.append(child)`, `.query(selector)`, `.screenshot({scale?, contentsOnly?})`, and the `.node` getter for the materialized `SceneNode` (null pre-flush).
 
 ### When to use the raw Figma Plugin API
 
-Only these cases — and even then, mix raw API with `$fig` in the same script:
+Keep raw Plugin API code that reads or changes document state separate from planned creation and mutations. Run it before `$fig` code, or after an explicit `await $fig.done()` that flushes all pending changes. Do not pass plan nodes to raw methods such as `regularNode.appendChild(planNode)` or `insertChild`; use `$fig.get(regularNode.id).append(planNode)` or `.addAt(index, planNode)` instead. Planned changes are not visible to raw reads such as `regularNode.children` until the plan is flushed. After flushing, use `planNode.node` when a raw API needs the real node. Pure color helpers such as `figma.util.solidPaint`, `.rgb`, and `.rgba` can be used inside `$fig` expressions.
 
-- **Mid-script async result needed:** `await figma.setCurrentPageAsync(...)`, `await figma.loadFontAsync(...)` — must complete before subsequent plan steps can use the result. (Importing library components is NOT one of these cases: pass the `componentKey` straight into `$fig.get(...)` / `$fig.instance(...)` and pass variant property values in `props`. `$fig` queues the library import in the plan and resolves the variant for you.)
+Use the raw API only in these cases:
+
+- **Color conversion:** `figma.util.solidPaint`, `.rgb`, and `.rgba` convert literal colors for `$fig` properties without creating or mutating nodes.
+- **Mid-script async result needed:** `await figma.setCurrentPageAsync(...)`, `await figma.loadFontAsync(...)` — must complete before subsequent plan steps can use the result. (Importing library components is NOT one of these cases: pass the matching `componentKey` or `componentSetKey` straight into `$fig.get(...)` / `$fig.instance(...)` and pass variant property values in `props`. `$fig` queues the library import in the plan and resolves the variant for you.)
 - **Mid-script real node state read:** measured `width` / `height` after auto-layout, computed colors, getStyledTextSegments — materialize mid-script, then read `.node` on the plan node. See [references/fig-builder.md](references/fig-builder.md) for the mid-script inspection pattern.
 - **Things `$fig` genuinely doesn't expose:** `node.setRangeFontName(...)`, etc. — access via `planNode.node` (see [references/fig-builder.md](references/fig-builder.md)).
 
@@ -193,11 +219,18 @@ Only these cases — and even then, mix raw API with `$fig` in the same script:
 
 3. **Avoid `return` / `$fig.done()` if only using `$fig`** — runtime auto-flushes and returns a `FigDoneResult` with created/updated node IDs. Use `return` if you need raw plugin API mid-script or other data.
 
-4. **Build up larger designs incrementally by section.** Refer to the [figma-generate-design](../figma-generate-design/SKILL.md) skill for the placeholder + replace workflow. Create screens with placeholders inside, e.g. `$fig.autoLayout({ name: 'Header', layoutSizingHorizontal: 'FILL', placeholder: true })`, then make subsequent `use_figma` calls to replace them and screenshot: `$fig.get("PLACEHOLDER_ID_FROM_PREVIOUS_STEP").replace( ... ).screenshot()`. You can make up to 5 `.screenshot()` calls per tool call. If you need to make more screenshots, you are doing too much work and need to break down the task into multiple `use_figma` calls.
+4. **Build up larger designs incrementally by section.** Refer to the [figma-generate-design](../figma-generate-design/SKILL.md) skill for the placeholder + replace workflow. Create screens with placeholders inside using the complete parent-and-child example below, then make subsequent `use_figma` calls to replace them and screenshot: `$fig.get("PLACEHOLDER_ID_FROM_PREVIOUS_STEP").replace( ... ).screenshot()`. You can make up to 5 `.screenshot()` calls per tool call. If you need to make more screenshots, you are doing too much work and need to break down the task into multiple `use_figma` calls.
+
+   ```js
+   $fig.autoLayout({ name: 'Screen', layoutMode: 'VERTICAL', width: 390 }, [
+     $fig.autoLayout({ name: 'Header', layoutSizingHorizontal: 'FILL', placeholder: true }),
+     $fig.autoLayout({ name: 'Content', layoutSizingHorizontal: 'FILL', placeholder: true }),
+   ])
+   ```
 
 5. **Plain JS with top-level `await`.** Code is auto-wrapped in async. Do NOT wrap in `(async () => {})()`.
 
-6. **Colors are 0–1 RGB; ALL fields required.** `{r, g, b}` — no `hex:`, no `a:` in color. Opacity goes outside color: `{type:'SOLID', color:{r,g,b}, opacity: 0.5}`. Hex helper: `const hex = h => { const n = parseInt(h.replace('#',''), 16); return { r:((n>>16)&255)/255, g:((n>>8)&255)/255, b:(n&255)/255 } }`. See [references/critical-rules-deep.md](references/critical-rules-deep.md) for WRONG/RIGHT.
+6. **Use built-in utilities for literal colors.** `figma.util.solidPaint('#2563eb80')` creates a complete solid paint with opacity. For individual color fields, use `figma.util.rgb(...)` for `{r,g,b}` (solid paints; ignores alpha) and `figma.util.rgba(...)` for `{r,g,b,a}` (gradient stops/effects). Channels are 0–1; solid-paint opacity belongs outside `color`. The utilities are available in every call — no custom hex parser needed. Token-backed properties still take variable handles directly. See [references/critical-rules-deep.md](references/critical-rules-deep.md) for WRONG/RIGHT.
 
 7. **No `curl` / `wget` / `Read` of Figma URLs from `Bash`.** Figma file access ONLY via `use_figma` and `mcp__figma__*` tools. After `get_screenshot`, the image is inlined in the tool result — do NOT re-fetch or re-Read it.
 

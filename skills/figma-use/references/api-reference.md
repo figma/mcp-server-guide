@@ -52,7 +52,7 @@ figma.combineAsVariants(components, parent?)    // Combine ComponentNodes into C
 
 ## Library Component / Style / Variable Lookup by Key
 
-`search_design_system` returns `componentKey` for components / component sets and `key` for styles and variables. Pass any of these straight into the unified `$fig` lookup — the plan queues the library import automatically. Same call sites also accept node IDs and real style / variable IDs for assets already in the current file.
+`search_design_system` returns `componentKey` for components and `componentSetKey` for component sets and `key` for styles and variables. Pass any of these straight into the unified `$fig` lookup — the plan queues the library import automatically. Same call sites also accept node IDs and real style / variable IDs for assets already in the current file.
 
 ```js
 // Components / component sets
@@ -107,7 +107,7 @@ collection.renameMode(modeId, "Light")
 // Variables
 const variable = figma.variables.createVariable("name", collection, "COLOR")
 //                                                       ^ must be a collection object (passing an ID string is deprecated)
-// resolvedType: "COLOR" | "FLOAT" | "STRING" | "BOOLEAN" | "TIMING" | "EASING"
+// resolvedType: "COLOR" | "FLOAT" | "STRING" | "BOOLEAN"
 variable.setValueForMode(modeId, value)
 
 // Scopes — controls where variable appears in property pickers
@@ -230,11 +230,11 @@ parent.appendChild(child)
 parent.insertChild(index, child)
 node.remove()
 ```
+
 ## Descriptions & Documentation Links
-Only access `node.description` on components and component sets. In `use_figma`,
-reading it on a frame, instance, or other scene node returns `undefined`, while
-assigning it throws a `no such property` TypeError. Narrow by `node.type` before
-either operation so `undefined` is not mistaken for an empty description.
+
+Only access `description` on components and component sets. Accessing it on a
+frame, instance, or other scene node throws instead of returning `undefined`.
 
 ```js
 // Description — plain text, shown in Figma's component panel

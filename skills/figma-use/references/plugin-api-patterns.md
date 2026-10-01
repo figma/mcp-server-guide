@@ -398,7 +398,7 @@ $fig.instance(component, { x: 200, y: 100 })
 
 ### Use Components by Key (Team Libraries)
 
-Pass the `componentKey` straight into `$fig.get(...)` / `$fig.instance(...)`. The plan queues the library import automatically — there is no need to call `importComponentByKeyAsync` / `importComponentSetByKeyAsync` yourself, or to pick a variant child of a component set by hand.
+Pass the matching `componentKey` or `componentSetKey` straight into `$fig.get(...)` / `$fig.instance(...)`. The plan queues the library import automatically — there is no need to call `importComponentByKeyAsync` / `importComponentSetByKeyAsync` yourself, or to pick a variant child of a component set by hand.
 
 ```javascript
 // Component
@@ -435,15 +435,15 @@ componentSet.resizeWithoutConstraints(maxX + 40, maxY + 40);
 ```
 
 ### Component Properties
+
 ```javascript
 // addComponentProperty returns a STRING key — capture it!
 const labelKey = component.addComponentProperty("label", "TEXT", "Button");
 const showIconKey = component.addComponentProperty("showIcon", "BOOLEAN", true);
 const iconSlotKey = component.addComponentProperty("iconSlot", "INSTANCE_SWAP", defaultIconId);
-// MUST narrow each child to the type supported by the referenced property
-if ("characters" in labelNode) {
-  labelNode.componentPropertyReferences = { characters: labelKey };
-}
+
+// MUST link properties to child nodes via componentPropertyReferences
+labelNode.componentPropertyReferences = { characters: labelKey };
 iconInstance.componentPropertyReferences = {
   visible: showIconKey,
   mainComponent: iconSlotKey
