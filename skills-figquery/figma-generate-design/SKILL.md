@@ -338,7 +338,7 @@ After composing all sections, call `get_screenshot` on the wrapper frame and com
 - Placeholder text still showing ("Title", "Heading", "Button")
 - Truncated content from layout sizing bugs
 - Wrong component variants (e.g., Neutral vs Primary button)
-- **Blank image placeholders** — if images are missing, you need to transfer them from the `generate_figma_design` capture (see below)
+- **Blank image placeholders** — if images are missing, transfer them from the `generate_figma_design` capture before considering `generate_image` to generate placeholders (see "Transfer images from the generate_figma_design capture" below)
 
 #### Transfer images from the generate_figma_design capture
 
@@ -367,6 +367,10 @@ If you ran `generate_figma_design` in parallel (mandatory when the source contai
    targetFrame.fills = [{ type: "IMAGE", imageHash: "hash_from_capture", scaleMode: "FILL" }];
    ```
 4. Delete the `generate_figma_design` capture output after all images are transferred.
+
+#### Generating placeholder images
+
+Reuse available source, captured, or library images first. If placeholders still remain, tell the user how many images would be generated and ask permission, noting that generating images uses Figma AI credits. After consent, call `generate_image` for each placeholder, then follow its response to upload each result with `upload_assets`. Use the returned `imageHash` for the placeholder fill; finish only after the image appears.
 
 ### Step 6: Updating an Existing View
 
