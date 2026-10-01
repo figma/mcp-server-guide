@@ -149,55 +149,28 @@ return { nodeId: rect.id }
 
 ## Create Component Variants with Component Properties
 
-Component properties (TEXT, BOOLEAN, INSTANCE_SWAP) MUST be added inside the per-variant loop, BEFORE `combineAsVariants`. The component set inherits them from its children.
+Use the builder's property helpers on the layers inside each variant. Keep all creation in the plan; only unwrap to measure and lay out the materialized variants.
 
 ```js
-await figma.loadFontAsync({ family: "Inter", style: "Regular" })
-
-// Assume defaultIconComp is an existing icon component (discovered earlier)
-const defaultIconComp = figma.getNodeById('ICON_COMPONENT_ID')
-
-const components = []
-const variants = ["primary", "secondary"]
-
-for (const variant of variants) {
-  const comp = figma.createComponent()
-  comp.name = `variant=${variant}`
-  comp.layoutMode = 'HORIZONTAL'
-  comp.primaryAxisAlignItems = 'CENTER'
-  comp.counterAxisAlignItems = 'CENTER'
-  comp.paddingLeft = 12
-  comp.paddingRight = 12
-  comp.paddingTop = 8
-  comp.paddingBottom = 8
-  comp.layoutSizingHorizontal = 'HUG'
-  comp.layoutSizingVertical = 'HUG'
-  comp.cornerRadius = 6
-  comp.itemSpacing = 8
-
-  // TEXT property — label
-  const labelKey = comp.addComponentProperty('Label', 'TEXT', 'Button')
-  const label = figma.createText()
-  label.characters = "Button"
-  label.fontSize = 14
-  comp.appendChild(label)
-  label.componentPropertyReferences = { characters: labelKey }
-
-  // BOOLEAN + INSTANCE_SWAP — icon slot
-  const showIconKey = comp.addComponentProperty('Show Icon', 'BOOLEAN', false)
-  const iconSlotKey = comp.addComponentProperty('Icon', 'INSTANCE_SWAP', defaultIconComp.id)
-  const iconInstance = defaultIconComp.createInstance()
-  comp.insertChild(0, iconInstance)  // icon before label
-  iconInstance.componentPropertyReferences = {
-    visible: showIconKey,
-    mainComponent: iconSlotKey
-  }
-
-  components.push(comp)
-}
-
-const componentSet = figma.combineAsVariants(components, figma.currentPage)
-componentSet.name = "Button"
+const components = ['primary', 'secondary'].map((variant) =>
+  $fig.component({
+    name: `variant=${variant}`, layoutMode: 'HORIZONTAL',
+    primaryAxisAlignItems: 'CENTER', counterAxisAlignItems: 'CENTER',
+    paddingLeft: 12, paddingRight: 12, paddingTop: 8, paddingBottom: 8,
+    layoutSizingHorizontal: 'HUG', layoutSizingVertical: 'HUG',
+    cornerRadius: 6, itemSpacing: 8,
+  }, [
+    $fig.instance('ICON_COMPONENT_ID', { visible: false })
+      .booleanProp('Show Icon').instanceSwapProp('Icon'),
+    $fig.text({ characters: 'Button', fontSize: 14,
+      fontName: { family: 'Inter', style: 'Regular' } }).textProp('Label'),
+  ]),
+)
+const set = $fig.variants({ name: 'Button' }, components)
+const preview = $fig.instance(set, { name: 'Button preview', props: { variant: 'primary' } })
+$fig.get('DESTINATION_FRAME_ID').append(preview)
+await $fig.done()
+const componentSet = set.node // raw node; set.children still contains plan nodes
 
 // Layout variants in a row after combining (they stack at 0,0 by default)
 const colW = 140
@@ -340,17 +313,6 @@ For component sets with many variants (50+), split into multiple `use_figma` cal
 **Call 1: Create variable collections and return IDs**
 
 ```js
-// Hex-to-0-1 helper
-const hex = (h) => {
-  if (!h) return { r: 0, g: 0, b: 0, a: 0 }; // transparent
-  return {
-    r: parseInt(h.slice(1,3), 16) / 255,
-    g: parseInt(h.slice(3,5), 16) / 255,
-    b: parseInt(h.slice(5,7), 16) / 255,
-    a: 1
-  };
-};
-
 const coll = figma.variables.createVariableCollection("MyComponent/Colors");
 coll.renameMode(coll.modes[0].modeId, "mode1");
 const mode2Id = coll.addMode("mode2");
@@ -364,7 +326,7 @@ const varIds = {};
 for (const [name, values] of Object.entries(colorData)) {
   const v = figma.variables.createVariable(name, coll, "COLOR");
   values.forEach((hex_val, i) => {
-    v.setValueForMode(modeIds[modeOrder[i]], hex_val ? hex(hex_val) : { r:0, g:0, b:0, a:0 });
+    v.setValueForMode(modeIds[modeOrder[i]], figma.util.rgba(hex_val || '#00000000'));
   });
   varIds[name] = v.id;
 }

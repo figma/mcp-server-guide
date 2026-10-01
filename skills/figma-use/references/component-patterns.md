@@ -17,48 +17,53 @@
 - Working with Instances (finding variants, setProperties, text overrides, detachInstance)
 
 
+## Wrapper boundary
+
+Use `$fig` for node creation. Its constructors and `componentHandle.createInstance()` alias return plan wrappers. `done()` does not convert them to raw nodes, and `set.children` remains an array of wrappers. Prefer `$fig.instance(componentHandle, opts)`, `.set(...)`, and wrapper `.append(...)` for creation and placement. The raw property-inspection examples below explicitly access `.node` after materializing; never omit that step. See [fig-builder.md](fig-builder.md#creating-instances-from-component-wrappers).
+
 ## Creating a Component
 
-`figma.createComponent()` returns a `ComponentNode`, which behaves like a `FrameNode` but can be published, instanced, and combined into variant sets.
+`$fig.component()` returns a component wrapper. Use options or `.set()` to configure it. For the raw component-property examples below, materialize and explicitly access `.node` to get a `ComponentNode`.
 
 ```javascript
-const comp = figma.createComponent();
-comp.name = "MyComponent";
-comp.layoutMode = "HORIZONTAL";
-comp.primaryAxisAlignItems = "CENTER";
-comp.counterAxisAlignItems = "CENTER";
-comp.paddingLeft = 12;
-comp.paddingRight = 12;
-comp.layoutSizingHorizontal = "HUG";
-comp.layoutSizingVertical = "HUG";
-comp.fills = [{ type: "SOLID", color: { r: 0.2, g: 0.36, b: 0.96 } }];
+const compPlan = $fig.component({
+  name: 'MyComponent', layoutMode: 'HORIZONTAL',
+  primaryAxisAlignItems: 'CENTER', counterAxisAlignItems: 'CENTER',
+  paddingLeft: 12, paddingRight: 12,
+  layoutSizingHorizontal: 'HUG', layoutSizingVertical: 'HUG',
+  fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.36, b: 0.96 } }],
+});
+// Only needed if continuing with the raw component-property examples below:
+await $fig.done();
+const comp = compPlan.node;
+if (!comp || comp.type !== 'COMPONENT') throw new Error('Expected a component');
 ```
 
 ## Combining Components into a Component Set (Variants)
 
-`figma.combineAsVariants(components, parent)` takes an array of `ComponentNode`s (not frames — frames will throw) and groups them into a `ComponentSetNode`.
+`$fig.variants(opts, components)` groups component wrappers into a component-set wrapper. Use `$fig.component(...)` for each variant; frames are not valid variants.
 
 Variant names use a `Property=Value` format. Every unique combination must exist as a child component — missing ones show as blank gaps in the variant picker.
 
 ```javascript
 // Each component's name encodes its variant properties
-const comp1 = figma.createComponent();
-comp1.name = "size=md, style=primary";
-const comp2 = figma.createComponent();
-comp2.name = "size=md, style=secondary";
-
-const componentSet = figma.combineAsVariants([comp1, comp2], figma.currentPage);
-componentSet.name = "Button";
+const comp1 = $fig.component({ name: "size=md, style=primary" });
+const comp2 = $fig.component({ name: "size=md, style=secondary" });
+const set = $fig.variants({ name: "Button" }, [comp1, comp2]);
+// Select a variant through the set; no intermediate flush is required.
+const preview = $fig.instance(set, { name: "Button preview", props: { size: "md", style: "primary" } });
 ```
 
 **Before creating variants, inspect the file** for existing naming patterns. Different files use different conventions (`State=Default` vs `state=default` vs `State/Default`). Always match what's already there.
 
 ## Laying Out Variants After combineAsVariants (Required)
 
-After `combineAsVariants`, all children stack at `(0, 0)`. You **must** position them or the component set will appear as a single collapsed element with all variants overlapping.
+After `$fig.variants` materializes, all children stack at `(0, 0)`. You **must** position them or the component set will appear as a single collapsed element with all variants overlapping.
 
 ```javascript
-const cs = figma.combineAsVariants(components, figma.currentPage);
+// Continue from the set wrapper above. Flush to read measured sizes.
+await $fig.done();
+const cs = set.node; // cs.children contains raw ComponentNodes
 
 // Simple row layout
 cs.children.forEach((child, i) => {
@@ -111,15 +116,18 @@ A property that is added but not linked to a child node does **nothing**. You mu
 ```javascript
 // TEXT property → link to a text node's characters
 const labelKey = comp.addComponentProperty('Label', 'TEXT', 'Button');
-const textNode = figma.createText();
-textNode.characters = "Button";
+const textPlan = $fig.text({ characters: "Button" });
+await $fig.done();
+const textNode = textPlan.node;
 comp.appendChild(textNode);
 textNode.componentPropertyReferences = { characters: labelKey };
 
 // BOOLEAN + INSTANCE_SWAP → link to an instance node
 const showIconKey = comp.addComponentProperty('Show Icon', 'BOOLEAN', true);
 const iconSlotKey = comp.addComponentProperty('Icon', 'INSTANCE_SWAP', iconComp.id);
-const iconInstance = iconComp.createInstance();
+const iconInstancePlan = $fig.instance(iconComp.id);
+await $fig.done();
+const iconInstance = iconInstancePlan.node; // raw node for componentPropertyReferences
 comp.appendChild(iconInstance);
 iconInstance.componentPropertyReferences = {
   visible: showIconKey,        // BOOLEAN controls show/hide
@@ -138,15 +146,17 @@ When a component has many possible sub-elements (e.g., 30 different icons), **ne
 
 ```javascript
 // Create icon as its own ComponentNode
-const iconComp = figma.createComponent();
-iconComp.name = "Icon/Search";
-iconComp.resize(24, 24);
-const svgNode = figma.createNodeFromSvg('<svg>...</svg>');
-iconComp.appendChild(svgNode);
+const iconPlan = $fig.component({ name: "Icon/Search", width: 24, height: 24 }, [
+  $fig.svg('<svg>...</svg>'),
+]);
+await $fig.done();
+const iconComp = iconPlan.node;
 
 // Use it as the default for INSTANCE_SWAP
 const iconSlotKey = comp.addComponentProperty('Icon', 'INSTANCE_SWAP', iconComp.id);
-const instance = iconComp.createInstance();
+const instancePlan = $fig.instance(iconComp.id);
+await $fig.done();
+const instance = instancePlan.node; // raw node for componentPropertyReferences
 comp.appendChild(instance);
 instance.componentPropertyReferences = { mainComponent: iconSlotKey };
 ```
@@ -246,7 +256,9 @@ $fig.query('INSTANCE[name=Button]').set({ props: { variant: 'primary' } })
 **Step 1: Inspect componentProperties on a sample instance:**
 
 ```javascript
-const instance = comp.createInstance();
+const instancePlan = $fig.instance(comp.id); // comp is a raw ComponentNode in this example
+await $fig.done();
+const instance = instancePlan.node; // raw InstanceNode for property inspection
 const propDefs = instance.componentProperties;
 // Returns e.g.: { "Label#2:0": { type: "TEXT", value: "Button" }, "Has Icon#4:64": { type: "BOOLEAN", value: true } }
 return propDefs;
@@ -266,7 +278,9 @@ const nestedProps = nestedInstances.map(ni => ({
 **Step 2: Use setProperties() for TEXT-type properties:**
 
 ```javascript
-const instance = comp.createInstance();
+const instancePlan = $fig.instance(comp.id); // comp is a raw ComponentNode in this example
+await $fig.done();
+const instance = instancePlan.node; // raw InstanceNode for property inspection
 const propDefs = instance.componentProperties;
 for (const [key, def] of Object.entries(propDefs)) {
   if (def.type === "TEXT") {
