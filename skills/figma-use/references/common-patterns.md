@@ -194,13 +194,13 @@ return {
 
 ## Use a Component by Key (Team Libraries)
 
-`search_design_system` returns a `componentKey` per result. Pass it directly into `$fig.get(...)` / `$fig.instance(...)` — the plan queues the library import automatically, so no separate `importComponentByKeyAsync` call is needed. The same call site accepts node IDs for components in the current file.
+`search_design_system` returns `componentKey` for `assetType: "component"` and `componentSetKey` for `assetType: "component_set"`. Pass it directly into `$fig.get(...)` / `$fig.instance(...)` — the plan queues the library import automatically, so no separate `importComponentByKeyAsync` call is needed. The same call site accepts node IDs for components in the current file.
 
 ```js
 // PREFERRED — asset key flows straight from search_design_system into $fig
 const instance = $fig.instance(BUTTON_COMPONENT_KEY, { name: 'Submit', x: 40, y: 40 })
 
-// Component set: pass the set's componentKey + variant props
+// Component set: pass the set's componentSetKey + variant props
 const variantInstance = $fig.instance(BUTTON_SET_KEY, {
   name: 'Submit (md)',
   x: 240, y: 40,
@@ -215,7 +215,7 @@ You do not need to import the component set, drill into `compSet.children`, or c
 
 ### Discover a set's variant props when you only have its key
 
-`search_design_system` returns the set's `componentKey` but not its variant properties. Discover them across **two `use_figma` calls** because the first call returns the valid values in the tool result:
+`search_design_system` returns the set's `componentSetKey` but not its variant properties. Discover them across **two `use_figma` calls** because the first call returns the valid values in the tool result:
 
 ```js
 const setHandle = $fig.get(BUTTON_SET_KEY)

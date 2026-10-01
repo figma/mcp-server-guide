@@ -17,7 +17,7 @@ description: Plan-based builder for creating and editing Figma nodes with automa
 
 Fall back to the raw Plugin API (`figma.createFrame()`, direct property assignment, `findAll`) **only** when `$fig` genuinely cannot express the operation:
 
-- You need the result of an async call mid-build — e.g. `setCurrentPageAsync` or `loadFontAsync` that must complete before the next create decision. (You do NOT need raw `importComponentByKeyAsync` / `importComponentSetByKeyAsync` to use a library component: pass the `componentKey` straight into `$fig.get(...)` / `$fig.instance(...)`. For component sets, variant selection happens via `{ props: {...} }` — no need to inspect `compSet.children` yourself.)
+- You need the result of an async call mid-build — e.g. `setCurrentPageAsync` or `loadFontAsync` that must complete before the next create decision. (You do NOT need raw `importComponentByKeyAsync` / `importComponentSetByKeyAsync` to use a library component: pass the matching `componentKey` or `componentSetKey` straight into `$fig.get(...)` / `$fig.instance(...)`. For component sets, variant selection happens via `{ props: {...} }` — no need to inspect `compSet.children` yourself.)
 - You need to read a real node's computed property (e.g. measured `width` after auto-layout) to decide what to create next
 - You need tight per-node control flow where each node's shape depends on the previous one's state
 
@@ -64,7 +64,7 @@ card.text({ characters: 'Description', fontSize: 14 })
 | `$fig.component(opts?, children?)` | `SYMBOL` (main component) |
 | `$fig.page(opts?, children?)` | `PAGE` (new page node) |
 | `$fig.svg(svgString, opts?)` | Node tree parsed from SVG |
-| `$fig.instance(compRef, opts?)` | `INSTANCE` — `compRef` is a component plan node, a node ID string, OR a library asset key (`componentKey` from `search_design_system`); the import is queued in the plan automatically. |
+| `$fig.instance(compRef, opts?)` | `INSTANCE` — `compRef` is a component plan node, a node ID string, OR a library asset key (`componentKey` or `componentSetKey` from `search_design_system`); the import is queued in the plan automatically. |
 
 FigJam-only types (`$fig.sticky`, `$fig.connector`, `$fig.shapeWithText`, `$fig.codeBlock`, `$fig.table`) are available when the script runs in a FigJam file; Slides-only types (`$fig.slide`, `$fig.slideRow`) are available in Slides.
 
@@ -350,14 +350,14 @@ For a full variant set, build each variant this way, then wrap them in `$fig.var
 
 ## Reading / referencing existing nodes
 
-`$fig.get(idOrKey)` accepts a real node ID (`'123:456'`) or a library `componentKey` from `search_design_system`. For an asset key, the plan queues a library import automatically — you don't need a separate `await figma.importComponentByKeyAsync(...)` step.
+`$fig.get(idOrKey)` accepts a real node ID (`'123:456'`) or a library `componentKey` or `componentSetKey` from `search_design_system`. For an asset key, the plan queues a library import automatically — you don't need a separate `await figma.importComponentByKeyAsync(...)` step.
 
 ```js
 // Wrap an existing node by ID so it can be mutated in the plan
 const card = $fig.get('123:456')
 $fig.set(card, { name: 'Updated Card', opacity: 0.8 })
 
-// Wrap a library component / component set by its componentKey
+// Wrap a library component / component set by its asset key
 const button = $fig.get(BUTTON_KEY)
 $fig.instance(button, { name: 'Submit' })
 

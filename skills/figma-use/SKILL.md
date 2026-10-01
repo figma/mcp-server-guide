@@ -89,8 +89,8 @@ If an earlier measurement required `await $fig.done()`, continue using plan node
 
 **Create an instance of a component**
 ```js
-// First arg can be a component plan node, a node ID ('1:2'), OR a library asset key
-// from `search_design_system` results (the `componentKey` field).
+// First arg can be a component plan wrapper, a node ID ('1:2'), OR a library asset key
+// from `search_design_system` results (the `componentKey` or `componentSetKey` field, according to `assetType`).
 $fig.instance('1:2', { name: 'Cancel Btn', props: { label: 'Cancel'}})
 ```
 
@@ -105,7 +105,7 @@ $fig.rectangle({ fills: [{ type: 'SOLID', color: $fig.getVar(BRAND_VAR_KEY) }] }
 
 **Use design-system assets by key (from `search_design_system`)**
 
-`search_design_system` returns `componentKey` for components and component sets, and `key` for styles and variables. Pass these straight into the unified `$fig` lookup — the plan queues the library import automatically, so you don't need a separate `await figma.importComponentByKeyAsync(...)` / `importStyleByKeyAsync(...)` / `importVariableByKeyAsync(...)` step.
+`search_design_system` returns `componentKey` for components, `componentSetKey` for component sets, and `key` for styles and variables. Pass these straight into the unified `$fig` lookup — the plan queues the library import automatically, so you don't need a separate `await figma.importComponentByKeyAsync(...)` / `importStyleByKeyAsync(...)` / `importVariableByKeyAsync(...)` step.
 ```js
 // One call site, many input shapes — node IDs, real variable/style ids,
 // AND 40-char asset keys (e.g. '49c8754d4b898e176148650df612a47998a8c4a1')
@@ -120,7 +120,7 @@ $fig.text({ characters: 'Hello', textStyle: heading })
 $fig.rectangle({ fills: [{ type: 'SOLID', color: brand }] })
 ```
 
-**Discover a set's variant props from its key** — `search_design_system` returns a set's `componentKey`, not its variant properties. This is **two `use_figma` calls**: call 1 `return`s the set's property definitions and its variants so their props come back to you in the tool result; then, knowing the valid props, call 2 instantiates the variant you want.
+**Discover a set's variant props from its key** — `search_design_system` returns a set's `componentSetKey`, not its variant properties. This is **two `use_figma` calls**: call 1 `return`s the set's property definitions and its variants so their props come back to you in the tool result; then, knowing the valid props, call 2 instantiates the variant you want.
 ```js
 const setHandle = $fig.get(BUTTON_SET_KEY)
 await $fig.done()
@@ -194,9 +194,9 @@ card.text({ characters: 'Description', fontSize: 14 })
 
 - **Create:** `$fig.autoLayout / .frame / .text / .rectangle / .ellipse / .polygon / .star / .line / .vector / .section / .component / .page` — all `(opts?, children?)`. Plan nodes are chainable.
 - **Create from SVG — the preferred ICON path:** `$fig.svg(svgStr, opts?)` builds a vector node tree from an SVG string. **Prefer real vector icons:** import the icon's SVG source (inline `<svg>`, the `.svg` asset, or the source icon-library glyph — e.g. lucide/heroicons) via `$fig.svg(...)` rather than approximating an icon with a typed emoji/Unicode glyph (★ ⚙ 🔍 ☰ ▾) or a plain rectangle. A simple glyph or shape is a fine fallback when the real SVG genuinely can't be obtained — just reach for the SVG first. (Don't reconstruct an icon from rotated line/rect primitives, though — that renders broken.) Full recipe (viewBox+width/height sizing, `currentColor`, INSTANCE_SWAP for design-system icons): [figma-generate-design → Icons](../figma-generate-design/SKILL.md#icons-import-the-svg-never-reconstruct-from-rotated-primitives).
-- **Create an instance of a component:** `$fig.instance(compRef, opts?)` — `compRef` is a component plan node, a node ID string, OR a library asset key (`componentKey` from `search_design_system`); the import is queued in the plan automatically.
+- **Create an instance of a component:** `$fig.instance(compRef, opts?)` — `compRef` is a component plan node, a node ID string, OR a library asset key (`componentKey` or `componentSetKey` from `search_design_system`); the import is queued in the plan automatically.
 - **Grouping/boolean:** `$fig.group / .union / .subtract / .intersect / .exclude / .variants` — all `(opts?, children?)`.
-- **Read:** `$fig.get(id)` wraps an existing `SceneNode` — `id` can be a real node ID OR a library asset key (`componentKey` from `search_design_system`); the import is queued in the plan automatically. `$fig.query(selector, scope?)` returns `{ length, values(paths), first(), last(), each(fn), filter(fn), set(props), moveTo(parent, idx?), remove() }`. Selectors are CSS-like (e.g. `'FRAME[name*=Card] TEXT'`). `$fig.getStyle(nameOrIdOrKey)` and `$fig.getVar(nameOrIdOrKey)` accept the matching `key` values from `search_design_system`.
+- **Read:** `$fig.get(id)` wraps an existing `SceneNode` — `id` can be a real node ID OR a library asset key (`componentKey` or `componentSetKey` from `search_design_system`); the import is queued in the plan automatically. `$fig.query(selector, scope?)` returns `{ length, values(paths), first(), last(), each(fn), filter(fn), set(props), moveTo(parent, idx?), remove() }`. Selectors are CSS-like (e.g. `'FRAME[name*=Card] TEXT'`). `$fig.getStyle(nameOrIdOrKey)` and `$fig.getVar(nameOrIdOrKey)` accept the matching `key` values from `search_design_system`.
 - **Mutate:** `$fig.set(target, props)`, `.delete(...nodes)`, `.move(target, parent, idx?)`, `.clone(target, props?)`, `.append(parent, child)`, `.addAt(parent, idx, child)`, `.replace(old, new)`, `.reorder(parent, children)`, `.gradient(node, type, stops, transform?)`, `.image(node, hash, scaleMode?)`.
 - **Plan-node methods (chainable):** `.set()`, `.remove()`, `.clone()`, `.moveTo(parent, idx?)`, `.append(child)`, `.query(selector)`, `.screenshot({scale?, contentsOnly?})`, and the `.node` getter for the materialized `SceneNode` (null pre-flush).
 
@@ -207,7 +207,7 @@ Keep raw Plugin API code that reads or changes document state separate from plan
 Use the raw API only in these cases:
 
 - **Color conversion:** `figma.util.solidPaint`, `.rgb`, and `.rgba` convert literal colors for `$fig` properties without creating or mutating nodes.
-- **Mid-script async result needed:** `await figma.setCurrentPageAsync(...)`, `await figma.loadFontAsync(...)` — must complete before subsequent plan steps can use the result. (Importing library components is NOT one of these cases: pass the `componentKey` straight into `$fig.get(...)` / `$fig.instance(...)` and pass variant property values in `props`. `$fig` queues the library import in the plan and resolves the variant for you.)
+- **Mid-script async result needed:** `await figma.setCurrentPageAsync(...)`, `await figma.loadFontAsync(...)` — must complete before subsequent plan steps can use the result. (Importing library components is NOT one of these cases: pass the matching `componentKey` or `componentSetKey` straight into `$fig.get(...)` / `$fig.instance(...)` and pass variant property values in `props`. `$fig` queues the library import in the plan and resolves the variant for you.)
 - **Mid-script real node state read:** measured `width` / `height` after auto-layout, computed colors, getStyledTextSegments — materialize mid-script, then read `.node` on the plan node. See [references/fig-builder.md](references/fig-builder.md) for the mid-script inspection pattern.
 - **Things `$fig` genuinely doesn't expose:** `node.setRangeFontName(...)`, etc. — access via `planNode.node` (see [references/fig-builder.md](references/fig-builder.md)).
 

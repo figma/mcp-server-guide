@@ -212,14 +212,14 @@ return components;
 
 ## Using Components by Key (Team Libraries)
 
-`search_design_system` returns a `componentKey` per result. Pass it directly into `$fig.get(...)` / `$fig.instance(...)` — the plan queues the library import automatically, so no separate `importComponentByKeyAsync` call is needed.
+`search_design_system` returns `componentKey` for `assetType: "component"` and `componentSetKey` for `assetType: "component_set"`. Pass it directly into `$fig.get(...)` / `$fig.instance(...)` — the plan queues the library import automatically, so no separate `importComponentByKeyAsync` call is needed.
 
 ```javascript
 // Instance a library component by its componentKey
 $fig.instance(BUTTON_COMPONENT_KEY, { name: 'Submit' });
 
 // Instance a specific variant of a component set by passing the set's
-// componentKey + variant props
+// componentSetKey + variant props
 $fig.instance(BUTTON_SET_KEY, { props: { Size: 'md', Variant: 'primary' } });
 ```
 
