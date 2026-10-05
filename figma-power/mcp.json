@@ -2,7 +2,10 @@
   "mcpServers": {
     "figma": {
       "type": "http",
-      "url": "https://mcp.figma.com/mcp"
+      "url": "https://mcp.figma.com/mcp",
+      "headers": {
+        "X-Figma-Plugin-Bundle": "figquery@0.1.27"
+      }
     }
   }
 }
