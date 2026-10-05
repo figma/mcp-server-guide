@@ -369,7 +369,7 @@ Inspect the composition screenshot for:
 - Truncated content from layout sizing bugs
 - Wrong component variants (e.g., Neutral vs Primary button)
 - **Wrong font family** — text rendered in a different typeface than the product uses (e.g. Inter where the product is SF Pro). The script ran without error, so this is invisible at a glance; assert it explicitly (see "Assert the font family is correct" below)
-- **Blank image placeholders** — if images are missing, you need to transfer them from the `generate_figma_design` capture (see below)
+- **Blank image placeholders** — if images are missing, transfer them from the `generate_figma_design` capture before considering `generate_image` to generate placeholders (see "Transfer images from the generate_figma_design capture" below)
 
 #### Assert the font family is correct
 
@@ -397,6 +397,10 @@ If you ran `generate_figma_design` in parallel, transfer only discrete content a
    targetFrame.fills = [{ type: "IMAGE", imageHash: "hash_from_capture", scaleMode: "FILL" }];
    ```
 4. Delete the `generate_figma_design` capture output after all images are transferred.
+
+#### Generating placeholder images
+
+Reuse available source, captured, or library images first. If placeholders still remain, tell the user how many images would be generated and ask permission, noting that generating images uses Figma AI credits. After consent, call `generate_image` for each placeholder, then follow its response to upload each result with `upload_assets`. Use the returned `imageHash` for the placeholder fill; finish only after the image appears.
 
 ### Step 6: Updating an Existing View
 

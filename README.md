@@ -17,6 +17,8 @@ For the complete set of Figma MCP server docs, see our [developer documentation]
 
     **Note:** We're quickly improving how Figma supports AI agents. The write to canvas feature will eventually be a usage-based paid feature, but is currently available for free during the beta period.
 
+- **Generate placeholder images**: When source, captured, or library images are unavailable, agents can use `generate_image` after asking permission and disclosing Figma AI credit usage. Generated images are uploaded with `upload_assets` and applied to the design.
+
 - **Generate code from selected frames**
 
   Select a Figma frame and turn it into code. Great for product teams building new flows or iterating on app features.
