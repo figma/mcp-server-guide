@@ -4,7 +4,7 @@
       "type": "http",
       "url": "https://mcp.figma.com/mcp",
       "headers": {
-        "X-Figma-Plugin-Bundle": "figma_prod@2_2_126"
+        "X-Figma-Plugin-Bundle": "figma_prod@2_2_127"
       },
       "_meta": {
         "ideToolIconPath": "./Figma Icon (Mono-line black, tight).svg",
@@ -13,6 +13,7 @@
           "add_code_connect_map": "Add Code Connect Mapping",
           "create_new_file": "Create New File",
           "generate_diagram": "Generate Diagram",
+          "generate_image": "Generate Image",
           "generate_figma_design": "Generate Figma Design",
           "get_code_connect_map": "Get Code Connect Mapping",
           "get_code_connect_suggestions": "Get Code Connect Suggestions",
