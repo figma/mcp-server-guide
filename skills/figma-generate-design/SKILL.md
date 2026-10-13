@@ -408,11 +408,9 @@ If you ran `generate_figma_design` in parallel, transfer only discrete content a
 
 #### Generating placeholder images
 
-Reuse available source, captured, or library images first. If placeholders remain, tell the user how many images would be generated and ask permission, noting that generating images uses Figma AI credits.
+Reuse available source, captured, or library images first. If placeholders remain, tell the user how many images need to be generated using the Figma `generate_image` tool. Ask permission, noting that this tool uses Figma AI credits. After consent, call `generate_image` with the requisite params.
 
-After consent, call `generate_image` with the target `fileKey` and each existing placeholder's `nodeId`. If there is no existing target node, omit `nodeId` to create a new frame and use the returned `nodeId`.
-
-If Figma AI is unavailable or its AI credit limit is reached, use another available image-generation tool, explaining that its usage and billing follow that provider rather than Figma AI credits and obtaining any required consent. Upload only these alternative-provider images with `upload_assets`.
+If Figma AI is unavailable or its AI credit limit is reached, confirm with the user if alternative image generation tools can be used. Upload only these alternative-provider images with `upload_assets`.
 
 ### Step 6: Updating an Existing View
 
