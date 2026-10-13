@@ -378,7 +378,7 @@ search_design_system({
           "name": "Button",
           "libraryName": "Design System",
           "assetType": "component_set",
-          "componentKey": "abc123def",
+          "componentSetKey": "abc123def",
           "description": "Primary action button"
         }
       ]
@@ -414,10 +414,8 @@ search_design_system({
 
 ### How to Interpret Results
 
-**Components:** The `componentKey` can be used in `use_figma` to import the component:
+**Components:** Inspect `assetType`: use `componentKey` for a `component` and `componentSetKey` for a `component_set`. The example above is a set:
 ```javascript
-const component = await figma.importComponentByKeyAsync("abc123def");
-// or for component sets:
 const componentSet = await figma.importComponentSetByKeyAsync("abc123def");
 ```
 

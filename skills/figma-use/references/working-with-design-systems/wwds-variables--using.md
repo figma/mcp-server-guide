@@ -11,3 +11,9 @@ You can use code syntax and your understanding of the environment you are expect
 When using variables you should also be aware of mode mismatches, the default mode in Figma may not be the mode referenced by the user in their expectations. Similarly, many collections may refer to values, but the most specific collection is what you should be using. For example, a semantic collection that aliases a primitive collection, the semantic collection would be what you reference. A component token collection (eg. button/background/primary) might alias a semantic collection, and it is the component collection you need to reference. In some other examples, there may be no aliasing and you're simply value matching.
 
 Gap and padding values for frames are really important and often have to be interpreted semantically or based on layout component values.
+
+## Looking up variables by key
+
+When a variable is found via `search_design_system`, use the returned `key` to reference that library variable. If the variable is local to the file, use its `id`. Bind the variable to the target property rather than copying its resolved value.
+
+For lookup and binding examples, see [variable-patterns.md](../variable-patterns.md).

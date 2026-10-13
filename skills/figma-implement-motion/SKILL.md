@@ -62,6 +62,9 @@ get_motion_context(fileKey=":fileKey", nodeId="<node-id>", recursive=true)
 Response shape (one entry per animated node):
 
 - `codeSnippets` — pre-generated CSS `@keyframes` and motion.dev strings. **Use these directly.** Do not regenerate them from fallback track data.
+- `textAnimations` — Always implement these text-group animations. If `codeSnippets` are also present, apply both; the snippet does not replace `textAnimations`.
+  - Use `derivedTimingInfo`: each group starts at `startMs + orderPosition * staggerStepMs` and plays for `groupDurationMs`. `startMs` already includes `delayMs`; do not add it again. `presetDurationMs` covers the full staggered sequence, not each group.
+  - Compute `orderPosition` from `grouping` and `order`, not always the character index (`CENTER_OUT` starts symmetric pairs together). Convert milliseconds to seconds for Motion.dev, and fit the supplied easing into `groupDurationMs`, including springs.
 - `keyframeBindings` — bound keyframe tracks, including preset-derived motion resolved into track data, included only as fallback data when both snippet formats are missing.
 - `motionSummary` — one-line-per-field natural-language description of the animation. Present **only when there's no snippet** (keyframe-bindings-only motion codegen couldn't express as CSS/motion.dev). Build from it when present; ignore it whenever a snippet exists.
 - `fallbackNodeId` — optional fallback id for matching componentized design context. If `nodeId` is an instance-qualified id such as `I4005:6111;30:8005`, D2R may render the reusable component body with the backing component id instead, such as `4002:3957`. In that case, `fallbackNodeId` is the `data-node-id` to look for if exact `nodeId` lookup fails.

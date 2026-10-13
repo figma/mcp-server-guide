@@ -559,7 +559,7 @@ colorVar.setValueForMode(modeId, { r: 0, g: 0, b: 0, a: 0 })  // fully transpare
 
 ## `layoutSizingHorizontal`/`layoutSizingVertical` value rules: `FIXED`, `HUG`, `FILL`
 
-The property exists on every `SceneNode`, but the **value** you can assign depends on the node's relationship to auto-layout. The scenegraph validates the assignment (`fullscreen/lib/scenegraph/FGStackLayoutSizeHelper.cpp::checkStackLayoutSize`) and rejects non-`FIXED` values that don't satisfy a structural rule:
+The property exists on every `SceneNode`, but the **value** you can assign depends on the node's relationship to auto-layout. The tool validates the assignment and rejects non-`FIXED` values that don't satisfy a structural rule:
 
 | Value | Allowed when | Rejected with |
 | --- | --- | --- |
