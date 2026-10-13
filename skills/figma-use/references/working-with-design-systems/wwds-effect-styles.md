@@ -39,6 +39,12 @@ Note: `setBoundVariableForEffect` returns a **new** effect object — you must c
 
 Assign the style's `id` to the node's `effectStyleId`. The node's `effects` property will then reflect the style's values.
 
+### Looking up a library effect style by key
+
+When an effect style is found via a `search_design_system` `queries` entry with `entity: "style"`, use the returned `key` to reference and apply that library style. Prefer reusing an existing library style over recreating its effects.
+
+For lookup and application examples, see [effect-style-patterns.md](../effect-style-patterns.md).
+
 ## Common gotchas
 
 - **`effects` is read-only**: You cannot mutate the array in place. Clone it, modify the clone, then reassign: `style.effects = [...style.effects, newEffect]`.

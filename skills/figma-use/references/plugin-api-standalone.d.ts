@@ -689,6 +689,17 @@ interface PluginAPI {
    * Creates a new Grid style.
    */
   createGridStyle(): GridStyle
+
+  /**
+   * :::info
+   *
+   * This API is only available in Figma Design
+   *
+   * :::
+   *
+   * Creates a new custom animation style. See {@link CustomAnimationStyle}.
+   */
+  createCustomAnimationStyle(): CustomAnimationStyle
   /**
    * Returns the list of local paint styles.
    */
@@ -705,6 +716,18 @@ interface PluginAPI {
    * Returns the list of local grid styles.
    */
   getLocalGridStylesAsync(): Promise<GridStyle[]>
+
+  /**
+   * Returns the list of local custom animation styles.
+   *
+   * @deprecated Use {@link PluginAPI.getLocalCustomAnimationStylesAsync} instead. This function will throw an exception if the plugin manifest contains `"documentAccess": "dynamic-page"`.
+   */
+  getLocalCustomAnimationStyles(): CustomAnimationStyle[]
+
+  /**
+   * Returns the list of local custom animation styles.
+   */
+  getLocalCustomAnimationStylesAsync(): Promise<CustomAnimationStyle[]>
   /**
    * Note: This API is only available in Figma Design
    *
@@ -729,6 +752,20 @@ interface PluginAPI {
    * Reorders a target node after the specified reference node (if provided) or to be first if reference is null. The target and reference nodes must live in the same folder. The target and reference nodes must be local grid styles.
    */
   moveLocalGridStyleAfter(targetNode: GridStyle, reference: GridStyle | null): void
+
+  /**
+   * :::info
+   *
+   * This API is only available in Figma Design
+   *
+   * :::
+   *
+   * Reorders a target node after the specified reference node (if provided) or to be first if reference is null. The target and reference nodes must live in the same folder. The target and reference nodes must be local custom animation styles.
+   */
+  moveLocalCustomAnimationStyleAfter(
+    targetNode: CustomAnimationStyle,
+    reference: CustomAnimationStyle | null,
+  ): void
   /**
    * Note: This API is only available in Figma Design
    *
@@ -753,6 +790,17 @@ interface PluginAPI {
    * Reorders a target folder after the specified reference folder (if provided) or to be first in the parent folder if reference is null. The target and reference folders must have the same parent folder. The target and reference folders must contain grid styles. When referring to nested folders, the full delimited folder name must be used. See the {@link BaseStyle } section for more info.
    */
   moveLocalGridFolderAfter(targetFolder: string, reference: string | null): void
+
+  /**
+   * :::info
+   *
+   * This API is only available in Figma Design
+   *
+   * :::
+   *
+   * Reorders a target folder after the specified reference folder (if provided) or to be first in the parent folder if reference is null. The target and reference folders must have the same parent folder. The target and reference folders must contain custom animation styles. When referring to nested folders, the full delimited folder name must be used. See the {@link BaseStyle } section for more info.
+   */
+  moveLocalCustomAnimationFolderAfter(targetFolder: string, reference: string | null): void
   /**
    * Loads a component node from the team library. Promise is rejected if there is no published component with that key or if the request fails.
    */
@@ -3588,25 +3636,66 @@ interface AvailableAnimationStyle extends BaseAnimationStyle {
 /**
  * @see https://developers.figma.com/docs/plugins/api/Motion
  */
-interface AnimationStyleConfiguration {
+interface FigmaAnimationStyleConfiguration {
   /**
-   * The duration of the applied animation style in seconds.
+   * Defaults to `"FIGMA"` when omitted.
+   */
+  readonly type?: 'FIGMA'
+  /**
+   * The duration of the applied animation style in seconds. Must be finite and non-negative.
    */
   readonly duration?: number
   /**
-   * The timeline offset of the applied animation style in seconds.
+   * The timeline offset of the applied animation style in seconds. Must be finite and non-negative.
    */
   readonly timelineOffset?: number
-  readonly props?: {
-    readonly [key: string]: AnimationStylePropValue
-  }
+  readonly props?: { readonly [key: string]: AnimationStylePropValue }
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/Motion
  */
-interface AppliedAnimationStyle extends BaseAnimationStyle, AnimationStyleConfiguration {
+interface CustomAnimationStyleConfiguration {
+  readonly type: 'CUSTOM'
+  /**
+   * The timeline offset of the applied animation style in seconds. Must be finite and non-negative.
+   */
+  readonly timelineOffset?: number
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type AnimationStyleConfiguration =
+  FigmaAnimationStyleConfiguration | CustomAnimationStyleConfiguration
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+interface AppliedFigmaAnimationStyle extends BaseAnimationStyle, FigmaAnimationStyleConfiguration {
+  /**
+   * Always present when read back, unlike the optional `type` on
+   * {@link FigmaAnimationStyleConfiguration}.
+   */
+  readonly type: 'FIGMA'
+  readonly id: string
+  readonly description?: string
+}
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+interface AppliedCustomAnimationStyle
+  extends BaseAnimationStyle, CustomAnimationStyleConfiguration {
   readonly id: string
 }
+/**
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type AppliedAnimationStyle = AppliedFigmaAnimationStyle | AppliedCustomAnimationStyle
+/**
+ * One Figma animation contained in a {@link CustomAnimationStyle}. Read via
+ * `style.animationEntries` and created by `style.addAnimationEntryAsync()`.
+ *
+ * @see https://developers.figma.com/docs/plugins/api/Motion
+ */
+type AnimationEntry = AppliedFigmaAnimationStyle
 /**
  * @see https://developers.figma.com/docs/plugins/api/Motion
  */
@@ -4246,14 +4335,21 @@ interface SceneNodeMixin extends ExplicitVariableModesMixin, MotionNodeMixin {
 interface MotionNodeMixin {
   /**
    * The Motion animation style instances currently applied to this node.
-   * Their `props` values are the configured property values for this node.
+   *
+   * Each entry is discriminated by `type`: `"FIGMA"` for a Figma-provided
+   * animation style, whose `props` values are the configured property values
+   * for this node, and `"CUSTOM"` for a {@link CustomAnimationStyle}.
    *
    * @remarks
    * ```ts
    * const node = figma.currentPage.selection[0]
    * if (node) {
    *   for (const style of node.animationStyles) {
-   *     console.log(style.name, style.id, style.props)
+   *     if (style.type === 'FIGMA') {
+   *       console.log(style.name, style.id, style.props)
+   *     } else {
+   *       console.log(style.name, style.id)
+   *     }
    *   }
    * }
    * ```
@@ -4299,11 +4395,12 @@ interface MotionNodeMixin {
    * ```
    */
   readonly timelines: ReadonlyArray<Timeline>
+
   /**
    * Applies a Motion animation style to this node and returns the applied animation style instance id.
    *
-   * @param styleId - The `styleId` of the animation style to apply. Use {@link MotionAPI.figmaAnimationStyles} to get available styles.
-   * @param animationStyleData - Optional values used to configure the applied animation style.
+   * @param styleId - The animation style to apply. For a Figma animation style, the `styleId` from {@link MotionAPI.figmaAnimationStyles}. For a custom animation style, the `id` of a {@link CustomAnimationStyle}.
+   * @param animationStyleData - Optional values used to configure the applied animation style. Omit `type`, or set it to `"FIGMA"`, for a Figma animation style; set it to `"CUSTOM"` to apply a custom animation style.
    *
    * @remarks
    * ```ts
@@ -4323,10 +4420,11 @@ interface MotionNodeMixin {
    * ```
    */
   applyAnimationStyle(styleId: string, animationStyleData?: AnimationStyleConfiguration): string
+
   /**
    * Removes an applied Motion animation style from this node.
    *
-   * @param id - The applied animation style instance id returned by {@link MotionNodeMixin.applyAnimationStyle} or read from {@link MotionNodeMixin.animationStyles}.
+   * @param id - The applied animation style instance id returned by {@link MotionNodeMixin.applyAnimationStyle} or read from {@link MotionNodeMixin.animationStyles}. The id determines which applied style is removed, whether it is a Figma animation style or a {@link CustomAnimationStyle}.
    *
    * @remarks
    * ```ts
@@ -9831,7 +9929,7 @@ type SceneNode =
  * @see https://developers.figma.com/docs/plugins/api/node-types
  */
 type NodeType = BaseNode['type']
-type StyleType = 'PAINT' | 'TEXT' | 'EFFECT' | 'GRID'
+type StyleType = 'PAINT' | 'TEXT' | 'EFFECT' | 'GRID' | 'CUSTOM_ANIMATION'
 /**
  * @see https://developers.figma.com/docs/plugins/api/InheritedStyleField
  */
@@ -9994,7 +10092,57 @@ interface GridStyle extends BaseStyleMixin {
     readonly [field in VariableBindableGridStyleField]?: VariableAlias[]
   }
 }
-type BaseStyle = PaintStyle | TextStyle | EffectStyle | GridStyle
+interface CustomAnimationStyle extends BaseStyleMixin {
+  /**
+   * The string literal "CUSTOM_ANIMATION" representing the style type. Always check the `type` before reading other properties.
+   */
+  type: 'CUSTOM_ANIMATION'
+
+  /**
+   * The Figma animations contained in this custom animation style, in order.
+   *
+   * @remarks
+   * ```ts
+   * const [style] = await figma.getLocalCustomAnimationStylesAsync()
+   * for (const entry of style?.animationEntries ?? []) {
+   *   console.log(entry.id, entry.name, entry.props)
+   * }
+   * ```
+   */
+  readonly animationEntries: AnimationEntry[]
+
+  /**
+   * Adds a Figma animation to this custom animation style and resolves with the
+   * created entry. Throws if the style is remote, or if the animation cannot be
+   * added programmatically.
+   *
+   * @param styleId - The `styleId` of the Figma animation style to add, from {@link MotionAPI.figmaAnimationStyles}.
+   * @param props - Optional property overrides for the new entry.
+   *
+   * @remarks
+   * ```ts
+   * const style = figma.createCustomAnimationStyle()
+   * const [opacity] = figma.motion.figmaAnimationStyles()
+   * if (opacity) {
+   *   const entry = await style.addAnimationEntryAsync(opacity.styleId)
+   *   console.log(entry.id, entry.name)
+   * }
+   * ```
+   */
+  addAnimationEntryAsync(
+    styleId: string,
+    props?: { readonly [key: string]: AnimationStylePropValue },
+  ): Promise<AnimationEntry>
+
+  /**
+   * Removes an animation entry from this custom animation style. Throws if the
+   * style is remote, or if the style has no entry with that id.
+   *
+   * @param id - The `id` of the entry to remove, read from {@link CustomAnimationStyle.animationEntries}.
+   */
+  removeAnimationEntry(id: string): void
+}
+type BaseStyle = PaintStyle | TextStyle | EffectStyle | GridStyle | CustomAnimationStyle
 interface Image {
   /**
    * A unique hash of the contents of the image file.
@@ -10188,4 +10336,4 @@ interface PageNode {
 }
 
 // prettier-ignore
-export { PluginAPI, VariablesAPI, LibraryVariableCollection, LibraryVariable, AnnotationsAPI, BuzzTextField, BuzzMediaField, TeamLibraryAPI, MotionAPI, UtilAPI, ViewportAPI, SuggestionResults, ParametersAPI, NodeChangeProperty, Transform, Vector, Rect, RGB, RGBA, FontName, FontVariationSettings, FontNameInput, TextCase, TextDecoration, TextDecorationStyle, FontStyle, TextDecorationOffset, TextDecorationThickness, TextDecorationColor, OpenTypeFeature, ArcData, DropShadowEffect, InnerShadowEffect, BlurEffectBase, BlurEffectNormal, BlurEffectProgressive, BlurEffect, NoiseEffectBase, NoiseEffectMonotone, NoiseEffectDuotone, NoiseEffectMultitone, NoiseEffect, TextureEffect, GlassEffect, ShaderEffect, Effect, ConstraintType, Constraints, ColorStop, ImageFilters, SolidPaint, GradientPaint, ImagePaint, VideoPaint, PatternPaint, ShaderPaint, Paint, ShaderPropertyValue, ShaderPropertyDefinition, Shader, Guide, RowsColsLayoutGrid, GridLayoutGrid, LayoutGrid, ExportSettingsConstraints, ExportSettingsImage, ExportSettingsSVGBase, ExportSettingsSVG, ExportSettingsSVGString, ExportSettingsPDF, ExportSettingsREST, ExportSettings, WindingRule, VectorVertex, VectorSegment, VectorRegion, VectorNetwork, VectorPath, VectorPaths, LetterSpacing, LineHeight, LeadingTrim, TextWrapStyle, HyperlinkTarget, TextListOptions, BlendMode, MaskType, Font, TextStyleOverrideType, StyledTextSegment, TextPathStartData, Reaction, VariableDataType, ExpressionFunction, Expression, VariableValueWithExpression, VariableData, ConditionalBlock, Action, SimpleTransition, DirectionalTransition, Transition, Trigger, Navigation, Easing, EasingFunctionBezier, EasingFunctionSpring, MotionEasing, PhysicalSpring, NormalizedSpring, AnimationStylePropValue, AvailableAnimationStylePropValue, BaseAnimationStyle, AvailableAnimationStyle, AnimationStyleConfiguration, AppliedAnimationStyle, KeyframeValue, ManualKeyframeInput, ManualKeyframeTrackInput, ManualKeyframe, ManualKeyframeBinding, ManualKeyframeTrack, KeyframeBinding, KeyframePropertyFieldName, EffectKeyframeFieldName, KeyframeField, ComponentPropKeyframeTracks, ComponentPropKeyframeBindings, PaintManualKeyframeTrack, PaintKeyframeBinding, EffectManualKeyframeTracks, EffectKeyframeBindings, ManualKeyframeTracks, Animations, Timeline, OverflowDirection, OverlayPositionType, OverlayBackground, OverlayBackgroundInteraction, PublishStatus, ConnectorEndpointPosition, ConnectorEndpointPositionAndEndpointNodeId, ConnectorEndpointEndpointNodeIdAndMagnet, ConnectorEndpoint, ConnectorStrokeCap, BaseNodeMixin, PluginDataMixin, SceneNodeMixin, MotionNodeMixin, VariableBindableNodeField, VariableBindableTextField, VariableBindablePaintField, VariableBindablePaintStyleField, VariableBindableColorStopField, VariableBindableEffectField, VariableBindableEffectStyleField, VariableBindableLayoutGridField, VariableBindableGridStyleField, VariableBindableComponentPropertyField, VariableBindableComponentPropertyDefinitionField, StickableMixin, ChildrenMixin, ConstraintMixin, DimensionAndPositionMixin, LayoutMixin, AspectRatioLockMixin, BlendMixin, ContainerMixin, StrokeCap, StrokeJoin, HandleMirroring, AutoLayoutMixin, GridTrackSize, GridTrackReorderOptions, GridTrackReorderEntry, GridLayoutMixin, AutoLayoutChildrenMixin, GridChildrenMixin, InferredAutoLayoutResult, DetachedInfo, MinimalStrokesMixin, IndividualStrokesMixin, MinimalFillsMixin, VariableWidthPoint, PresetVariableWidthStrokeProperties, CustomVariableWidthStrokeProperties, VariableWidthStrokeProperties, ComplexStrokeProperties, ScatterBrushProperties, StretchBrushProperties, BrushStrokeProperties, DynamicStrokeProperties, GeometryMixin, ComplexStrokesMixin, CornerMixin, RectangleCornerMixin, ExportMixin, FramePrototypingMixin, VectorLikeMixin, ReactionMixin, DocumentationLink, PublishableMixin, DefaultShapeMixin, BaseFrameMixin, DefaultFrameMixin, OpaqueNodeMixin, MinimalBlendMixin, Annotation, AnnotationProperty, AnnotationPropertyType, AnnotationsMixin, Measurement, MeasurementSide, MeasurementOffset, MeasurementsMixin, ComponentPropertiesMixin, BaseNonResizableTextMixin, NonResizableTextMixin, NonResizableTextPathMixin, TextSublayerNode, DocumentNode, ExplicitVariableModesMixin, PageNode, FrameNode, GroupNode, TransformGroupNode, SliceNode, RectangleNode, LineNode, EllipseNode, PolygonNode, StarNode, VectorNode, TextNode, TextPathNode, ComponentPropertyType, InstanceSwapPreferredValue, SlotSettings, ComponentPropertyOptions, ComponentPropertyDefinitions, ComponentSetNode, ComponentNode, ComponentProperties, InstanceNode, SlotNode, BooleanOperationNode, StickyNode, StampNode, TableNode, TableCellNode, HighlightNode, WashiTapeNode, ShapeWithTextNode, CodeBlockNode, LabelSublayerNode, ConnectorNode, VariableResolvedDataType, VariableAlias, VariableValue, VariableScope, CodeSyntaxPlatform, Variable, VariableCollection, ExtendedVariableCollection, AnnotationCategoryColor, AnnotationCategory, WidgetNode, EmbedData, EmbedNode, LinkUnfurlData, LinkUnfurlNode, MediaData, MediaNode, SectionNode, SlideNode, SlideRowNode, SlideGridNode, InteractiveSlideElementNode, SlideTransition, BaseNode, SceneNode, NodeType, StyleType, InheritedStyleField, StyleConsumers, BaseStyleMixin, PaintStyle, TextStyle, EffectStyle, GridStyle, BaseStyle, Image, FindAllCriteria, TransformModifier, RepeatModifier, LinearRepeatModifier, RadialRepeatModifier, QueryResult, ScreenshotOptions }
+export { PluginAPI, VariablesAPI, LibraryVariableCollection, LibraryVariable, AnnotationsAPI, BuzzTextField, BuzzMediaField, TeamLibraryAPI, MotionAPI, UtilAPI, ViewportAPI, SuggestionResults, ParametersAPI, NodeChangeProperty, Transform, Vector, Rect, RGB, RGBA, FontName, FontVariationSettings, FontNameInput, TextCase, TextDecoration, TextDecorationStyle, FontStyle, TextDecorationOffset, TextDecorationThickness, TextDecorationColor, OpenTypeFeature, ArcData, DropShadowEffect, InnerShadowEffect, BlurEffectBase, BlurEffectNormal, BlurEffectProgressive, BlurEffect, NoiseEffectBase, NoiseEffectMonotone, NoiseEffectDuotone, NoiseEffectMultitone, NoiseEffect, TextureEffect, GlassEffect, ShaderEffect, Effect, ConstraintType, Constraints, ColorStop, ImageFilters, SolidPaint, GradientPaint, ImagePaint, VideoPaint, PatternPaint, ShaderPaint, Paint, ShaderPropertyValue, ShaderPropertyDefinition, Shader, Guide, RowsColsLayoutGrid, GridLayoutGrid, LayoutGrid, ExportSettingsConstraints, ExportSettingsImage, ExportSettingsSVGBase, ExportSettingsSVG, ExportSettingsSVGString, ExportSettingsPDF, ExportSettingsREST, ExportSettings, WindingRule, VectorVertex, VectorSegment, VectorRegion, VectorNetwork, VectorPath, VectorPaths, LetterSpacing, LineHeight, LeadingTrim, TextWrapStyle, HyperlinkTarget, TextListOptions, BlendMode, MaskType, Font, TextStyleOverrideType, StyledTextSegment, TextPathStartData, Reaction, VariableDataType, ExpressionFunction, Expression, VariableValueWithExpression, VariableData, ConditionalBlock, Action, SimpleTransition, DirectionalTransition, Transition, Trigger, Navigation, Easing, EasingFunctionBezier, EasingFunctionSpring, MotionEasing, PhysicalSpring, NormalizedSpring, AnimationStylePropValue, AvailableAnimationStylePropValue, BaseAnimationStyle, AvailableAnimationStyle, FigmaAnimationStyleConfiguration, CustomAnimationStyleConfiguration, AnimationStyleConfiguration, AppliedFigmaAnimationStyle, AppliedCustomAnimationStyle, AppliedAnimationStyle, AnimationEntry, KeyframeValue, ManualKeyframeInput, ManualKeyframeTrackInput, ManualKeyframe, ManualKeyframeBinding, ManualKeyframeTrack, KeyframeBinding, KeyframePropertyFieldName, EffectKeyframeFieldName, KeyframeField, ComponentPropKeyframeTracks, ComponentPropKeyframeBindings, PaintManualKeyframeTrack, PaintKeyframeBinding, EffectManualKeyframeTracks, EffectKeyframeBindings, ManualKeyframeTracks, Animations, Timeline, OverflowDirection, OverlayPositionType, OverlayBackground, OverlayBackgroundInteraction, PublishStatus, ConnectorEndpointPosition, ConnectorEndpointPositionAndEndpointNodeId, ConnectorEndpointEndpointNodeIdAndMagnet, ConnectorEndpoint, ConnectorStrokeCap, BaseNodeMixin, PluginDataMixin, SceneNodeMixin, MotionNodeMixin, VariableBindableNodeField, VariableBindableTextField, VariableBindablePaintField, VariableBindablePaintStyleField, VariableBindableColorStopField, VariableBindableEffectField, VariableBindableEffectStyleField, VariableBindableLayoutGridField, VariableBindableGridStyleField, VariableBindableComponentPropertyField, VariableBindableComponentPropertyDefinitionField, StickableMixin, ChildrenMixin, ConstraintMixin, DimensionAndPositionMixin, LayoutMixin, AspectRatioLockMixin, BlendMixin, ContainerMixin, StrokeCap, StrokeJoin, HandleMirroring, AutoLayoutMixin, GridTrackSize, GridTrackReorderOptions, GridTrackReorderEntry, GridLayoutMixin, AutoLayoutChildrenMixin, GridChildrenMixin, InferredAutoLayoutResult, DetachedInfo, MinimalStrokesMixin, IndividualStrokesMixin, MinimalFillsMixin, VariableWidthPoint, PresetVariableWidthStrokeProperties, CustomVariableWidthStrokeProperties, VariableWidthStrokeProperties, ComplexStrokeProperties, ScatterBrushProperties, StretchBrushProperties, BrushStrokeProperties, DynamicStrokeProperties, GeometryMixin, ComplexStrokesMixin, CornerMixin, RectangleCornerMixin, ExportMixin, FramePrototypingMixin, VectorLikeMixin, ReactionMixin, DocumentationLink, PublishableMixin, DefaultShapeMixin, BaseFrameMixin, DefaultFrameMixin, OpaqueNodeMixin, MinimalBlendMixin, Annotation, AnnotationProperty, AnnotationPropertyType, AnnotationsMixin, Measurement, MeasurementSide, MeasurementOffset, MeasurementsMixin, ComponentPropertiesMixin, BaseNonResizableTextMixin, NonResizableTextMixin, NonResizableTextPathMixin, TextSublayerNode, DocumentNode, ExplicitVariableModesMixin, PageNode, FrameNode, GroupNode, TransformGroupNode, SliceNode, RectangleNode, LineNode, EllipseNode, PolygonNode, StarNode, VectorNode, TextNode, TextPathNode, ComponentPropertyType, InstanceSwapPreferredValue, SlotSettings, ComponentPropertyOptions, ComponentPropertyDefinitions, ComponentSetNode, ComponentNode, ComponentProperties, InstanceNode, SlotNode, BooleanOperationNode, StickyNode, StampNode, TableNode, TableCellNode, HighlightNode, WashiTapeNode, ShapeWithTextNode, CodeBlockNode, LabelSublayerNode, ConnectorNode, VariableResolvedDataType, VariableAlias, VariableValue, VariableScope, CodeSyntaxPlatform, Variable, VariableCollection, ExtendedVariableCollection, AnnotationCategoryColor, AnnotationCategory, WidgetNode, EmbedData, EmbedNode, LinkUnfurlData, LinkUnfurlNode, MediaData, MediaNode, SectionNode, SlideNode, SlideRowNode, SlideGridNode, InteractiveSlideElementNode, SlideTransition, BaseNode, SceneNode, NodeType, StyleType, InheritedStyleField, StyleConsumers, BaseStyleMixin, PaintStyle, TextStyle, EffectStyle, GridStyle, CustomAnimationStyle, BaseStyle, Image, FindAllCriteria, TransformModifier, RepeatModifier, LinearRepeatModifier, RadialRepeatModifier, QueryResult, ScreenshotOptions }

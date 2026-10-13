@@ -1,6 +1,6 @@
 ---
 name: figma-generate-design
-description: "Use this skill alongside figma-use when the task involves translating an application page, view, or multi-section layout into Figma. Triggers: 'write to Figma', 'create in Figma from code', 'push page to Figma', 'take this app/page and build it in Figma', 'create a screen', 'build a landing page in Figma', 'update the Figma screen to match code', 'convert this modal/dialog/drawer/panel to Figma'. This is the preferred workflow skill whenever the user wants to build or update a full page, modal, dialog, drawer, sidebar, panel, or any composed multi-section view in Figma from code or a description. Discovers design system components, variables, and styles from Code Connect files, existing screens, and library search, then imports them and assembles views incrementally section-by-section using design system tokens instead of hardcoded values."
+description: "Use this skill alongside figma-use when the task involves translating an application page, view, or multi-section layout into Figma. Triggers: 'write to Figma', 'create in Figma from code', 'push page to Figma', 'take this app/page and build it in Figma', 'create a screen', 'build a landing page in Figma', 'update the Figma screen to match code', 'convert this modal/dialog/drawer/panel to Figma'. This is the preferred workflow skill whenever the user wants to build or update a full page, modal, dialog, drawer, sidebar, panel, form, dashboard, list, table, card, header, message preview, or other composed product UI in Figma from code or a description—even when the user calls that composed UI a component. Discovers design system components, variables, and styles from Code Connect files, existing screens, and library search, then imports them and assembles views incrementally section-by-section using design system tokens instead of hardcoded values."
 disable-model-invocation: false
 ---
 
@@ -26,8 +26,8 @@ If `html_to_figma` is unavailable, follow the existing workflow below.
 
 ## Skill Boundaries
 
-- Use this skill when the deliverable is a **composed Figma view** (new or updated) — full-page screens, modals, dialogs, drawers, sidebars, panels, or any multi-section container — built from design system component instances.
-- If the user wants to create **new reusable components or variants**, use [figma-use](../figma-use/SKILL.md) directly.
+- Use this skill when the deliverable is a **composed Figma view** (new or updated) — including a form, dashboard, list, table, card, header, panel, dialog, message preview, or other multi-section container — built from design system component instances. This applies even when the user calls the composed view a component.
+- If the primary deliverable is a **reusable library primitive or foundation** intended for variants, tokens, or publication, use [figma-generate-library](../figma-generate-library/SKILL.md) with [figma-use](../figma-use/SKILL.md) instead.
 - If the user wants to write **Code Connect mappings**, switch to [figma-code-connect](../figma-code-connect/SKILL.md).
 
 ## Prerequisites
@@ -57,10 +57,10 @@ For non-web apps (iOS, Android, etc.) or when updating existing screens, use the
 
 **Follow these steps in order. Do not skip steps.**
 
-> **Hard gates — forbidden shortcuts:**
+> **Required invariants:**
 >
-> - **Forbidden:** `search_design_system` for component keys until 2a-i is complete and 2a-ii is attempted or logged N/A (e.g. "empty file, no existing screens").
-> - **Forbidden:** Any `use_figma` call that mutates the canvas (Step 3+) until all Step 2 rows in the checklist below are filled in.
+> - Complete Code Connect discovery and select the target library before mutating the deliverable. Discovery-only imports and temporary instances are allowed; remove temporary instances immediately.
+> - Apply each selected asset where it is imported. If an import fails, try the next applicable exact result before building a manual fallback.
 
 ### Step 1: Understand the Deliverable
 
@@ -78,7 +78,6 @@ You need three things from the design system: **components** (buttons, cards, et
 
 #### 2a: Discover components
 
-
 **2a-i — REQUIRED: Check Code Connect for needed components.** Starting from the component list you built in Step 1, check whether each component has a Code Connect file in the codebase. Code Connect files live next to the component source and are named by platform:
 
 - **TypeScript/JS**: `*.figma.ts`, `*.figma.js`
@@ -95,14 +94,22 @@ From each matching Code Connect file, extract the Figma component URL. Parse `fi
 ```js
 const node = await figma.getNodeByIdAsync("609:35535");
 const set = node?.parent?.type === "COMPONENT_SET" ? node.parent : node;
-return { componentKey: set.key };
+if (set?.type === "COMPONENT_SET") {
+  return { assetType: "component_set", componentSetKey: set.key };
+}
+if (set?.type === "COMPONENT") {
+  return { assetType: "component", componentKey: set.key };
+}
+throw new Error("Expected a component or component set");
 ```
 
-Batch multiple lookups in a single call. Use the returned keys with `importComponentSetByKeyAsync()` in Step 4.
+Batch multiple lookups in a single call. Use the returned keys with either `importComponentByKeyAsync()` or `importComponentSetByKeyAsync()` depending on each item's `assetType` in Step 4.
 
-Mark resolved components. If all components are resolved, skip 2a-ii and 2a-iii. If none of the needed components have Code Connect files, proceed to 2a-ii.
+Mark resolved components and continue with unresolved ones.
 
-**2a-ii — REQUIRED if unresolved components remain: Inspect existing screens.** Check if the target file already contains screens using the same design system. One read-only `use_figma` call inventories an existing frame — its component keys, bound variables, and text/effect styles — in a single authoritative pass. Run it once here and reuse the result in 2b and 2c rather than re-walking the frame:
+**2a-ii — REQUIRED: Select the library scope, then search and inspect the whole view.** Call `get_libraries`. If the user names one or more libraries, use their exact keys whether they appear in `libraries_added_to_file` or `libraries_available_to_add`. Otherwise search across all libraries in `libraries_added_to_file` together. Pass the selected keys in `includeLibraryKeys` on every search. Only when unresolved gaps have no suitable match, add specifically relevant libraries from `libraries_available_to_add` and retry those unresolved queries; do not broaden to unrelated available libraries. In the first batched `search_design_system` call, include one component query for the requested view or flow alongside queries for unresolved items already known from source or Code Connect inspection. Name the whole-view query by purpose and container (for example, `billing settings drawer`). Inspect the strongest candidate. If it covers two or more requested sections, select it as a foundation; otherwise continue without a whole-view composite.
+
+**2a-iii — Inspect existing screens.** Check if the target file already contains screens using the same design system. One read-only `use_figma` call inventories an existing frame — its component keys, bound variables, and text/effect styles — in a single authoritative pass. Run it once here and reuse the result in 2b and 2c rather than re-walking the frame:
 
 ```js
 const frame = figma.currentPage.findOne(n => n.name === "Existing Screen");
@@ -125,7 +132,7 @@ for (const node of frame?.findAll(() => true) ?? []) {
   }
   for (const [prop, bucket] of [["textStyleId", "text"], ["effectStyleId", "effect"]]) {
     if (prop in node && typeof node[prop] === "string" && node[prop]) {
-      const s = figma.getStyleById(node[prop]);
+      const s = await figma.getStyleByIdAsync(node[prop]);
       if (s) styles[bucket].set(s.id, { name: s.name, id: s.id, key: s.key });
     }
   }
@@ -140,11 +147,9 @@ return {
 };
 ```
 
-Match `components` against your unresolved components; Code Connect keys from 2a-i stay authoritative. Mark any newly resolved. If all components are resolved, skip 2a-iii.
+Match `components` against your unresolved components; Code Connect keys from 2a-i stay authoritative. Mark any newly resolved.
 
-**2a-iii — LAST RESORT: `search_design_system`.** Only if components remain unresolved after completing both 2a-i and 2a-ii.
-
-Before searching, call `get_libraries` to discover which libraries are available for the file. This returns two lists: libraries already added to the file and libraries available to add (community UI kits and org libraries). Each entry includes a `libraryKey` you can pass to `search_design_system` via the `includeLibraryKeys` param to scope your search to specific libraries instead of searching across everything.
+**2a-iv — Search only the gaps needed for construction.** After Code Connect, whole-view discovery, and existing-screen inspection, search for unresolved components and tokens the design still needs. Batch independent one-intent entries, keep `includeLibraryKeys` restricted to the selected library scope, and carry selected keys into the build. Do not delay construction to exhaustively search every unresolved role.
 
 ```
 // Step 1: Discover available libraries
@@ -163,7 +168,8 @@ Org libraries in `libraries_available_to_add` are paginated (20 per page). When 
 
 This is especially useful when the file has many libraries and you want targeted results (e.g. searching only within "iOS 26" or "Material 3" instead of getting matches from every library).
 
-**Search broadly, but one intent per query** — `search_design_system` does NOT apply OR semantics, so never pack alternatives or synonyms into a single string ("Button IconButton icon" matches nothing useful). Pass each term as a component entry in one `queries` call: `{ entity: "component", query: "button" }`, `{ entity: "component", query: "input" }`, `{ entity: "component", query: "nav" }`, etc. Multi-word names and phrases are fine when they name one thing ("Material Design Icons").
+**Use one intent per query.** `search_design_system` does not apply OR semantics, so never pack alternatives or synonyms into one string ("Button IconButton icon" matches nothing useful). Use an exact design-system name or component type when known; otherwise search by the asset's UI role, such as "archive action icon" or "primary submit button".
+Map every selected key to a section or property. Reuse applicable composite descendants instead of building parallel replacements, and keep nested instances intact unless only an example/template wrapper must be detached.
 
 **Include component properties** in your map — you need to know which TEXT properties each component exposes for text overrides. Create a temporary instance, read its `componentProperties` (and those of nested instances), then remove the temp instance.
 
@@ -181,12 +187,12 @@ Component Map:
 
 #### 2b: Discover variables (colors, spacing, radii)
 
-**Inspect existing screens first.** Reuse `variables` from the 2a-ii inventory; if that step was skipped, run the inventory here when an existing screen is available. For unresolved variables, use `search_design_system` with `queries` entries whose `entity` is `"variable"`.
+**Inspect existing screens first.** Reuse `variables` from the 2a-iii inventory; if that step was skipped, run the inventory here when an existing screen is available. For unresolved variables, use `search_design_system` with `queries` entries whose `entity` is `"variable"`.
 
 > **WARNING: Two different variable discovery methods — do not confuse them.**
 >
 > - `use_figma` with `figma.variables.getLocalVariableCollectionsAsync()` — returns **only local variables defined in the current file**. If this returns empty, it does **not** mean no variables exist. Remote/published library variables are invisible to this API.
-> - `search_design_system` with `entity: "variable"` query entries — searches across **all linked libraries**, including remote and published ones. This is the correct tool for discovering design system variables.
+> - `search_design_system` with `entity: "variable"` query entries — searches remote and published library variables. Scope every query to the library keys selected in 2a-ii with `includeLibraryKeys`.
 >
 > **Never conclude "no variables exist" based solely on `getLocalVariableCollectionsAsync()` returning empty.** Always also run `search_design_system` with variable query entries to check for library variables before deciding to create your own.
 
@@ -204,17 +210,17 @@ See [variable-patterns.md](../figma-use/references/variable-patterns.md) for bin
 
 #### 2c: Discover styles (text styles, effect styles)
 
-Reuse `textStyles` and `effectStyles` from the inventory in 2a-ii or 2b. If no inventory exists, inspect an available screen with the same script or search with `search_design_system` using `entity: "style"` query entries and terms like "heading", "body", "shadow", "elevation". Search for any styles still missing.
+Reuse `textStyles` and `effectStyles` from the inventory in 2a-iii or 2b. If no inventory exists, inspect an available screen with the same script. Before hardcoding an unresolved reusable fill/stroke, typography, or effect role, issue a focused `search_design_system` entry with `entity: "style"`, such as "surface", "border", "heading", "body", "shadow", or "elevation". Batch independent entries, but do not exhaustively search roles covered by a selected component or existing-screen style. Search for any styles still missing.
 
 Import library styles with `figma.importStyleByKeyAsync(key)`, then apply with `node.textStyleId = style.id` or `node.effectStyleId = style.id`.
 
 See [text-style-patterns.md](../figma-use/references/text-style-patterns.md) and [effect-style-patterns.md](../figma-use/references/effect-style-patterns.md) for details.
 
-### Step 3: Create the Wrapper Frame First
+### Step 3: Create the Wrapper Frame
 
-**Do NOT build sections as top-level page children and reparent them later** — moving nodes across `use_figma` calls with `appendChild()` silently fails and produces orphaned frames. Instead, create the wrapper first, then build each section directly inside it.
+**Do NOT build sections as top-level page children and reparent them later** — moving nodes across `use_figma` calls with `appendChild()` silently fails and produces orphaned frames. Create a mutable wrapper frame first, then build each section directly inside it.
 
-Create the wrapper in its own `use_figma` call. Position it away from existing content and return its ID:
+Import and instantiate any selected whole-view composite inside the wrapper. Customize its covered descendants and append missing sections to the wrapper alongside it; never append children directly to an instance. Position the wrapper away from existing content and return its ID:
 
 ```js
 // Find clear space
@@ -243,9 +249,9 @@ wrapper.y = 0;
 return { success: true, wrapperId: wrapper.id };
 ```
 
-### Step 4: Build the Sections Inside the Wrapper
+### Step 4: Customize Covered Sections and Build Missing Sections
 
-**This is the most important step.** Build in retry-safe construction phases: related sections may share one `use_figma` call when the resulting script is safe to retry. Split a phase only when it would cross page context, when partial execution would be hard to recover, or when an actual failure requires a targeted retry — not merely to create a validation checkpoint. At the start of each script, fetch the wrapper by ID and append new content directly to it.
+**This is the most important step.** Start with the selected composite: customize the descendants it already covers and build only missing sections. Work in retry-safe construction phases, batching related sections when safe. Split only for page-context boundaries, hard-to-recover partial execution, or a targeted retry after a failure—not merely to create a validation checkpoint. At the start of each script, fetch the mutable wrapper frame by ID. Append new content to that frame, never to a component instance.
 
 ```js
 const createdNodeIds = [];
@@ -362,6 +368,8 @@ Before visual validation, use `use_figma` to read back the wrapper and return it
 
 After composing all sections, take **one full-view composition screenshot** of the wrapper frame and compare against the source. If it reveals a meaningful visual defect, apply targeted `use_figma` fixes — don't rebuild the entire view — then take **one** post-fix screenshot. The most recent passing screenshot is the final check: do not take an additional unchanged "final" shot, and do not screenshot every section individually.
 
+Before visual fixes, compare the wrapper's instance, style, and bound-variable keys with the Step 2 map. Every applicable selected asset should appear in the output; replace manual equivalents and raw values before finishing.
+
 Inspect the composition screenshot for:
 - **Cropped/clipped text** — line heights or frame sizing cutting off descenders, ascenders, or entire lines
 - **Overlapping content** — elements stacking on top of each other due to incorrect sizing or missing auto-layout
@@ -455,7 +463,7 @@ Because this skill works in retry-safe construction phases, errors are naturally
 ## Best Practices
 
 - **Always search before building.** The design system likely has the component, variable, or style you need. Manual construction and hardcoded values should be the exception, not the rule.
-- **Search broadly, one intent per query.** Try synonyms and partial terms as separate `{ entity, query }` entries in one `queries` call, never combined into one string — a "NavigationPill" might be found under "pill", "nav", "tab", or "chip", so pass those as four component entries. For variables, use `entity: "variable"` with queries like "color", "spacing", "radius", etc.
+- **Search unresolved gaps, one intent per query.** Try synonyms and partial terms as separate `{ entity, query }` entries in one `queries` call, never combined into one string—a "NavigationPill" might be found under "pill", "nav", "tab", or "chip", so pass those as four component entries. For variables, use `entity: "variable"` with queries like "color", "spacing", and "radius". Do this only for unresolved construction gaps, and stop once a suitable asset is found.
 - **Prefer design system tokens over hardcoded values.** Use variable bindings for colors, spacing, and radii. Use text styles for typography. Use effect styles for shadows. This keeps the screen linked to the design system.
 - **Prefer component instances over manual builds.** Instances stay linked to the source component and update automatically when the design system evolves.
 - **Componentize by default.** Build repeated or reusable elements as a component once, then place instances. Do not ship a flat tree of one-off frames that needs a second "make it componentized" pass.

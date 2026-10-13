@@ -154,7 +154,7 @@ variable.scopes = [];                              // hidden from all pickers
 
 **Always set scopes explicitly** — `ALL_SCOPES` is the default but almost never what you want. For a comprehensive scope-to-use-case mapping table, see [token-creation.md § Variable Scopes — Complete Reference Table](../../figma-generate-library/references/token-creation.md).
 
-**Always check the existing file's scope patterns before creating variables** — match whatever convention is already in use. See "Discovering Existing Variables" below.
+**Always check the existing file's scope patterns before creating variables** — match whatever convention is already in use. See "Discovering Existing Variables in the File" below.
 
 ## Variable Aliasing (VARIABLE_ALIAS)
 
@@ -269,7 +269,6 @@ const varByName = {};
 for (const v of await figma.variables.getLocalVariablesAsync()) {
   varByName[v.name] = v;
 }
-
 // Bind to existing variable by name — no hex values needed
 function bindFill(node, varName) {
   const v = varByName[varName];

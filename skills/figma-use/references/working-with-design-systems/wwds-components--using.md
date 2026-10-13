@@ -2,7 +2,7 @@
 
 When using Figma components, you need to start by understanding the state of the source and the state of Figma.
 
-For the source, you need to know what component is being referenced. This could come from a component key, a node ID, a name, or a Code Connect mapping. If you have a component key from a design system library, prefer `importComponentByKeyAsync` over finding by name, since names are not unique. If you only have a name, search the page or use `search_design_system` to find the right match.
+For the source, you need to know what component is being referenced. This could come from a component key, a node ID, a name, or a Code Connect mapping. For a library search result, inspect `assetType`: import a `component` via `importComponentByKeyAsync(result.componentKey)` and a `component_set` via `importComponentSetByKeyAsync(result.componentSetKey)`. Prefer keys over names, since names are not unique. A component-set key cannot be imported with `importComponentByKeyAsync`. If you only have a name, search the page or use `search_design_system` to find the right match.
 
 For Figma, you need to know whether the component is local or in a library. Local components can be accessed directly by node ID. Published library components must be imported first — `importComponentByKeyAsync` or `importComponentSetByKeyAsync` — before an instance can be created.
 

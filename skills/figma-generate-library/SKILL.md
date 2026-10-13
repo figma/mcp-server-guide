@@ -82,7 +82,7 @@ Every scope begins with focused discovery: analyze the relevant code, inspect th
 
 If a required acceptance check fails, fix the scoped defect before continuing. Do not substitute fake assets, approximate typography, broken interactions, or unverified state.
 
-The selected path and definition of done take precedence over broader examples or full-library phase labels in the references. Load only references needed for that path.
+This skill's selected workflow, search cadence, validation rules, and definition of done take precedence over broader instructions, checklists, and examples in the references. Load only references needed for the selected path.
 
 ---
 
@@ -100,7 +100,8 @@ The selected path and definition of done take precedence over broader examples o
 1. **Foundations before dependent components** — reuse compatible existing variables and styles. Create missing foundations before building a component that depends on them; do not recreate valid foundations.
 2. **Inspect before creating** — run read-only `use_figma` to discover existing conventions. Match them.
 3. **Match the file's component organization** — full libraries usually use one page per component; tightly related families may share a page. A single-component task may use an existing component area instead of creating a library skeleton.
-4. **Bind visual properties to variables** *(default)* — fills, strokes, padding, radius, gap. Exceptions: intentionally fixed geometry (icon pixel-grid sizes, static dividers).
+4. **Bind visual properties to variables** *(default)* — fills, strokes, padding, radius, gap. Exceptions: intentionally fixed geometry (icon pixel-grid sizes, static dividers). When using variables from an earlier `use_figma` call, use the real Figma variable IDs returned by that call to resolve fresh handles before binding; JavaScript references do not persist across calls.
+   With the Plugin API, resolve variables with `await figma.variables.getVariableByIdAsync(id)` before binding.
 5. **Scopes on every variable** — NEVER leave as `ALL_SCOPES`. Background: `FRAME_FILL, SHAPE_FILL`. Text: `TEXT_FILL`. Border: `STROKE_COLOR`. Spacing: `GAP`. Radii: `CORNER_RADIUS`. Primitives: `[]` (hidden).
 6. **Code syntax on every variable** — WEB syntax MUST use the `var()` wrapper: `var(--color-bg-primary)`, not `--color-bg-primary`. Use the actual CSS variable name from the codebase. ANDROID/iOS do NOT use a wrapper.
 7. **Alias semantics to primitives** — `{ type: 'VARIABLE_ALIAS', id: primitiveVar.id }`. Never duplicate raw values in semantic layer.

@@ -235,6 +235,7 @@ parent.appendChild(child)
 parent.insertChild(index, child)
 node.remove()
 ```
+
 ## Descriptions & Documentation Links
 Only access `node.description` on components and component sets. In `use_figma`,
 reading it on a frame, instance, or other scene node returns `undefined`, while
