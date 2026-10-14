@@ -408,7 +408,9 @@ If you ran `generate_figma_design` in parallel, transfer only discrete content a
 
 #### Generating placeholder images
 
-Reuse available source, captured, or library images first. If placeholders still remain, tell the user how many images would be generated and ask permission, noting that generating images uses Figma AI credits. After consent, call `generate_image` for each placeholder, then follow its response to upload each result with `upload_assets`. Use the returned `imageHash` for the placeholder fill; finish only after the image appears.
+Reuse available source, captured, or library images first. If placeholders remain, tell the user how many images need to be generated using the Figma `generate_image` tool. Ask permission, noting that this tool uses Figma AI credits. After consent, call `generate_image` with the requisite params.
+
+If Figma AI is unavailable or its AI credit limit is reached, confirm with the user if alternative image generation tools can be used. Upload only these alternative-provider images with `upload_assets`.
 
 ### Step 6: Updating an Existing View
 
