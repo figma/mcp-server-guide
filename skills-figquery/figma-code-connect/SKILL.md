@@ -1,6 +1,6 @@
 ---
 name: figma-code-connect
-description: Creates and maintains Figma Code Connect template files that map Figma components to code snippets. Use when the user mentions Code Connect, Figma component mapping, design-to-code translation, or asks to create/update .figma.ts or .figma.js files.
+description: Creates and maintains Figma Code Connect template files that map Figma components to code snippets, including batch files for large sets of structurally identical components (e.g. icon libraries). Use when the user mentions Code Connect, Figma component mapping, design-to-code translation, batch/icon-library Code Connect, or asks to create/update .figma.ts, .figma.js, .figma.batch.ts, or .figma.batch.json files.
 disable-model-invocation: false
 ---
 
@@ -11,6 +11,12 @@ disable-model-invocation: false
 Create Code Connect template files (`.figma.ts`) that map Figma components to code snippets. Given a Figma URL, follow the steps below to create a template.
 
 > **You write `.figma.ts` template files ONLY — never `.figma.tsx`.** This skill produces *parserless templates*: a `.figma.ts` file whose default export uses a `` figma.code`...` `` tagged template. Do **NOT** write a `.figma.tsx` file and do **NOT** use `figma.connect()` — that is the separate **parser-based** Code Connect format (published a different way) and is the **wrong artifact** for this skill; output written as `.figma.tsx` is rejected outright. If a `.figma.tsx` already exists for a component, leave it untouched and add your `.figma.ts` template alongside it. A capable model may be tempted to reach for the more familiar `.figma.tsx` / `figma.connect()` pattern from memory — resist it; here the correct output is **always** `.figma.ts` + `figma.code`.
+
+### Single component vs. batch files
+
+Steps 1–6 below produce **one `.figma.ts` file per component** — use them when the user is connecting a single component, or a handful of components with meaningfully different code shapes.
+
+If instead the user is connecting **a large number of components that share the same code structure** — the most common case being an icon library, where hundreds or thousands of icons share identical code patterns but each maps to a different Figma node — writing one `.figma.ts` file per component is pure repetition. Use **batch files** instead: a shared template (`*.figma.batch.ts`) plus a JSON file (`*.figma.batch.json`) listing every component and its Figma URL. Skip straight to [batch-files.md](references/batch-files.md) for the full workflow; the per-component Steps 1–6 below don't apply to the batch format.
 
 ## Prerequisites
 
@@ -526,3 +532,4 @@ For advanced patterns (multi-level nested components, `findConnectedInstances` f
 
 - [api.md](references/api.md) — Full Code Connect API reference
 - [advanced-patterns.md](references/advanced-patterns.md) — Advanced nesting, metadata props, and descendant patterns
+- [batch-files.md](references/batch-files.md) — Batch templates for icon libraries and other large sets of structurally identical components
