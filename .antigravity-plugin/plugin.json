@@ -18,6 +18,7 @@
     "code-connect"
   ],
   "category": "Design",
+  "mcpServers": "./.mcp.json",
   "suggestedPrompts": [
     "Implement this Figma frame as a React component: <link>",
     "Connect my Button component to its Figma component with Code Connect",
