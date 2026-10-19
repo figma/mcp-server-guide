@@ -1,0 +1,26 @@
+{
+  "name": "figma",
+  "displayName": "Figma",
+  "version": "2.2.157",
+  "description": "Turn Figma designs into production code, map components with Code Connect, and create or edit Figma files in Antigravity.",
+  "author": {
+    "name": "Figma",
+    "url": "https://www.figma.com"
+  },
+  "logo": "./Figma Icon (Full-color).svg",
+  "homepage": "https://github.com/figma/mcp-server-guide",
+  "repository": "https://github.com/figma/mcp-server-guide",
+  "keywords": [
+    "figma",
+    "design",
+    "mcp",
+    "ui",
+    "code-connect"
+  ],
+  "category": "Design",
+  "suggestedPrompts": [
+    "Implement this Figma frame as a React component: <link>",
+    "Connect my Button component to its Figma component with Code Connect",
+    "Create a Figma design for a login screen that matches my design system"
+  ]
+}
