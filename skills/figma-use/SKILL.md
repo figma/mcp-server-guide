@@ -3,70 +3,56 @@ name: figma-use
 description: "**MANDATORY prerequisite** — you MUST invoke this skill BEFORE every `use_figma` tool call. NEVER call `use_figma` directly without loading this skill first. Skipping it causes common, hard-to-debug failures. Trigger whenever the user wants to perform a write action or a unique read action that requires JavaScript execution in the Figma file context — e.g. create/edit/delete nodes, set up variables or tokens, build components and variants, modify auto-layout or fills, bind variables to properties, or inspect file structure programmatically."
 disable-model-invocation: false
 ---
-
 # use_figma — Figma Plugin API Skill
-
 Use the `use_figma` tool to execute JavaScript in Figma files via the Plugin API. All detailed reference docs live in `references/`.
+
+When available, call `create_session` with `fileKey` and `description` before file reads or edits (create the file first if needed), then pass the returned `sessionId` unchanged to every call that accepts it, including follow-ups and work across files.
 
 **Always include `figma-use` in the comma-separated `skillNames` parameter when calling `use_figma`. If this skill was loaded via an MCP resource, you MUST prefix the name with `resource:` (e.g. `resource:figma-use`).** This is a logging parameter used to track skill usage — it does not affect execution.
 
 **If Figma MCP tools appear as deferred tools, batch-load all their schemas in a single `ToolSearch` call** using the `select:` syntax — e.g. `ToolSearch query="select:use_figma,get_screenshot,get_metadata,create_new_file"`. One round trip beats six.
 
-**If the task involves building or updating a full page, screen, or multi-section layout in Figma from code**, also load [figma-generate-design](../figma-generate-design/SKILL.md). It provides the workflow for discovering design system components via `search_design_system`, importing them, and assembling screens incrementally. Both skills work together: this one for the API rules, that one for the screen-building workflow.
+**MANDATORY for visible design changes:** Before the first mutating `use_figma` call, load [figma-generate-design](../figma-generate-design/SKILL.md) alongside this skill and include both names in every mutating call’s `skillNames`. This applies from a single visible property or element to a full page, screen, or composed multi-section view—even when the user calls that view a component. `figma-use` provides the Plugin API rules; `figma-generate-design` provides design-system discovery through `search_design_system`, asset importing, and incremental assembly.
 
-**If the task involves creating or building a component in Figma** (even a single component), also load [figma-generate-library](../figma-generate-library/SKILL.md). It provides the component creation workflow — variable foundations, variant sets, design token bindings — that `figma-use` alone doesn't cover.
+**Reusable library exception:** If the primary deliverable is a reusable component, component set, variant system, variable/token collection, style foundation, or other library asset intended for reuse or publication, load [figma-generate-library](../figma-generate-library/SKILL.md) instead. It provides the component-creation workflow—variable foundations, variant sets, and design-token bindings—that `figma-use` alone does not cover. For tasks that include both library assets and a composed design that uses them, load both companion skills. Read-only `use_figma` calls need neither.
 
 Before anything, load [plugin-api-standalone.index.md](references/plugin-api-standalone.index.md) to understand what is possible. When you are asked to write plugin API code, use this context to grep [plugin-api-standalone.d.ts](references/plugin-api-standalone.d.ts) for relevant types, methods, and properties. This is the definitive source of truth for the API surface. It is a large typings file, so do not load it all at once, grep for relevant sections as needed.
 
 IMPORTANT: Whenever you work with design systems, start with [working-with-design-systems/wwds.md](references/working-with-design-systems/wwds.md) to understand the key concepts, processes, and guidelines for working with design systems in Figma. Then load the more specific references for components, variables, text styles, and effect styles as needed.
 
 ## 1. Critical Rules
-
 1.  **Use `return` to send data back.** The return value is JSON-serialized automatically (objects, arrays, strings, numbers). Do NOT call `figma.closePlugin()` or wrap code in an async IIFE — this is handled for you.
 2.  **Write plain JavaScript with top-level `await` and `return`.** Code is automatically wrapped in an async context. Do NOT wrap in `(async () => { ... })()`.
 3.  `figma.notify()` **throws "not implemented"** — never use it
-3a. **Prefer returned IDs and external state for workflow persistence.** Put human-readable component purpose and usage in the component's `description`. `getSharedPluginData(namespace, key)` and `setSharedPluginData(namespace, key, value)` should almost never be needed; if needed, you must use a stable namespace (at least 3 alphanumeric, `_`, or `.` characters).
+3a. **Return node IDs and keep workflow state outside the Figma file.** Set human-readable component purpose and usage in `node.description` only on a `COMPONENT` or `COMPONENT_SET` — never on a frame or instance.
+3b. **Narrow before accessing type-specific properties.** Check `node.type`, use a capability guard such as `"characters" in node`, or prefilter with `findAllWithCriteria`. `characters` requires a text-capable node; optional chaining does not protect unsupported property access.
 4.  `console.log()` is NOT returned — use `return` for output
-5.  **Work incrementally in small steps.** Break large operations into multiple `use_figma` calls. Validate after each step. This is the single most important practice for avoiding bugs.
-6.  Colors are **0–1 range** (not 0–255): `{r: 1, g: 0, b: 0}` = red
+5.  **Size construction calls for safe retry and validate from evidence.** Do not split a working operation solely to create validation checkpoints. Batch related work when the resulting script remains safe to retry; a complete section or page may be built in one call. Split when crossing page context, when partial execution would be difficult to recover, or after an actual failure requires a targeted retry. Return affected IDs and relevant counts, names, or bounds from each write—this counts as structural validation. Run a separate structural check only when required evidence is missing or after a relevant mutation. Normally take one screenshot after composition and one after a visual fix. The most recent passing screenshot is the final check; do not repeat it when nothing relevant changed. Stop once requirements pass.
+6.  Colors are **0–1 range** (not 0–255): `{r: 1, g: 0, b: 0}` = red. Paint `color` objects use `{r, g, b}` **only — no `a` field**; opacity goes at the paint level (`{ type: 'SOLID', color: {...}, opacity: 0.5 }`).
 7.  Fills/strokes are **read-only arrays** — clone, modify, reassign
-8.  **Every text edit follows the canonical recipe: load font → `await` → mutate → return affected node IDs.** Skipping the load throws `Cannot write to node with unloaded font "<family> <style>"`. The rule covers more than `characters` — it applies to any operation on nodes with unloaded fonts (`appendChild`, `insertChild`, `setBoundVariable`, `setExplicitVariableModeForCollection`, `setValueForMode`, `findAll` callbacks touching text). When mutating existing text, load the node's *current* fonts via `getStyledTextSegments(['fontName'])`, not a hardcoded default. Inter is preloaded in most environments so other families surface this bug more often — the recipe is the same for every font. Use `await figma.listAvailableFontsAsync()` first if the style string is unverified. See [Canonical text-edit recipe](references/gotchas.md#canonical-text-edit-recipe-font-load--await--mutate--return-ids).
-9.  **Pages load incrementally** — use `await figma.setCurrentPageAsync(page)` to switch pages and load their content. The sync setter `figma.currentPage = page` does **NOT** work and will throw (see Page Rules below)
+8.  **Every text edit follows the canonical recipe: load font → `await` → mutate → return affected node IDs.** Skipping the load throws `Cannot write to node with unloaded font "<family> <style>"`. The rule covers more than `characters` — it applies to any operation on nodes with unloaded fonts (`appendChild`, `insertChild`, `setBoundVariable`, `setExplicitVariableModeForCollection`, `setValueForMode`, `findAll` callbacks touching text). When mutating existing text, load the node's *current* fonts via `getStyledTextSegments(['fontName'])`, not a hardcoded default. Inter is preloaded in most environments so other families surface this bug more often — the recipe is the same for every font. Use `await figma.listAvailableFontsAsync()` first if the style string is unverified — **never guess** (`"SemiBold"` vs `"Semi Bold"` is a common footgun). For `FONT_FAMILY`-scoped variables, load every value across every relevant mode before `setBoundVariable("fontFamily", …)`, `setValueForMode`, or `setExplicitVariableModeForCollection`. `lineHeight`/`letterSpacing` take `{unit, value}`, not bare numbers. See [Canonical text-edit recipe](references/gotchas.md#canonical-text-edit-recipe-font-load--await--mutate--return-ids).
+9.  **Pages load incrementally** — use `await figma.setCurrentPageAsync(page)` to switch pages and load their content. The sync setter `figma.currentPage = page` does **NOT** work and throws `"Setting figma.currentPage is not supported"`. Page context resets to the **first page** at the start of every `use_figma` call, so re-switch each call; switch **at most once per call** and fan multi-page work out in parallel — see [Page Rules](#2-page-rules-critical) and [gotchas.md](references/gotchas.md#set-current-page-once-per-use_figma-call--split-multi-page-work-into-parallel-calls).
 10. `setBoundVariableForPaint` returns a **NEW** paint — must capture and reassign
 11. `createVariable` accepts collection **object or ID string** (object preferred)
 12. **`layoutSizingHorizontal/Vertical` is value-restricted by structural context — `FIXED` always works, `HUG` and `FILL` do not.** `'HUG'` is valid only on an auto-layout frame itself OR on a **TEXT** child of one. `'FILL'` is valid only on a child of an auto-layout frame that is also not absolute-positioned, not inside an immutable frame, and not a canvas-grid child. Practical consequence: append to an auto-layout parent FIRST, then set `HUG`/`FILL` — a newly-created or unparented node can't satisfy the rule yet. The property itself exists on every `SceneNode`; the error is value-rejection, not "no such property". See [Gotchas](references/gotchas.md#layoutsizinghorizontallayoutsizingvertical-value-rules-fixed-hug-fill).
 12a. **Use auto-layout for containers that hold related children.** When children have a structural relationship — stacked, side-by-side, aligned, gapped, hugged — wrap them in `figma.createAutoLayout()`, not `figma.createFrame()` with absolute `x`/`y`. Absolute coordinates govern where a container sits on the canvas; auto-layout governs how its children relate inside it. Skipping the container leaves no protection against text reflow, content changes, or overlap.
 12b. **`layoutSizing*` and `*AxisSizingMode` are different enums — don't cross them.** `layoutSizingHorizontal`/`layoutSizingVertical` (set on a **child**) take `'FIXED'|'HUG'|'FILL'`; `primaryAxisSizingMode`/`counterAxisSizingMode` (set on the **frame** itself) take `'FIXED'|'AUTO'`. So `layoutSizingVertical = 'AUTO'` is invalid (use `'HUG'`), and `counterAxisSizingMode = 'FILL'` throws `Expected 'FIXED' | 'AUTO', received 'FILL'` (use `'FIXED'`/`'AUTO'`). Two more errors from the same setter — `Error: in set_layoutSizingHorizontal: node must be an auto-layout frame or a child of an auto-layout frame` and `Error: in set_layoutSizingHorizontal: FILL can only be set on children of auto-layout frames` — mean the node isn't in an auto-layout context yet; **recommendation: make the parent auto-layout (`figma.createAutoLayout()`) and `appendChild` the node before setting** (see Rule 12). See [Gotchas](references/gotchas.md#layoutsizing-vs-axissizingmode-two-different-sizing-enums).
+12c. **`resize()` resets sizing modes to `FIXED`, so call it BEFORE setting `layoutSizing*`.** A wrapping **TEXT** block needs `textAutoResize = 'HEIGHT'` plus an explicit FIXED width (`resize()`), NOT `FILL` alone — the default `WIDTH_AND_HEIGHT` mode ignores `FILL` and collapses the node to a near-zero-width thread. Verify `node.width > 0` afterward.
 13. **Position new top-level nodes away from (0,0).** Nodes appended directly to the page default to (0,0). Scan `figma.currentPage.children` to find a clear position (e.g., to the right of the rightmost node). This only applies to page-level nodes — nodes nested inside other frames or auto-layout containers are positioned by their parent. See [Gotchas](references/gotchas.md).
-14. **On `use_figma` error, STOP. Do NOT immediately retry.** Failed scripts are **atomic** — if a script errors, it is not executed at all and no changes are made to the file. Read the error message carefully, fix the script, then retry. See [Error Recovery](#6-error-recovery--self-correction).
-15. **MUST `return` ALL created/mutated node IDs.** Whenever a script creates new nodes or mutates existing ones on the canvas, collect every affected node ID and return them in a structured object (e.g. `return { createdNodeIds: [...], mutatedNodeIds: [...] }`). This is essential for subsequent calls to reference, validate, or clean up those nodes.
+14. **On `use_figma` error, obey `safeToRetryWithoutCanvasRead`.** If `true`, fix the error and retry. If `false`, read the canvas, determine what changed, then make changes. See [Error Recovery](#7-error-recovery--self-correction).
+15. **MUST `return` ALL created/mutated node IDs.** Whenever a script creates new nodes or mutates existing ones on the canvas, collect every affected node ID and return them in a structured object (e.g. `return { createdNodeIds: [...], mutatedNodeIds: [...] }`). This is essential for subsequent calls to reference, validate, or clean up those nodes. No state persists across `use_figma` calls, so pass IDs from previous calls as **string literals**, not variables. See [common-patterns.md](references/common-patterns.md) for worked multi-step examples.
 16. **Always set `variable.scopes` explicitly when creating variables.** The default `ALL_SCOPES` pollutes every property picker — almost never what you want. Use specific scopes like `["FRAME_FILL", "SHAPE_FILL"]` for backgrounds, `["TEXT_FILL"]` for text colors, `["GAP"]` for spacing, etc. See [variable-patterns.md](references/variable-patterns.md) for the full list.
 17. **`await` every Promise.** Never leave a Promise unawaited — unawaited async calls (e.g. `figma.loadFontAsync(...)` without `await`, or `figma.setCurrentPageAsync(page)` without `await`) will fire-and-forget, causing silent failures or race conditions. The script may return before the async operation completes, leading to missing data or half-applied changes.
-
+18. **Never read `componentPropertyDefinitions` from a variant component.** Narrow the owner first: use the node itself when it is a `COMPONENT_SET`, use a `COMPONENT` only when its parent is not a `COMPONENT_SET`, and otherwise promote a variant `COMPONENT` to its parent set. Optional chaining does not make the getter safe. See [Component-property owner narrowing](references/component-patterns.md#component-property-owner-narrowing).
 > For detailed WRONG/CORRECT examples of each rule, see [Gotchas & Common Mistakes](references/gotchas.md).
 
 ## 2. Page Rules (Critical)
 
-**Page context resets between `use_figma` calls** — `figma.currentPage` starts on the first page each time.
+The async-only setter and the per-call context reset are covered in Rule 9. This section elaborates the one rule that needs a worked example: **switch pages at most once per script, and fan multi-page work out in parallel.**
 
-### Switching pages
+Never loop over `figma.root.children` and switch pages inside the loop — each switch reloads the file. If the work spans multiple pages, **split it into N `use_figma` calls (one per target page) and emit them in parallel** — a single assistant message containing N `use_figma` tool-use blocks. The harness runs them concurrently; each script sets `currentPage` exactly once.
 
-Use `await figma.setCurrentPageAsync(page)` to switch pages and load their content. The sync setter `figma.currentPage = page` does **NOT work** — it throws `"Setting figma.currentPage is not supported"` in `use_figma`. Always use the async method.
-
-```js
-// Switch to a specific page (loads its content)
-const targetPage = figma.root.children.find((p) => p.name === "My Page");
-await figma.setCurrentPageAsync(targetPage);
-// targetPage.children is now populated
-```
-
-### Call `setCurrentPageAsync` at most once per `use_figma` invocation — fan multi-page work out in parallel
-
-**One script must switch pages at most once.** Never loop over `figma.root.children` and switch pages inside the loop.
-
-If the work spans multiple pages, **split it into N `use_figma` calls (one per target page) and emit them in parallel** — a single assistant message containing N `use_figma` tool-use blocks. The harness runs them concurrently; each script sets `currentPage` exactly once.
-
-> **Explicit instruction:** when fanning out, you MUST issue the N tool calls in **one message**. Do not send them across multiple turns. Do not await one before issuing the next. Sequential per-page calls are slower than the in-loop pattern this rule replaces and waste the entire benefit of splitting.
+> **Explicit instruction:** when fanning out, you MUST issue the N tool calls in **one message**. Do not send them across multiple turns. Do not await one before issuing the next. Sequential per-page calls waste the entire benefit of splitting.
 
 ```js
 // AVOID — switches pages N times in one script, reloads the file each time
@@ -79,23 +65,11 @@ for (const page of figma.root.children) {
 // emit N parallel use_figma tool calls (one per page), each setting currentPage once.
 ```
 
-Default to parallel fan-out for any multi-page work — reads and writes alike. See [gotchas.md → Set current page once per `use_figma` call](references/gotchas.md#set-current-page-once-per-use_figma-call--split-multi-page-work-into-parallel-calls) for the full rationale.
-
-### Across script runs
-
-`figma.currentPage` resets to the **first page** at the start of each `use_figma` call. If your workflow spans multiple calls and targets a non-default page, call `await figma.setCurrentPageAsync(page)` at the start of each invocation.
-
-You can call `use_figma` multiple times to incrementally build on the file state, or to retrieve information before writing another script. For example, write a script to get metadata about existing nodes, `return` that data, then use it in a subsequent script to modify those nodes.
+Default to parallel fan-out for any multi-page work — reads and writes alike. You can also call `use_figma` multiple times to build incrementally (e.g. `return` metadata about existing nodes, then modify them in a subsequent script). See [gotchas.md → Set current page once per `use_figma` call](references/gotchas.md#set-current-page-once-per-use_figma-call--split-multi-page-work-into-parallel-calls) for the full rationale.
 
 ## 3. `return` Is Your Output Channel
 
-The agent sees **ONLY** the value you `return`. Everything else is invisible.
-
-- **Returning IDs (CRITICAL)**: Every script that creates or mutates canvas nodes **MUST** return all affected node IDs — e.g. `return { createdNodeIds: [...], mutatedNodeIds: [...] }`. This is a hard requirement, not optional.
-- **Progress reporting**: `return { createdNodeIds: [...], count: 5, errors: [] }`
-- **Error info**: Thrown errors are automatically captured and returned — just let them propagate or `throw` explicitly.
-- `console.log()` output is **never** returned to the agent
-- Always return actionable data (IDs, counts, status) so subsequent calls can reference created objects
+The agent sees **ONLY** the value you `return` — `console.log()` is invisible (Rule 4), and thrown errors are auto-captured (let them propagate or `throw` explicitly). The hard requirement is Rule 15: every script that creates or mutates canvas nodes **MUST** return all affected node IDs plus any actionable status in a structured object — e.g. `return { createdNodeIds: [...], mutatedNodeIds: [...], count: 5, errors: [] }` — so subsequent calls can reference, validate, or clean them up.
 
 ## 4. Editor Mode
 
@@ -263,7 +237,7 @@ await frame.screenshot({ scale: 2 })
 await frame.screenshot({ contentsOnly: false })
 ```
 
-**When to use:** After creating or modifying nodes, call `screenshot()` to visually verify the result within the same script. No need for a separate `get_screenshot` call.
+**When to use:** Follow Rule 5. Take a composition screenshot when visual evidence is needed. If a visual fix follows, take one post-fix screenshot; that passing screenshot is final. Do not take an additional unchanged “final” screenshot.
 
 **Auto-naming:** The image caption includes node metadata — `"Card (300x150 at 0,60).png"` — giving spatial context without parsing the image.
 
@@ -271,20 +245,20 @@ await frame.screenshot({ contentsOnly: false })
 
 ## 6. Incremental Workflow (How to Avoid Bugs)
 
-The most common cause of bugs is trying to do too much in a single `use_figma` call. **Work in small steps and validate after each one.**
+The most common causes of waste are unnecessary fragmentation, redundant validation, and scripts that cannot be retried safely. **Use Rule 5's safe-retry and evidence-based validation contract.**
 
 ### Key rules
 
-- **At most 10 logical operations per `use_figma` call.** A "logical operation" is creating a node, setting its properties, and parenting it. If you need to create 20 nodes, split across 2-3 calls. **Slides override:** in Slides files, slides are isolated subtrees — the relevant limit is complexity per slide, not total nodes across slides. Building 3–5 new slides in one call is safe, and so is applying the same edit (e.g. adding a footer, recoloring a heading) across every slide in the deck in a single call. See [figma-use-slides](../figma-use-slides/SKILL.md) for the deck-building workflow.
+- **Choose call boundaries for recoverability, not validation cadence.** Batch related creation, property updates, parenting, and targeted diagnostics when safe. A complete page may be one call; do not split it into header/content/footer calls merely to validate each section. **Slides override:** in Slides files, slides are isolated subtrees — the relevant limit is complexity per slide, not total nodes across slides. Building 3–5 new slides in one call is safe, and so is applying the same edit (e.g. adding a footer, recoloring a heading) across every slide in the deck in a single call. See [figma-use-slides](../figma-use-slides/SKILL.md) for the deck-building workflow.
 - **Build top-down, starting with placeholders.** Create the outer structure first with `placeholder = true` on each section, then incrementally replace placeholders with real content in subsequent calls.
 
 ### The pattern
 
 1. **Inspect first.** Before creating anything, run a read-only `use_figma` to discover what already exists in the file — pages, components, variables, naming conventions. Match what's there.
 2. **Build the skeleton.** Create the top-level structure with placeholder sections. Set `placeholder = true` on each section so the user sees progress.
-3. **Fill in sections incrementally.** In each subsequent call, populate one section and set its `placeholder = false` when done. Take a `screenshot()` to verify.
-4. **Return IDs from every call.** Always `return` created node IDs, variable IDs, collection IDs as objects (e.g. `return { createdNodeIds: [...] }`). You'll need these as inputs to subsequent calls.
-5. **Validate after each step.** Use `get_metadata` to verify structure (counts, names, hierarchy, positions). Use `await node.screenshot()` inline or `get_screenshot` after major milestones to catch visual issues.
+3. **Fill in content in retry-safe batches.** Multiple related sections may be populated together when the operation remains safe to retry. Set each section's `placeholder = false` when done.
+4. **Return IDs from every call** (Rule 15) — you'll need created node/variable/collection IDs as inputs to subsequent calls.
+5. **Return validation evidence from writes.** Return IDs and the relevant counts, names, hierarchy, or bounds. Add a separate audit only for missing evidence or after a mutation invalidates earlier evidence. Follow Rule 5 for visual checks.
 6. **Fix before moving on.** If validation reveals a problem, fix it before proceeding to the next step. Don't build on a broken foundation.
 
 ### Suggested step order for complex tasks
@@ -292,12 +266,14 @@ The most common cause of bugs is trying to do too much in a single `use_figma` c
 ```
 Step 1: Inspect file — discover existing pages, components, variables, conventions
 Step 2: Create tokens/variables (if needed)
-       → validate with get_metadata
+       → return collection, variable, and mode counts
 Step 3: Create individual components
-       → validate with get_metadata + get_screenshot
+       → return component IDs and relevant child/variant counts
 Step 4: Compose layouts from component instances
-       → validate with get_screenshot
-Step 5: Final verification
+       → return layout IDs/bounds + take a composition screenshot
+Step 5: Apply a targeted visual fix only if needed
+       → take one post-fix screenshot; this is final
+Step 6: Stop if nothing relevant changed
 ```
 
 ### What to validate at each step
@@ -311,23 +287,10 @@ Step 5: Final verification
 
 ## 7. Error Recovery & Self-Correction
 
-**`use_figma` is atomic — failed scripts do not execute.** If a script errors, no changes are made to the file. The file remains in the same state as before the call. This means there are no partial nodes, no orphaned elements from the failed script, and retrying after a fix is safe.
-
-### When `use_figma` returns an error
-
-1. **STOP.** Do not immediately fix the code and retry.
-2. **Read the error message carefully.** Understand exactly what went wrong — wrong API usage, missing font, invalid property value, etc.
-3. **If the error is unclear**, call `get_metadata` or `get_screenshot` to understand the current file state.
-4. **Fix the script** based on the error message.
-5. **Retry** the corrected script.
-
-### Common self-correction patterns
+On any `use_figma` error, obey `safeToRetryWithoutCanvasRead` (Rule 14): `true` → correct the identified error and retry without adding a diagnostic canvas read; `false` → read the canvas, determine what changed, then make changes. If the same API or property error occurs twice, inspect its definition once and fix the root cause before retrying; do not continue decomposing the operation around the same invalid mutation. Errors whose fix is already a Critical Rule are diagnosed there — `"not implemented"` (`figma.notify`, Rule 3), the `layoutSizing*` HUG/FILL rejections (Rules 12, 12b), `"Setting figma.currentPage is not supported"` (Rule 9), `componentPropertyDefinitions` on a variant (Rule 18), and `characters`/`description` on the wrong node type (Rules 3a, 3b). The rows below cover failures the contract doesn't name:
 
 | Error message | Likely cause | How to fix |
 |---|---|---|
-| `"not implemented"` | Used `figma.notify()` | Remove it — use `return` for output |
-| `Error: in set_layoutSizingHorizontal: node must be an auto-layout frame or a child of an auto-layout frame` / `Error: in set_layoutSizingHorizontal: FILL can only be set on children of auto-layout frames` / `"HUG can only be set on auto-layout frames or text children of auto-layout frames"` / `"FILL cannot be set on absolute positioned auto-layout children"` / `"FILL cannot be set on canvas grid children"` | Tried to assign `HUG`/`FILL` to a node whose structural context doesn't allow it (e.g. parent isn't auto-layout, ran before `appendChild`, non-text child trying to `HUG`, absolute-positioned child trying to `FILL`) | Make the parent auto-layout via `figma.createAutoLayout()`; `appendChild` first; reserve `HUG` for the auto-layout frame itself or for TEXT children; for absolute/immutable/grid children use `FIXED` + `resize()`. See [gotchas.md](references/gotchas.md#layoutsizinghorizontallayoutsizingvertical-value-rules-fixed-hug-fill) |
-| `"Setting figma.currentPage is not supported"` | Used sync page setter (`figma.currentPage = page`) which does NOT work | Use `await figma.setCurrentPageAsync(page)` — the only way to switch pages |
 | Property value out of range | Color channel > 1 (used 0–255 instead of 0–1) | Divide by 255 |
 | `"Cannot read properties of null"` | Node doesn't exist (wrong ID, wrong page) | Check page context, verify ID |
 | Script hangs / no response | Infinite loop or unresolved promise | Check for `while(true)` or missing `await`; ensure code terminates |
@@ -335,38 +298,20 @@ Step 5: Final verification
 
 ### When the script succeeds but the result looks wrong
 
-1. Call `get_metadata` to check structural correctness (hierarchy, counts, positions).
-2. Call `get_screenshot` to check visual correctness. Look closely for cropped/clipped text (line heights cutting off content) and overlapping elements — these are common and easy to miss.
-3. Identify the discrepancy — is it structural (wrong hierarchy, missing nodes) or visual (wrong colors, broken layout, clipped content)?
-4. Write a targeted fix script that modifies only the broken parts — don't recreate everything.
+Call `get_metadata` for structural correctness (hierarchy, counts, positions) and `get_screenshot` for visual correctness — look closely for cropped/clipped text (line heights cutting off content) and overlapping elements, which are common and easy to miss. Identify whether the discrepancy is structural or visual, then write a **targeted** fix script that modifies only the broken parts — don't recreate everything.
 
 > For the full validation workflow, see [Validation & Error Recovery](references/validation-and-recovery.md).
 
 ## 8. Pre-Flight Checklist
+Before submitting ANY `use_figma` call, re-read the script against the operating contract in [Section 1](#1-critical-rules). Every gate that used to be enumerated here now lives there — a script that violates any of these is not ready to submit:
 
-Before submitting ANY `use_figma` call, verify:
-
-- [ ] Code uses `return` to send data back (NOT `figma.closePlugin()`)
-- [ ] Code is NOT wrapped in an async IIFE (auto-wrapped for you)
-- [ ] `return` value includes structured data with actionable info (IDs, counts)
-- [ ] NO usage of `figma.notify()` anywhere
-- [ ] NO usage of `console.log()` as output (use `return` instead)
-- [ ] All colors use 0–1 range (not 0–255)
-- [ ] Paint `color` objects use `{r, g, b}` only — no `a` field (opacity goes at the paint level: `{ type: 'SOLID', color: {...}, opacity: 0.5 }`)
-- [ ] Fills/strokes are reassigned as new arrays (not mutated in place)
-- [ ] Page switches use `await figma.setCurrentPageAsync(page)` (sync setter `figma.currentPage = page` does NOT work)
-- [ ] `layoutSizingVertical/Horizontal = 'FILL'` is set AFTER `parent.appendChild(child)`
-- [ ] Wrapping TEXT blocks set `textAutoResize = 'HEIGHT'` and an explicit width (`'FIXED'` + `resize()`) — NOT `FILL` alone, which the default `WIDTH_AND_HEIGHT` mode ignores, collapsing the node to a near-zero-width thread. Verify `node.width > 0`
-- [ ] Every text mutation follows the [canonical recipe](references/gotchas.md#canonical-text-edit-recipe-font-load--await--mutate--return-ids): `loadFontAsync` → `await` → mutate `characters`/font/size/etc. → return affected node IDs. Works for ANY font family/style, not just Inter (which only happens to be preloaded).
-- [ ] Style names have already been verified via `listAvailableFontsAsync()` — NOT guessed from memory (`"SemiBold"` vs `"Semi Bold"` is a common footgun)
-- [ ] For `FONT_FAMILY`-scoped variables: every value across every relevant mode is loaded before `setBoundVariable("fontFamily", …)`, `setValueForMode`, or `setExplicitVariableModeForCollection`
-- [ ] `lineHeight`/`letterSpacing` use `{unit, value}` format (not bare numbers)
-- [ ] `resize()` is called BEFORE setting sizing modes (resize resets them to FIXED)
-- [ ] For multi-step workflows: IDs from previous calls are passed as string literals (not variables)
-- [ ] New top-level nodes are positioned away from (0,0) to avoid overlapping existing content
-- [ ] Containers with structurally-related children use `figma.createAutoLayout()`, not absolute x/y (see Rule 12a)
-- [ ] ALL created/mutated node IDs are collected and included in the `return` value
-- [ ] Every async call (`loadFontAsync`, `setCurrentPageAsync`, `importComponentByKeyAsync`, etc.) is `await`ed — no fire-and-forget Promises
+- [ ] **Output** — uses `return` (not `figma.closePlugin()`), not wrapped in an async IIFE, no `console.log()` as output; `return`s structured data with ALL created/mutated node IDs (Rules 1, 2, 4, 15)
+- [ ] **Color & fills** — 0–1 range; paint `color` is `{r, g, b}` only (no `a`); fills/strokes reassigned as new arrays (Rules 6, 7)
+- [ ] **Type narrowing** — `characters`, `description`, and `componentPropertyDefinitions` guarded/narrowed before access (Rules 3a, 3b, 18)
+- [ ] **Pages** — switches use `await figma.setCurrentPageAsync(page)`, at most once per call (Rule 9)
+- [ ] **Layout & sizing** — related children in `figma.createAutoLayout()`; top-level nodes positioned away from (0,0); `HUG`/`FILL` set after `appendChild`; `resize()` before sizing modes; wrapping TEXT uses `textAutoResize='HEIGHT'` + FIXED width (Rules 12, 12a, 12b, 12c, 13)
+- [ ] **Text** — canonical font recipe with style names verified via `listAvailableFontsAsync()`; `lineHeight`/`letterSpacing` as `{unit, value}`; `FONT_FAMILY` variables load every mode's value first (Rule 8)
+- [ ] **Async & state** — every Promise `await`ed; multi-step IDs passed as string literals (Rules 15, 17)
 
 ## 9. Discover Conventions Before Creating
 

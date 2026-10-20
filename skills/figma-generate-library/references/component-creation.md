@@ -2,7 +2,7 @@
 
 # Component Creation Reference
 
-Complete guide for Phase 3: building components with variant matrices, variable bindings, component properties, and documentation.
+Guide to building components with variant matrices, variable bindings, component properties, and optional documentation. The scope selected in the main skill determines which sections apply.
 
 > **Design files only.** Every snippet here (including `figma.createPage()`) targets Figma Design files (`figma.com/design/...`). `figma.createPage()` throws in both FigJam (`figma.com/board/...`) and Slides (`figma.com/slides/...`).
 >
@@ -22,7 +22,7 @@ Tier 1 (molecules): Button, Checkbox, Toggle, Input, Select
 Tier 2 (organisms): Card, Dialog, Menu, Navigation, Form
 ```
 
-If a component embeds an instance of another component, the embedded component must be created first. Build your dependency graph during Phase 0 and encode the creation order in the plan.
+If a component embeds an instance of another component, create that dependency first. Build the relevant dependency graph during discovery and encode the creation order in the plan.
 
 ### Building Blocks Sub-Components (M3 Pattern)
 
@@ -58,7 +58,7 @@ _Label/Direction // documentation annotation helper
 
 ## 2. Creating the Component Page
 
-Each component lives on its own dedicated page (one page per component is the default). The page contains: a documentation frame at top-left and the component set positioned to its right or below.
+For a full library, each component usually lives on a dedicated page with documentation and its component set. For a scoped component task, match the file's existing organization and create a page or documentation only when the selected scope requires it.
 
 ```javascript
 // Create or find the component page
@@ -116,9 +116,9 @@ The base component is the template from which all variants are cloned. It must h
 ### Complete Button Base Component Example
 
 ```javascript
-await figma.setCurrentPageAsync(
-  figma.root.children.find(p => p.name === 'Button')
-);
+const page = await figma.getNodeByIdAsync('PAGE_ID_FROM_STATE');
+if (!page || page.type !== 'PAGE') throw new Error('Expected the selected component page');
+await figma.setCurrentPageAsync(page);
 
 // Rehydrate variables from IDs stored in state ledger
 const bgVar     = await figma.variables.getVariableByIdAsync('VAR_ID_color_bg_primary');
@@ -164,8 +164,6 @@ label.name = 'label';
 label.fontName = { family: 'Inter', style: 'Medium' };
 label.fontSize = 14;
 label.characters = 'Button';
-label.layoutSizingHorizontal = 'HUG';
-label.layoutSizingVertical = 'HUG';
 
 // Text fill — bound to color variable
 const textPaint = figma.variables.setBoundVariableForPaint(
@@ -175,6 +173,8 @@ const textPaint = figma.variables.setBoundVariableForPaint(
 );
 label.fills = [textPaint];
 comp.appendChild(label);
+label.layoutSizingHorizontal = 'HUG';
+label.layoutSizingVertical = 'HUG';
 
 // --- Icon placeholder (Rectangle for now — will be INSTANCE_SWAP) ---
 const iconBox = figma.createFrame();
@@ -233,9 +233,9 @@ Build each variant by cloning the base component and adjusting the variable bind
 ```javascript
 const BASE_COMP_ID = 'BASE_ID_FROM_STATE'; // from state ledger
 
-await figma.setCurrentPageAsync(
-  figma.root.children.find(p => p.name === 'Button')
-);
+const page = await figma.getNodeByIdAsync('PAGE_ID_FROM_STATE');
+if (!page || page.type !== 'PAGE') throw new Error('Expected the selected component page');
+await figma.setCurrentPageAsync(page);
 
 const base = await figma.getNodeByIdAsync(BASE_COMP_ID);
 
@@ -451,15 +451,15 @@ Add TEXT, BOOLEAN, and INSTANCE_SWAP properties to the ComponentSet (not to indi
 ### TEXT Properties
 
 Expose editable text in instances:
-
 ```javascript
 // On the ComponentSetNode (cs):
 const labelKey = cs.addComponentProperty('Label', 'TEXT', 'Button');
 // labelKey is now something like "Label#0:1"
-
 // Wire to the label child in each variant:
 for (const child of cs.children) {
-  const labelNode = child.findOne(n => n.name === 'label');
+  const labelNode = child.findOne(
+    n => n.name === 'label' && 'characters' in n,
+  );
   if (labelNode) {
     labelNode.componentPropertyReferences = { characters: labelKey };
   }
@@ -538,7 +538,6 @@ iconComp.findAllWithCriteria({ types: ['VECTOR'] }).forEach(vec => {
 
 return { iconCompId: iconComp.id };
 ```
-
 **Then use the returned `iconCompId` as the default value for INSTANCE_SWAP:**
 ```javascript
 const iconKey = cs.addComponentProperty('Icon', 'INSTANCE_SWAP', ICON_COMP_ID);
@@ -547,12 +546,13 @@ const iconKey = cs.addComponentProperty('Icon', 'INSTANCE_SWAP', ICON_COMP_ID);
 **Constraining swap options with `preferredValues`:**
 After adding the INSTANCE_SWAP property, you can optionally limit which components appear in the swap picker:
 ```javascript
-// Get the property definitions to find the exact key
-const props = cs.componentPropertyDefinitions;
+const propertyOwner = cs?.type === 'COMPONENT' && cs.parent?.type === 'COMPONENT_SET' ? cs.parent : cs;
+if (!propertyOwner || !['COMPONENT', 'COMPONENT_SET'].includes(propertyOwner.type)) throw new Error('Expected a component set or non-variant component');
+const props = propertyOwner.componentPropertyDefinitions;
 const iconPropKey = Object.keys(props).find(k => k.startsWith('Icon'));
 
 // Set preferred values (array of component keys or instance IDs)
-cs.editComponentProperty(iconPropKey, {
+propertyOwner.editComponentProperty(iconPropKey, {
   preferredValues: [
     { type: 'COMPONENT', key: chevronRightComp.key },
     { type: 'COMPONENT', key: chevronLeftComp.key },
@@ -617,7 +617,7 @@ Always validate after creating or modifying a component before proceeding to the
 
 ### `get_metadata` structural checks
 
-After creating the component set, call `get_metadata` on the ComponentSet node and verify:
+After creating the component set, call `get_metadata` on the `COMPONENT_SET` node ID (never an individual variant component ID) and verify:
 - `variantGroupProperties` lists the expected axes with the correct value arrays
 - `componentPropertyDefinitions` contains the expected TEXT/BOOLEAN/INSTANCE_SWAP properties
 - `children.length` equals the expected variant count (e.g., 18 for 3×2×3)
@@ -625,17 +625,17 @@ After creating the component set, call `get_metadata` on the ComponentSet node a
 
 ### `get_screenshot` — Visual Validation (Critical)
 
-`get_screenshot` returns an **image** of the specified node. Call it on the **component page node** (not the component set) to see the full page including documentation and grid labels.
+`get_screenshot` returns an **image** of the specified node. When documentation is in scope, capture the component page or documentation container. Otherwise capture the component set or its containing frame so validation does not require a new page.
 
 ```
 Tool: get_screenshot
-Args: { nodeId: "PAGE_NODE_ID", fileKey: "FILE_KEY" }
+Args: { nodeId: "COMPONENT_SET_OR_CONTAINER_ID", fileKey: "FILE_KEY" }
 ```
 
 **How to use the screenshot:**
 
-1. **Display it to the user** — this is the primary purpose. Show the screenshot as part of the user checkpoint: "Here's the Button component. Does it look right?"
-2. **Analyze it yourself** — if you have vision capabilities, check the visual checklist below. If you don't (text-only agent), fall back to structural validation only via `get_metadata` and describe what you created textually.
+1. **Display it to the user** as validation evidence for the completed component.
+2. **Analyze it yourself** — if you have vision capabilities, check the visual checklist below. If you don't (text-only agent), fall back to structural validation via `get_metadata` and describe what you created.
 
 **Visual validation checklist** (check each item when viewing the screenshot):
 
@@ -648,7 +648,7 @@ Args: { nodeId: "PAGE_NODE_ID", fileKey: "FILE_KEY" }
 | 5 | **Spacing/padding** | Interior padding visible, components aren't "shrink-wrapped" | Components look cramped or have no visible internal space |
 | 6 | **State differentiation** | Hover/Pressed variants have visible color differences from Default | All states look identical (state-specific fills not applied) |
 | 7 | **Disabled state** | Lower opacity or muted colors compared to active states | Disabled looks identical to Default |
-| 8 | **Documentation frame** | Title + description text visible above or beside the component grid | No documentation, or it overlaps the component set |
+| 8 | **Documentation frame, if included** | Title + description text visible above or beside the component grid | Included documentation is missing or overlaps the component set |
 | 9 | **Grid labels** | Row/column headers visible around the component set (if added) | Labels overlap the grid or are missing |
 | 10 | **Component set boundary** | Gray background frame wraps all variants with even padding | Frame is too small (variants clipped) or way too large |
 
@@ -661,7 +661,7 @@ Args: { nodeId: "PAGE_NODE_ID", fileKey: "FILE_KEY" }
 | No text visible | Font wasn't loaded, or text fill is same color as background | Call `listAvailableFontsAsync()` to verify the font exists, then check `loadFontAsync` was called before text writes; bind text fill to `color/text/*` variable |
 | Variants all same size | Padding/height not bound to size variables | Re-run `bindVariablesToComponent` with size-specific tokens |
 | Component set frame tiny | `resizeWithoutConstraints` wasn't called or used wrong dimensions | Re-calculate bounds from children and resize |
-| Doc frame overlaps components | Component set positioned at same x,y as doc frame | Move component set: `cs.x = docFrame.x + docFrame.width + 60` |
+| Included doc frame overlaps components | Component set positioned at same x,y as doc frame | Move component set: `cs.x = docFrame.x + docFrame.width + 60` |
 
 **When visual analysis isn't available:**
 If your model can't process images (text-only mode), validate structurally instead:
@@ -682,9 +682,9 @@ return { sampleVariants: sample, totalChildren: cs.children.length };
 This gives you positions (grid working?), dimensions (size differentiation?), and fill info (bindings working?) without needing vision.
 
 **When to take a screenshot:**
-- After EVERY completed component (mandatory — part of the user checkpoint)
-- After creating the foundations documentation page
-- After final QA (screenshot every page)
+- After each completed component or coherent component family in the selected scope
+- After creating a foundations documentation page, when included
+- During final QA for a full library
 - Do NOT screenshot after every intermediate step (wastes tool calls)
 
 ### Common issues
@@ -703,9 +703,9 @@ This gives you positions (grid working?), dimensions (size differentiation?), an
 
 ## 9. Complete Worked Example: Button Component
 
-This shows the full sequence of `use_figma` calls for a Button component, including state passing between calls. Replace variable IDs with the actual values from the state ledger.
+This shows the full-library presentation sequence, including state passing between calls. For a scoped component in an existing component area, skip Calls 1–2, use that area's page ID, and begin at Call 3. Replace variable IDs with actual values from the state ledger.
 
-### Call 1: Create the component page
+### Call 1: Create the component page (full library or requested showcase only)
 
 **Goal:** Create (or find) the Button page.
 **State input:** None
@@ -717,7 +717,7 @@ if (!page) { page = figma.createPage(); page.name = 'Button'; }
 return { pageId: page.id };
 ```
 
-### Call 2: Create documentation frame
+### Call 2: Create documentation frame (when selected scope includes it)
 
 **Goal:** Add title + description frame.
 **State input:** `{ pageId }`
@@ -760,8 +760,8 @@ const desc = figma.createText();
 desc.fontName = { family: 'Inter', style: 'Regular' };
 desc.fontSize = 14;
 desc.characters = 'Buttons allow users to take actions with a single tap. Use Primary for the highest-emphasis action on a page, Secondary for supporting actions.';
-desc.layoutSizingHorizontal = 'FILL';
 docFrame.appendChild(desc);
+desc.layoutSizingHorizontal = 'FILL';
 
 
 return { docFrameId: docFrame.id };
@@ -770,7 +770,7 @@ return { docFrameId: docFrame.id };
 ### Call 3: Create base component
 
 **Goal:** Create the base component with auto-layout and all variable bindings.
-**State input:** `{ pageId }` + variable IDs from Phase 1
+**State input:** `{ pageId }` + verified or newly created foundation variable IDs
 **State output:** `{ baseCompId }`
 
 *(See Section 3 for full code — substituting the actual variable IDs from the state ledger.)*
@@ -868,21 +868,23 @@ return { variantIds: components.map(c => c.id) };
 ```javascript
 const CS_ID = 'CS_ID_FROM_STATE';
 const DEFAULT_ICON_ID = 'ICON_COMP_ID_FROM_STATE';
-const page = figma.root.children.find(p => p.name === 'Button');
+const PAGE_ID = 'PAGE_ID_FROM_STATE';
+const page = await figma.getNodeByIdAsync(PAGE_ID);
+if (!page || page.type !== 'PAGE') throw new Error('Expected the selected component page');
 await figma.setCurrentPageAsync(page);
 
 const cs = await figma.getNodeByIdAsync(CS_ID);
 cs.description = 'Buttons allow users to take actions and make choices with a single tap.';
 cs.documentationLinks = [{ uri: 'https://your-storybook.com/button' }];
-
 // Add properties — save returned keys
 const labelKey    = cs.addComponentProperty('Label', 'TEXT', 'Button');
 const showIconKey = cs.addComponentProperty('Show Icon', 'BOOLEAN', true);
 const iconKey     = cs.addComponentProperty('Icon', 'INSTANCE_SWAP', DEFAULT_ICON_ID);
-
 // Wire to children
 for (const child of cs.children) {
-  const labelNode = child.findOne(n => n.name === 'label');
+  const labelNode = child.findOne(
+    n => n.name === 'label' && 'characters' in n,
+  );
   if (labelNode) labelNode.componentPropertyReferences = { characters: labelKey };
 
   const iconNode = child.findOne(n => n.name === 'icon');
@@ -903,7 +905,7 @@ return {
 ### Call 7: Validate with get_metadata
 
 **Goal:** Structural check — variant count, properties, axes.
-**Action:** Call `get_metadata` on the ComponentSet node ID (from state). Verify in the result:
+**Action:** Call `get_metadata` on the `COMPONENT_SET` node ID from state, not on any child variant component. Verify in the result:
 - `children.length === 18`
 - `variantGroupProperties` has `Size`, `Style`, `State` keys with correct value arrays
 - `componentPropertyDefinitions` has `Label`, `Show Icon`, `Icon` entries
@@ -911,8 +913,8 @@ return {
 ### Call 8: Validate with get_screenshot
 
 **Goal:** Visual check — layout, colors, text.
-**Action:** Call `get_screenshot` on the Button page. Inspect the screenshot. If variants are stacked, re-run Call 5. If colors look wrong, inspect variable bindings.
+**Action:** Call `get_screenshot` on the component set or containing frame; use the Button page when documentation is in scope. Inspect the screenshot. If variants are stacked, re-run Call 5. If colors look wrong, inspect variable bindings.
 
-### Checkpoint
+### Completion check
 
-After Call 8: show the screenshot to the user. Ask: "Here's the Button component with 18 variants. Does this look correct?" Do not proceed to the next component until the user approves.
+After Call 8, inspect and show the screenshot as validation evidence. Repair defects in the selected scope; when its definition of done passes, stop or continue to the next in-scope component.

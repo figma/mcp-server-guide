@@ -1,6 +1,6 @@
 ---
 name: figma-use-motion
-description: "Motion / animation context for the `use_figma` MCP tool — animating Figma nodes via manual keyframes, animation styles, easing, and timeline duration. Load alongside figma-use whenever a task involves adding, editing, or inspecting animation on a node."
+description: "Motion / animation context for the `use_figma` MCP tool — animating Figma nodes via manual keyframes, animation styles, easing, and timeline duration. Load alongside figma-use whenever a task involves adding, editing, or inspecting animation on a node. Also covers working with custom animation styles."
 disable-model-invocation: false
 ---
 
@@ -12,9 +12,13 @@ Motion context for the `use_figma` MCP tool. [figma-use](../figma-use/SKILL.md) 
 
 ## Runtime Gating
 
-Motion APIs are gated behind the `metronome` user feature flag. When the calling user doesn't have it, every motion property and helper referenced in this skill throws `"<name>" is not a supported API`.
+Motion APIs might not be enabled for the calling user. When unavailable, every motion property and helper referenced in this skill throws `"<name>" is not a supported API`.
 
 **Bail out fast on that error.** Do not retry; tell the user motion isn't enabled for them and stop. Otherwise you'll burn calls and confuse the user with repeated identical failures.
+
+Custom animation styles might not be enabled even when other motion APIs work. See [motion-custom-styles.md](references/motion-custom-styles.md) for availability checks and fallback guidance.
+
+Discover `TextStagger` through `figma.motion.figmaAnimationStyles()` before applying it. If it is absent, explain that text motion is unavailable in this session; do not bypass discovery or silently substitute whole-layer motion.
 
 ## When to use this skill
 
@@ -23,6 +27,8 @@ Load this skill whenever a `use_figma` task involves:
 - Adding, editing, or removing keyframes on a node (`manualKeyframeTracks`, `applyManualKeyframeTrack`, `removeManualKeyframeTrack`).
 - Animating fill or stroke colors over time.
 - Applying, editing, or removing animation styles (`applyAnimationStyle`, `removeAnimationStyle`, `animationStyles`).
+- Discovering, creating, editing, organizing, applying, or removing **local custom animation styles** — reusable named motion styles saved in the file (`figma.getLocalCustomAnimationStylesAsync`, `figma.createCustomAnimationStyle`).
+- Animating characters, words, lines, or paragraphs within editable text, including typewriter reveals and edits to the styles inside a text animation. Load [text-animation.md](references/text-animation.md) before writing.
 - Reading or writing timeline duration via `node.timelines` / `node.setTimelineDuration(id, seconds)`.
 - Choosing easing for any of the above.
 
@@ -37,9 +43,10 @@ Static design work (creating shapes, components, variables, layout) goes through
 - `node.timelines` — read-only timeline list for the containing top-level frame, with durations in seconds.
 - `node.setTimelineDuration(id, durationSeconds)` — write the containing top-level frame timeline duration.
 - `node.animations` — read-only resolved keyframe data (currently manual tracks only — see [motion-patterns.md](references/motion-patterns.md)).
-- `figma.motion.figmaAnimationStyles()` — read-only list of Figma's first-party animation styles.
+- `figma.motion.figmaAnimationStyles()` — read-only list of Figma's first-party animation style definitions.
+- Various APIs available for working with custom animation styles, see [motion-custom-styles.md](references/motion-custom-styles.md)
 
-Authoring custom `"figma:motion"` preset module source code is out of scope. If the user wants a brand-new animation style, say so and stop; don't fabricate one.
+Authoring custom `"figma:motion"` preset module source code is out of scope. Configuring the Position, Rotation, Scale, Opacity, and Blur styles inside a discovered `TextStagger` is supported; these are properties of one native preset, not new preset source code. If the request requires authoring a new preset module, explain that limitation; don't fabricate one.
 
 ## Reference docs
 
@@ -48,6 +55,8 @@ Load these as needed based on what the task involves:
 | Doc | When to load | What it covers |
 |-----|-------------|----------------|
 | [motion-patterns.md](references/motion-patterns.md) | Adding/editing motion animation | Manual keyframes, animated fills/strokes, applying animation styles, timeline duration |
+| [motion-custom-styles.md](references/motion-custom-styles.md) | Any work on reusable named motion styles | Discovering, creating, editing, organizing, applying, removing, and verifying local custom animation styles |
+| [text-animation.md](references/text-animation.md) | Creating/editing text reveals, typewriter effects, or staggered text | Native `TextStagger`, grouping/order, combined text styles, timing, edits/removal, preserving editable text |
 | [motion-easing.md](references/motion-easing.md) | Setting animation easing | Keyframe easing objects, custom cubic/spring, `HOLD`, applying easing inside an animation style |
 
 ## Verifying the animation
@@ -74,6 +83,7 @@ In addition to the [figma-use pre-flight checklist](../figma-use/SKILL.md#8-pre-
 - [ ] Ease-in-out uses the exact public enum `EASE_IN_AND_OUT` (or `EASE_IN_AND_OUT_BACK`); never emit the invalid alias `EASE_IN_OUT`.
 - [ ] The node being animated is not a top-level frame (direct child of a page). Animate descendants instead.
 - [ ] Timeline values are seconds in the public Plugin API. Extend via `setTimelineDuration`; never shorten unless the user asked.
+- [ ] Within-text motion uses discovered `TextStagger` on the existing text node. Preserve characters, formatting, wrapping, and unrelated animation; its `duration` is the total stagger span, not per-character time.
 - [ ] Transform keyframe fields use public names (`TRANSLATION_X`, `TRANSLATION_Y`, `ROTATION`, `SCALE_X`, `SCALE_Y`, `SCALE_XY`), not internal `MOTION_*` scenegraph names.
 - [ ] Manual keyframe fields come from the public allowlist in [motion-patterns.md](references/motion-patterns.md#animatable-fields); generated/internal scenegraph fields intentionally throw.
 - [ ] Mutated node IDs are returned (per `figma-use` Rule 15).

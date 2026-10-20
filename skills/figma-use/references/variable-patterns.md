@@ -52,9 +52,22 @@ stringVar.setValueForMode(modeId, "Inter");
 // BOOLEAN
 const boolVar = figma.variables.createVariable("my-flag", collection, "BOOLEAN");
 boolVar.setValueForMode(modeId, true);
+
+// TIMING — for motion animation durations (value in seconds)
+const timingVar = figma.variables.createVariable("motion/duration-fast", collection, "TIMING");
+timingVar.setValueForMode(modeId, 0.2);
+
+// EASING — for motion animation easing curves
+const easingVar = figma.variables.createVariable("motion/ease-out", collection, "EASING");
+easingVar.setValueForMode(modeId, {
+  type: "CUSTOM_CUBIC_BEZIER",
+  easingFunctionCubicBezier: { x1: 0, y1: 0, x2: 0.58, y2: 1 }
+});
 ```
 
 **Note:** Paint colors use `{r, g, b}` (no alpha), but COLOR variable values use `{r, g, b, a}` (with alpha). Don't mix them up.
+
+**Note:** TIMING values are durations in seconds (e.g., `0.2` for 200ms). EASING values use the same shape as keyframe easing objects — see [motion-easing.md](../../figma-use-motion/references/motion-easing.md) for the full easing object shape.
 
 ## Binding Variables to Node Properties
 
@@ -141,7 +154,7 @@ variable.scopes = [];                              // hidden from all pickers
 
 **Always set scopes explicitly** — `ALL_SCOPES` is the default but almost never what you want. For a comprehensive scope-to-use-case mapping table, see [token-creation.md § Variable Scopes — Complete Reference Table](../../figma-generate-library/references/token-creation.md).
 
-**Always check the existing file's scope patterns before creating variables** — match whatever convention is already in use. See "Discovering Existing Variables" below.
+**Always check the existing file's scope patterns before creating variables** — match whatever convention is already in use. See "Discovering Existing Variables in the File" below.
 
 ## Variable Aliasing (VARIABLE_ALIAS)
 
@@ -256,7 +269,6 @@ const varByName = {};
 for (const v of await figma.variables.getLocalVariablesAsync()) {
   varByName[v.name] = v;
 }
-
 // Bind to existing variable by name — no hex values needed
 function bindFill(node, varName) {
   const v = varByName[varName];

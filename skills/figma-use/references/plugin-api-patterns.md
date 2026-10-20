@@ -263,15 +263,16 @@ frame.counterAxisAlignItems = "MAX";     // End
 ### Child Sizing
 
 ```javascript
-// IMPORTANT: FILL can only be set AFTER the child is appended to an auto-layout parent
+// FILL requires an auto-layout parent and must be set after appendChild.
+const parent = figma.createAutoLayout("VERTICAL");
 parent.appendChild(child)
 child.layoutSizingHorizontal = "FILL";   // Stretch to parent
-child.layoutSizingHorizontal = "HUG";    // Shrink to content
-child.layoutSizingHorizontal = "FIXED";  // Manual width
-
-child.layoutSizingVertical = "FILL";
-child.layoutSizingVertical = "HUG";
 child.layoutSizingVertical = "FIXED";
+
+// HUG is valid for nodes with intrinsic content, such as text and auto-layout frames.
+// Append the node to its auto-layout parent before assigning HUG.
+parent.appendChild(textChild);
+textChild.layoutSizingHorizontal = "HUG";
 ```
 
 ### Wrapping (Grid-like Layout)
@@ -286,6 +287,9 @@ frame.counterAxisSpacing = 24;   // Vertical gap (between rows)
 ### Absolute Positioning Within Auto Layout
 
 ```javascript
+// ABSOLUTE also requires the child to be attached to an auto-layout parent first.
+const parent = figma.createAutoLayout("HORIZONTAL");
+parent.appendChild(child);
 child.layoutPositioning = "ABSOLUTE";
 child.constraints = { horizontal: "MAX", vertical: "MIN" };  // Top-right
 child.x = parentWidth - childWidth - 8;
@@ -466,15 +470,15 @@ componentSet.resizeWithoutConstraints(maxX + 40, maxY + 40);
 ```
 
 ### Component Properties
-
 ```javascript
 // addComponentProperty returns a STRING key — capture it!
 const labelKey = component.addComponentProperty("label", "TEXT", "Button");
 const showIconKey = component.addComponentProperty("showIcon", "BOOLEAN", true);
 const iconSlotKey = component.addComponentProperty("iconSlot", "INSTANCE_SWAP", defaultIconId);
-
-// MUST link properties to child nodes via componentPropertyReferences
-labelNode.componentPropertyReferences = { characters: labelKey };
+// MUST narrow each child to the type supported by the referenced property
+if ("characters" in labelNode) {
+  labelNode.componentPropertyReferences = { characters: labelKey };
+}
 iconInstance.componentPropertyReferences = {
   visible: showIconKey,
   mainComponent: iconSlotKey

@@ -2,7 +2,7 @@
 
 Use this reference when a `use_figma` task adds, edits, removes, or inspects Motion animation on Figma design nodes.
 
-This is for Plugin API code executed through the MCP `use_figma` tool. Follow the main `figma-use` rules: use top-level `await`, use `return` for output, do not call `figma.closePlugin()`, do not use `figma.notify()`, and return every mutated node ID. Runtime gating (`metronome`) and the exposed-API surface are summarised in [figma-use-motion/SKILL.md](../SKILL.md) — bail closed on `"not a supported API"`.
+This is for Plugin API code executed through the MCP `use_figma` tool. Follow the main `figma-use` rules: use top-level `await`, use `return` for output, do not call `figma.closePlugin()`, do not use `figma.notify()`, and return every mutated node ID. API availability and the exposed-API surface are summarised in [figma-use-motion/SKILL.md](../SKILL.md) — bail closed on `"not a supported API"`.
 
 **`node.animations` reflects manual-keyframe tracks only at present.** Applying an animation style writes its metadata to `node.animationStyles` but the style-generated tracks are not materialized into `node.animations` yet. Validate style writes by reading back `node.animationStyles`, not `node.animations`.
 
@@ -11,7 +11,8 @@ This is for Plugin API code executed through the MCP `use_figma` tool. Follow th
 1. Inspect the target nodes first. Check selection, parentage, existing `manualKeyframeTracks`, existing `animationStyles`, and `timelines`.
 2. Pick the animation type:
    - If the user explicitly asks for keyframes or an animation style, use the requested type.
-   - Default to manual keyframes for new motion. They are the most direct way to express node-specific timing, choreography, fills/strokes/effects, and custom keyframe values.
+   - For motion within text (characters, words, lines, paragraphs, or typewriter reveals), use the discovered native `TextStagger` preset. Load [text-animation.md](text-animation.md); keep the text editable instead of splitting it into nodes.
+   - Otherwise, default to manual keyframes for new motion. They are the most direct way to express node-specific timing, choreography, fills/strokes/effects, and custom keyframe values.
    - Use animation styles when the requested motion matches an existing reusable style, when the design system has motion variables/tokens you should bind to, or when matching existing style usage on neighbouring nodes.
 3. Preserve static design data. Do not create, delete, detach, or restructure nodes unless the user asked for it.
 4. Write the smallest useful motion change. Spread existing tracks or styles unless intentionally replacing them.
@@ -364,6 +365,8 @@ return {
 
 Effect animation is stored in `manualKeyframeTracks.effects`, keyed first by the zero-based effect index in `node.effects`, then by effect field name.
 
+For blur within a native text animation, use `TextStagger`'s `blurEnabled`, `blurVisible`, and `blurAmount` instead; no static layer-blur effect is needed. See [text-animation.md](text-animation.md).
+
 - Always ensure the target effect index exists before writing an effect track.
 - Allowed effect fields are `OFFSET_X`, `OFFSET_Y`, `RADIUS`, `SPREAD`, `COLOR`, `REFRACTION_RADIUS`, `SPECULAR_ANGLE`, `SPECULAR_INTENSITY`, `CHROMATIC_ABERRATION`, `SPLAY`, `REFRACTION_INTENSITY`, `START_RADIUS`, `NOISE_SIZE_X`, `NOISE_SIZE_Y`, `DENSITY`, `EFFECT_OPACITY`, and `SECONDARY_COLOR`.
 - Do not use generated effect fields that are not public Plugin API fields. `START_OFFSET_X`, `START_OFFSET_Y`, `END_OFFSET_X`, and `END_OFFSET_Y` intentionally throw.
@@ -394,6 +397,8 @@ return {
 
 Animation styles are reusable animations applied through `node.animationStyles`. A node can have multiple styles.
 
+This section covers Figma's **first-party** style definitions. For reusable styles authored in the file itself — creating, editing, organizing, or applying a local `CustomAnimationStyle` — load [motion-custom-styles.md](motion-custom-styles.md) as well.
+
 Style entries have:
 
 - `styleId`: style definition ID, from `figma.motion.figmaAnimationStyles()`.
@@ -402,7 +407,7 @@ Style entries have:
 - `timelineOffset`: top-level start time in seconds.
 - `props`: style-specific properties such as `timing`, `moveX`, `fade`, or `easing`. The available props vary per style — inspect the discovered definition's `props` before writing.
 
-`duration` and `timelineOffset` are top-level fields, not `props`.
+`timelineOffset` is a top-level field. Direct preset application accepts top-level `duration`, but a value or variable binding in `props.duration` takes precedence. Preserve existing bindings when editing. For `TextStagger`, duration covers the whole stagger; see [text-animation.md](text-animation.md).
 
 ### Discover Styles
 
@@ -424,7 +429,7 @@ The `props` field returns **documentation strings**, not setter shapes. For exam
 ```js
 const node = await figma.getNodeByIdAsync("123:456");
 const styles = figma.motion.figmaAnimationStyles();
-const fadeDef = styles.find((style) => style.name === "Fade");
+const fadeDef = styles.find((style) => style.styleId === "Opacity");
 const mutatedNodeIds = [node.id];
 
 if (!fadeDef) {
@@ -464,7 +469,7 @@ Prefer `applyAnimationStyle` when adding a style. It returns the applied style i
 ```js
 const node = await figma.getNodeByIdAsync("123:456");
 const styles = figma.motion.figmaAnimationStyles();
-const fadeDef = styles.find((style) => style.name === "Fade");
+const fadeDef = styles.find((style) => style.styleId === "Opacity");
 const mutatedNodeIds = [node.id];
 
 if (!fadeDef) {

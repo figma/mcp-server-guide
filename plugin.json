@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "figma",
   "description": "Plugin that includes the Figma MCP server and Skills for common workflows.",
-  "version": "2.2.87",
+  "version": "2.2.163",
   "author": {
     "name": "Figma",
     "url": "https://www.figma.com"

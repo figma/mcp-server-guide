@@ -71,7 +71,7 @@ return { createdNodeIds: [rect.id] };
 
 ## Adding images to a slide
 
-**`upload_assets` is the ONLY supported way to put an image on a slide.** Do NOT use `figma.createImage()` or `figma.createImageAsync()` from inside `use_figma` — they are unsupported as image-upload entry points in Slides. Call `upload_assets` with the Slides `fileKey`; the tool returns single-use upload URLs that you POST raw image bytes to, and the image is committed and placed automatically. Pass `nodeId` (with `count: 1`) to attach the upload to an existing slide node as a fill (e.g. a rectangle already on the slide); omit `nodeId` to drop the image onto the slide as a new layer.
+**`upload_assets` is the ONLY supported way to put images on slides.** Call `upload_assets` with the Slides `fileKey`; the tool returns single-use upload URLs that you POST raw image bytes to, and each image is committed and placed automatically. Pass `nodeIds` (with one entry per upload) to attach uploads to existing slide nodes as fills (e.g. rectangles already on the slide); omit `nodeIds` to drop the images onto slides as new layers.
 
 For the full request/response shape, see [figma-use → api-reference.md → Images](../../figma-use/references/api-reference.md#images).
 
@@ -90,13 +90,15 @@ const container = figma.createAutoLayout("VERTICAL", {
 });
 
 slide.appendChild(container);
-container.layoutSizingHorizontal = "FILL";
+container.resize(slide.width - 80, container.height);
 container.layoutSizingVertical = "HUG";
+container.x = 40;
+container.y = 40;
 
 return { createdNodeIds: [container.id] };
 ```
 
-Remember: `layoutSizingHorizontal/Vertical = 'FILL'` must be set **after** `appendChild`.
+Slides are not auto-layout parents, so direct slide children cannot use `FILL`. Give the container an explicit width instead. For nested children, set `FILL` only after appending them to an auto-layout container.
 
 ## Working with components
 

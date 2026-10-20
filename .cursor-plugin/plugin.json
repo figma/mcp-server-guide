@@ -1,7 +1,7 @@
 {
   "name": "figma",
   "displayName": "Figma",
-  "version": "2.2.87",
+  "version": "2.2.163",
   "description": "Plugin that includes the Figma MCP server and Skills for common workflows",
   "author": {
     "name": "Figma"
@@ -16,6 +16,6 @@
     "ui",
     "code-connect"
   ],
-  "skills": "./skills/",
+  "skills": "./skills-figquery/",
   "mcpServers": "./.mcp.json"
 }

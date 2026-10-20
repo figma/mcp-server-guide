@@ -89,8 +89,8 @@ async function createDocumentationPage(pageName, config) {
   titleNode.characters = config.title
   titleNode.fontSize = 40
   titleNode.fills = [{ type: 'SOLID', color: { r: 0.07, g: 0.07, b: 0.07 } }]
-  titleNode.layoutSizingHorizontal = 'FILL'
   header.appendChild(titleNode)
+  titleNode.layoutSizingHorizontal = 'FILL'
 
   if (config.description) {
     const descNode = figma.createText()
@@ -99,8 +99,8 @@ async function createDocumentationPage(pageName, config) {
     descNode.fontSize = 16
     descNode.lineHeight = { value: 24, unit: 'PIXELS' }
     descNode.fills = [{ type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } }]
-    descNode.layoutSizingHorizontal = 'FILL'
     header.appendChild(descNode)
+    descNode.layoutSizingHorizontal = 'FILL'
   }
 
   // Sections
@@ -118,8 +118,8 @@ async function createDocumentationPage(pageName, config) {
     sectionHeading.characters = section.name
     sectionHeading.fontSize = 24
     sectionHeading.fills = [{ type: 'SOLID', color: { r: 0.07, g: 0.07, b: 0.07 } }]
-    sectionHeading.layoutSizingHorizontal = 'FILL'
     sectionFrame.appendChild(sectionHeading)
+    sectionHeading.layoutSizingHorizontal = 'FILL'
 
     // Invoke the caller's content function to populate the section
     await section.contentFn(sectionFrame)

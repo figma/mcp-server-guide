@@ -9,8 +9,8 @@
  * @param {Record<string, string>} modeIds - Map of {modeName: modeId} from createVariableCollection.
  * @param {Array<{
  *   name: string,
- *   type: 'COLOR' | 'FLOAT' | 'STRING' | 'BOOLEAN',
- *   values: Record<string, string | number | boolean | {type: 'VARIABLE_ALIAS', id: string}>,
+ *   type: 'COLOR' | 'FLOAT' | 'STRING' | 'BOOLEAN' | 'TIMING' | 'EASING',
+ *   values: Record<string, string | number | boolean | MotionEasing | {type: 'VARIABLE_ALIAS', id: string}>,
  *   scopes?: VariableScope[],
  *   codeSyntax?: {WEB?: string, ANDROID?: string, iOS?: string}
  * }>} tokenMap - Ordered list of token definitions.

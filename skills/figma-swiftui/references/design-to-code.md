@@ -228,7 +228,7 @@ Pick the `relativeTo:` style that best matches the role of the text (body copy �
 
 ## 9. Asset download
 
-The `imgFoo = "https://…/api/mcp/asset/<uuid>"` URLs in the response accept GET fetches — use them directly to grab image bytes. If an image fill doesn't surface as an `img*` URL (typically flattened instance subnode children), fall back to `get_screenshot` on the parent canvas node for a static visual.
+The `imgFoo = "https://…/api/mcp/asset/<uuid>"` URLs in the response expire. Download each asset with `curl -L`, add it to the project's asset catalog, and reference it by asset name. Never reference the temporary URLs in app code. If an image fill doesn't surface as an `img*` URL (typically flattened instance subnode children), fall back to `get_screenshot` on the parent canvas node for a static visual.
 
 When no bytes are available for an asset, **stop and tell the user** before substituting. Reasonable fallbacks: SF Symbol placeholders (`person.crop.circle.fill`), colored circles with initials, or `Color(.systemGray5)` placeholder rects. Do not silently substitute a random photo.
 

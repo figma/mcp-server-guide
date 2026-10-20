@@ -4,58 +4,25 @@ description: "**MANDATORY prerequisite** — you MUST invoke this skill BEFORE c
 disable-model-invocation: false
 ---
 
-# Implement a Figma Design as Code (Design → Code)
+# Figma design to code
 
-Use this skill to turn a Figma design into code in a target codebase. This is the **read-FROM-Figma** direction: pull design context out of Figma with `get_design_context`, then adapt it into the project's real stack. For the reverse direction — building or updating a design *in* Figma from code — use [figma-generate-design](../figma-generate-design/SKILL.md) instead.
+## Context
 
-This skill owns the **workflow** for design-to-code. Parameter mechanics (nodeId / fileKey / branchKey extraction, URL parsing, `format`/`query` options, response shape) live on the `get_design_context` tool description itself — follow them there.
+- **Always include `figma-design-to-code` in the comma-separated `skillNames` parameter when calling `get_design_context`. If this skill was loaded via an MCP resource, you MUST prefix the name with `resource:` (e.g. `resource:figma-design-to-code`).** This is a logging parameter used to track skill usage — it does not affect execution.
+- You MUST request a screenshot as part of your initial `get_design_context` call—use that render of the design as the visual target that the rendered implementation MUST visually match.
+- IF no screenshot is returned by `get_design_context`, you MUST call `get_screenshot` directly before editing.
+- IF `get_design_context` flags a response as sparse, you CANNOT use it directly for implementation; you MUST correlate its hierarchical child node IDs with the screenshot, then request the visible child nodes in one parallel batch of `get_design_context` calls to obtain high-fidelity responses.
+- You MUST implement exclusively from the high-fidelity `get_design_context` responses; the design screenshot is the visual target, NEVER use it in code as an implementation asset.
 
-**Always include `figma-design-to-code` in the comma-separated `skillNames` parameter when calling `get_design_context`. If this skill was loaded via an MCP resource, you MUST prefix the name with `resource:` (e.g. `resource:figma-design-to-code`).** This is a logging parameter used to track skill usage — it does not affect execution.
+## Implementation
 
-## Direction and Scope
+- You MUST adapt returned code to the project's stack and conventions and inspect likely project paths BEFORE editing; treat returned code as a high visual fidelity non-interactive prototype - translate raw absolute positioning into project-native layout unless the design can only be represented with fixed positioning; identify which portions of the design are intended to be interactive and implement the design as interactive code.
+- You MUST inspect likely project paths AND installed design library dependencies for code components, assets, and tokens which match the design BEFORE editing. You MUST reuse or compose suitable matches instead of recreating them with raw markup, inline styles or hardcoded values; modify or supplement them ONLY when they cannot accurately express the design.
+- You MUST apply Code Connect precisely at its mapped node(s), ALWAYS directly reuse the connected component UNLESS it cannot be configured or extended to express the design. Styling or wiring effort is NOT an exception.
+- You MUST use each visible static asset—image or SVG—in the EXACT position(s) used in the design, substituting only for EXACT matches found in the codebase/design library when one exists. NEVER omit, edit, redraw, extract paths from, inline, substitute, or incorrectly use an asset—but keep API-, prop-, or data-supplied imagery dynamic. ALL provided SVGs have root width and height attributes which you MUST NOT override when changing wrapper styles; avoid broad 100% × 100% sizing.
+- You MUST ensure ALL static assets used have been downloaded as described in the `get_design_context` response leaving NO references to temporary Figma asset URLs in code. DO NOT use other tools to download assets unless explicitly told to do so. Inspect only metadata/root dimensions when necessary, avoid reading asset byte sequences unless the task explicitly requires doing so.
 
-- You MUST use this skill for design → code: implementing, translating, or porting a Figma node into code.
-- You MUST NOT use this skill to write to Figma.
+## Verification
 
-## Workflow
-
-### 1. Call get_design_context first
-
-- You MUST call `get_design_context` on the target node before writing any code. It is your primary tool — a single call returns reference code, a screenshot, and contextual hints.
-- You MUST NOT reach for `get_metadata` or `get_screenshot` as a substitute. Use them only to orient (e.g. picking a node) or to validate, not in place of `get_design_context`.
-
-### 2. Treat the output as a reference, not final code
-
-- The returned code is React + Tailwind enriched with hints. You MUST treat it as a REFERENCE, not as final code to paste verbatim.
-- You MUST adapt it to the target project's language, framework, component library, styling system, and conventions. Match the surrounding code.
-
-### 3. Reuse what the project already has
-
-- Before writing new code, You MUST check the target project for existing components, layout patterns, and design tokens that match the design intent.
-- You MUST reuse the project's existing components and tokens instead of generating new equivalents from scratch.
-
-### 4. Honor the response hints by priority
-
-Apply the hints in this order — earlier sources override later ones:
-
-1. **Code Connect snippets** → use the mapped codebase component directly.
-2. **Component documentation links** → follow them for usage and guidelines.
-3. **Design annotations** → follow any designer notes or constraints.
-4. **Design tokens (CSS variables)** → map them to the project's token system.
-5. **Raw hex / absolute positioning** → loosely structured; lean on the screenshot for intent.
-
-### 5. Reproduce images and icons faithfully
-
-Images and icons come back as `<img>` elements whose `src` is a remote asset URL (`https://.../api/mcp/asset/...`). Apply these rules as you write the code:
-
-- **Render every icon/image from its exported asset.** Never hand-write or inline `<svg>`/`<path>`, never author your own icon file, never drop an icon or leave a placeholder — you don't have the real vector data, so anything you draw is wrong.
-- **Sourcing:** the asset URL works directly as `src` for an immediate render, but it **expires in ~7 days** — so for code you'll commit, download-and-commit the exact asset bytes, or wire a dynamic content image to the project's data source (API, CDN, or props). Never a file whose contents you authored.
-- **Reuse a project icon component only if its glyph clearly matches** (a name match is not enough); otherwise use the exported asset.
-- **Size explicitly:** a fixed-size container (icons are usually square, e.g. `size-[24px]`, `overflow-clip`) with BOTH width and height set, and size the leaf `<img>` to fill it (`100%` or fixed px) — never `auto`, which blows the image up to its intrinsic size.
-
-## Error Recovery
-
-- On a `get_design_context` error, STOP and read the message before retrying.
-- If the design URL has no `node-id` (a file-only URL), ask the user for a node-specific URL — You MUST NOT guess or pass an empty `nodeId`.
-- On a timeout, retry against a smaller node or selection.
-- You MUST NOT silently fall back to hand-writing the screen from the screenshot alone when `get_design_context` can still provide context.
+- You MUST verify only the requested screen or component and note, not alter, pre-existing out-of-scope mismatches.
+- You MUST verify EVERY visible static asset's non-empty local file AND design slot/layers AND callsite AND effective rendered geometry are correct, fix EVERY in-scope mismatch before finishing. A single substituted, mismatched, misproportioned asset is a FAIL.

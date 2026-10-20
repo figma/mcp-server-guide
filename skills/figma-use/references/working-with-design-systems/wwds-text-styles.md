@@ -64,6 +64,12 @@ ts.setBoundVariable("fontSize", fontSizeVariable); // preferred if the variable 
 
 Once you have a `TextStyle`, apply it to a `TextNode` by assigning its `id` to the node's `textStyleId` property. You can also use the async setter `setTextStyleIdAsync(id)`. Setting `textStyleId` on a node does **not** require the font to be loaded — only editing the text content or font properties directly does.
 
+### Looking up a library text style by key
+
+When a text style is found via a `search_design_system` `queries` entry with `entity: "style"`, use the returned `key` to reference and apply that library style. Prefer reusing an existing library style over recreating its typography.
+
+For lookup and application examples, see [text-style-patterns.md](../text-style-patterns.md).
+
 ## Common gotchas
 
 - **Font must be loaded before setting `fontName`**: Call `await figma.loadFontAsync({ family, style })` before creating or modifying a text style's font.
