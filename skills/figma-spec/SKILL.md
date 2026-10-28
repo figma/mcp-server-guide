@@ -6,7 +6,7 @@ disable-model-invocation: false
 
 # Work with a Figma spec
 
-You MUST always call `whoami` before using any `figma.spec.*` API and confirm that the target file’s plan (or the destination plan for a new file) has `specs_enabled: true`. `whoami` does not identify which plan owns a file. If the plan is unclear, you MUST ask the user; never infer it from the file key or another plan’s access. If `specs_enabled` is false or absent for that plan, explain that Specs is unavailable and stop the workflow.
+Check that `figma.spec` is defined in your first `use_figma` script; it exists only when the file’s plan has Specs enabled. If it is undefined, or `use_figma` reports that it is not supported for Figspec files, explain that Specs is not enabled for this file’s plan and stop the workflow. To create a new standalone Figma spec file, call `whoami`, choose a destination plan with `specs_enabled: true`, and call `create_new_file` with `editorType: "figspec"` and that plan's `key` as `planKey`; if no plan has it, explain that Specs is unavailable and stop.
 
 A native Figma spec is GitHub-Flavored Markdown (GFM) under a `SPEC_BLOCK` node. A standalone Figma spec is just one spec; a FigJam or Design file can contain several embedded specs.
 

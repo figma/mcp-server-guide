@@ -455,7 +455,7 @@ For detailed API patterns and gotchas, load these from the [figma-use](../figma-
 
 ## Error Recovery
 
-Follow [figma-use error recovery](../figma-use/SKILL.md#7-error-recovery--self-correction):
+Follow [figma-use error recovery](../figma-use/references/validation-and-recovery.md#error-recovery-after-failed-use_figma):
 
 - If `safeToRetryWithoutCanvasRead` is `true`, fix the error and retry.
 - If `false`, read the canvas, determine what changed, then make changes.
