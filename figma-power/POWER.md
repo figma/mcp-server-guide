@@ -34,6 +34,7 @@ The Figma MCP server provides these tools:
 | Tool | Description |
 |------|-------------|
 | `get_design_context` | Fetches structured design data (layout, typography, colors, spacing, component structure) for a layer or selection |
+| `get_comments` | Reads comment threads and feedback from a file (remote server only; requires Can view access or higher) |
 | `get_metadata` | Returns a sparse XML representation with basic layer properties like IDs, names, and dimensions |
 | `get_screenshot` | Captures a visual screenshot of a Figma selection to preserve layout fidelity |
 | `get_variable_defs` | Retrieves variables and styles (colors, spacing, typography) from selections |
@@ -58,7 +59,8 @@ Load the appropriate workflow based on the user's intent:
 ## Prerequisites
 
 - Figma MCP server must be connected and accessible
-- User must provide a Figma URL in the format: `https://figma.com/design/:fileKey/:fileName?node-id=1-2`
+- For a design selection, provide a Figma URL in the format: `https://figma.com/design/:fileKey/:fileName?node-id=1-2`
+- For comments, provide a supported file link or a layer link
 - Project should have an established design system or component library (preferred but not required)
 
 ## Quick Usage Examples

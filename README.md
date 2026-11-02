@@ -27,6 +27,10 @@ For the complete set of Figma MCP server docs, see our [developer documentation]
 
   Pull in variables, components, and layout data directly into your IDE. This is especially useful for design systems and component-based workflows.
 
+- **Read comment feedback** (remote server only)
+
+  Use `get_comments` to read comments and replies from Figma Design, FigJam, Figma Slides, and Figma Make files. Agents can summarize feedback or use it when implementing changes. Requires **Can view** access or higher to the file.
+
 - **Code smarter with Code Connect**
 
   Boost output quality by reusing your actual components. Code Connect keeps your generated code consistent with your codebase.
@@ -202,6 +206,22 @@ To provide Figma design context to your AI client:
 
 Figma maintains a list of tools provided by the Figma MCP server in the [developer documentation](https://developers.figma.com/docs/figma-mcp-server/tools-and-prompts/). 
 
+### Read comments
+
+`get_comments` returns comment threads, reactions, image attachment URLs, and read/unread status for the signed-in user. It can filter comments by author, mentions, unread or resolved status, page, or thread, and load results incrementally with cursor-based pagination. Reading comments doesn't mark them as read or change them.
+
+In Figma Design, FigJam, and Figma Slides, comments also include canvas locations where available. Share a layer link to retrieve unresolved threads overlapping that layer, including replies. Layer filtering can't be combined with other filters or pagination.
+
+**Example prompts:**
+
+- "Summarize the unread comments in this Figma file: [file link]."
+- "Review the unresolved feedback on this layer and use it when implementing the design: [layer link]."
+- "Find the comment threads where I'm mentioned in this Figma Slides file: [file link]."
+
+[Learn more about `get_comments`](https://developers.figma.com/docs/figma-mcp-server/tools-and-prompts/#get_comments).
+
+### Skills
+
 You can also learn more about the skills included with the Figma plugin for [supported agents](https://help.figma.com/hc/en-us/articles/32132100833559#h_01K25F7RBRZKCATVJHNXCS6KXW) in the [Figma Help Center](https://help.figma.com/hc/en-us/articles/39166810751895). Depending on the agent, you may also see the terms `connector`, `extension`, or `power`; these include the same set of skills.
 
 This repo also contains standalone workflow skills that are not bundled with the Figma plugin:
@@ -253,6 +273,7 @@ The MCP supports different tools, and each one provides your AI assistant with a
 
 - **get_design_context** provides a structured **React + Tailwind** representation of your Figma selection. This is a starting point that your AI assistant can translate into any framework or code style, depending on your prompt.
 - **get_variable_defs** extracts the variables and styles used in your selection (color, spacing, typography, etc). This helps the model reference your tokens directly in the generated code.
+- **get_comments** reads comment threads so your agent can summarize feedback or use it when implementing changes.
 
 For example, if you're getting raw code instead of tokens, try something like:
 
