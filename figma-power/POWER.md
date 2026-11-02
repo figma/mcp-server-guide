@@ -59,8 +59,7 @@ Load the appropriate workflow based on the user's intent:
 ## Prerequisites
 
 - Figma MCP server must be connected and accessible
-- For a design selection, provide a Figma URL in the format: `https://figma.com/design/:fileKey/:fileName?node-id=1-2`
-- For comments, provide a supported file link or a layer link
+- User must provide a Figma URL in the format: `https://figma.com/design/:fileKey/:fileName?node-id=1-2`
 - Project should have an established design system or component library (preferred but not required)
 
 ## Quick Usage Examples
