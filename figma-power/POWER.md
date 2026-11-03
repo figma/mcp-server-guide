@@ -33,18 +33,24 @@ The Figma MCP server provides these tools:
 
 | Tool | Description |
 |------|-------------|
+| `create_new_file` | Creates a new blank Figma Design or FigJam file in the authenticated user's drafts |
 | `get_design_context` | Fetches structured design data (layout, typography, colors, spacing, component structure) for a layer or selection |
 | `get_metadata` | Returns a sparse XML representation with basic layer properties like IDs, names, and dimensions |
 | `get_screenshot` | Captures a visual screenshot of a Figma selection to preserve layout fidelity |
 | `get_variable_defs` | Retrieves variables and styles (colors, spacing, typography) from selections |
 | `get_code_connect_suggestions` | Detects and suggests Code Connect mappings between Figma and code components |
+| `get_context_for_code_connect` | Retrieves component context for generating Code Connect templates |
 | `send_code_connect_mappings` | Confirms Code Connect mappings after suggestions are generated |
 | `get_code_connect_map` | Maps Figma node IDs to corresponding code components in your codebase |
 | `add_code_connect_map` | Establishes new mappings between Figma elements and code implementations |
 | `create_design_system_rules` | Generates rule files that guide agents in translating designs to frontend code |
+| `get_libraries` | Returns libraries added to the file and libraries available to add |
+| `search_design_system` | Searches design libraries for components, variables, and styles |
 | `generate_figma_design` | Converts UI descriptions into design layers in Figma files |
 | `get_figjam` | Converts FigJam diagrams to XML format including metadata and node screenshots |
 | `generate_diagram` | Creates FigJam diagrams from Mermaid syntax (flowcharts, Gantt charts, etc.) |
+| `upload_assets` | Uploads supported image assets to a Figma file |
+| `use_figma` | Creates, edits, or inspects objects in a Figma file using the Figma Plugin API |
 | `whoami` | Returns authenticated user identity and plan information |
 
 ## Steering
