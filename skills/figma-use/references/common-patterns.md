@@ -8,10 +8,12 @@
 - Create a Styled Shape
 - Create a Text Node
 - Create Frame with Auto-Layout
-- Create Variable Collections and Bindings
-- Create Components and Import by Key
-- Component Sets with Variable Modes
-- Multi-Step Large ComponentSet Pattern
+- Create Variable Collection with Multiple Modes
+- Bind Color Variable to a Fill
+- Create Component Variants with Component Properties
+- Use a Component by Key (Team Libraries)
+- Component Set with Variable Modes (Full Pattern)
+- Large ComponentSet with Variable Modes (Multi-Step Pattern)
 - Read Existing Nodes and Return Data
 
 
@@ -43,7 +45,7 @@ return {
 }
 ```
 
-## Create a Styled Shape using `$fig`
+## Create a Styled Shape
 
 ```js
 $fig.rectangle({
@@ -53,29 +55,6 @@ $fig.rectangle({
   fills: [{ type: 'SOLID', color: { r: 0.047, g: 0.549, b: 0.914 } }],
   cornerRadius: 8,
 })
-```
-
-## Create a Styled Shape using the raw plugin API
-
-Prefer using `$fig` over the raw plugin API for node creation and mutation. This code sample is for reference only if `$fig` cannot be used.
-
-```js
-// Find clear space to the right of existing content
-const page = figma.currentPage
-let maxX = 0
-for (const child of page.children) {
-  maxX = Math.max(maxX, child.x + child.width)
-}
-
-const rect = figma.createRectangle()
-rect.name = "Blue Box"
-rect.resize(200, 100)
-rect.fills = [{ type: 'SOLID', color: { r: 0.047, g: 0.549, b: 0.914 } }]
-rect.cornerRadius = 8
-rect.x = maxX + 100  // offset from existing content
-rect.y = 0
-figma.currentPage.appendChild(rect)
-return { nodeId: rect.id }
 ```
 
 ## Create a Text Node
@@ -110,40 +89,33 @@ $fig.autoLayout({
 ## Create Variable Collection with Multiple Modes
 
 ```js
-const collection = figma.variables.createVariableCollection("Theme/Colors")
-// Rename the default mode
-collection.renameMode(collection.modes[0].modeId, "Light")
-const darkModeId = collection.addMode("Dark")
-const lightModeId = collection.modes[0].modeId
+const collection = $fig.varCollection({ name: 'Theme/Colors', modes: ['Light', 'Dark'] })
+const bgVar = collection.colorVar({
+  name: 'bg',
+  values: { Light: '#FFFFFF', Dark: '#1A1A1A' },
+})
+const textVar = collection.colorVar({
+  name: 'text', values: { Light: '#000000', Dark: '#FFFFFF' },
+})
+await $fig.done()
 
-const bgVar = figma.variables.createVariable("bg", collection, "COLOR")
-bgVar.setValueForMode(lightModeId, { r: 1, g: 1, b: 1, a: 1 })
-bgVar.setValueForMode(darkModeId, { r: 0.1, g: 0.1, b: 0.1, a: 1 })
-
-const textVar = figma.variables.createVariable("text", collection, "COLOR")
-textVar.setValueForMode(lightModeId, { r: 0, g: 0, b: 0, a: 1 })
-textVar.setValueForMode(darkModeId, { r: 1, g: 1, b: 1, a: 1 })
-
+// Real collection, mode, and variable IDs are available after materialization.
+const modes = Object.fromEntries(collection.variableCollection.modes.map(m => [m.name, m.modeId]))
 return {
   collectionId: collection.id,
-  lightModeId,
-  darkModeId,
+  lightModeId: modes.Light,
+  darkModeId: modes.Dark,
   bgVarId: bgVar.id,
-  textVarId: textVar.id
+  textVarId: textVar.id,
 }
 ```
 
 ## Bind Color Variable to a Fill
 
 ```js
-const variable = await figma.variables.getVariableByIdAsync("VariableID:1:2")
-const rect = figma.createRectangle()
-const basePaint = { type: 'SOLID', color: { r: 0, g: 0, b: 0 } }
-
-// setBoundVariableForPaint returns a NEW paint — capture it!
-const boundPaint = figma.variables.setBoundVariableForPaint(basePaint, "color", variable)
-rect.fills = [boundPaint]
-
+const variable = $fig.getVar('VariableID:1:2')
+const rect = $fig.rectangle({ fills: [{ type: 'SOLID', color: variable }] })
+await $fig.done()
 return { nodeId: rect.id }
 ```
 
@@ -241,179 +213,148 @@ The library must be reachable from the current file — a key from an inaccessib
 
 ## Component Set with Variable Modes (Full Pattern)
 
+Create collections, variables, and components in the plan. FigQuery loads the requested fonts and binds variable handles in paints. After materialization, use the raw node API to select explicit modes and lay out the variants; FigQuery has no builder method for explicit variable modes.
+
 ```js
-await figma.loadFontAsync({ family: "Inter", style: "Medium" })
-
 // 1. Create color collection with modes per variant
-const colors = figma.variables.createVariableCollection("Component/Colors")
-colors.renameMode(colors.modes[0].modeId, "primary")
-const primaryMode = colors.modes[0].modeId
-const secondaryMode = colors.addMode("secondary")
-
-const bgVar = figma.variables.createVariable("bg", colors, "COLOR")
-bgVar.setValueForMode(primaryMode, { r: 0, g: 0.4, b: 0.9, a: 1 })
-bgVar.setValueForMode(secondaryMode, { r: 0, g: 0, b: 0, a: 0 })
-
-const textVar = figma.variables.createVariable("text-color", colors, "COLOR")
-textVar.setValueForMode(primaryMode, { r: 1, g: 1, b: 1, a: 1 })
-textVar.setValueForMode(secondaryMode, { r: 0.1, g: 0.1, b: 0.1, a: 1 })
+const modeNames = ['primary', 'secondary']
+const colors = $fig.varCollection({ name: 'Component/Colors', modes: modeNames })
+const bgVar = colors.colorVar({
+  name: 'bg',
+  values: { primary: '#0066E6', secondary: '#000000' },
+})
+const textVar = colors.colorVar({
+  name: 'text-color',
+  values: { primary: '#FFFFFF', secondary: '#1A1A1A' },
+})
 
 // 2. Create components with variable bindings
-const modeMap = { primary: primaryMode, secondary: secondaryMode }
-const components = []
+const components = modeNames.map(mode => $fig.component({
+  name: `variant=${mode}`, layoutMode: 'HORIZONTAL',
+  primaryAxisAlignItems: 'CENTER', counterAxisAlignItems: 'CENTER',
+  paddingLeft: 12, paddingRight: 12,
+  layoutSizingHorizontal: 'HUG', layoutSizingVertical: 'HUG', cornerRadius: 6,
+  fills: [{ type: 'SOLID', color: bgVar }],
+}, [
+  $fig.text({
+    characters: 'Button', fontName: { family: 'Inter', style: 'Medium' }, fontSize: 14,
+    fills: [{ type: 'SOLID', color: textVar }],
+  }),
+]))
+const set = $fig.variants({ name: 'Button' }, components)
+await $fig.done()
 
-for (const [variantName, modeId] of Object.entries(modeMap)) {
-  const comp = figma.createComponent()
-  comp.name = "variant=" + variantName
-  comp.layoutMode = "HORIZONTAL"
-  comp.primaryAxisAlignItems = "CENTER"
-  comp.counterAxisAlignItems = "CENTER"
-  comp.paddingLeft = 12; comp.paddingRight = 12
-  comp.layoutSizingHorizontal = "HUG"
-  comp.layoutSizingVertical = "HUG"
-  comp.cornerRadius = 6
-
-  // Bind background fill to variable
-  const bgPaint = figma.variables.setBoundVariableForPaint(
-    { type: "SOLID", color: { r: 0, g: 0, b: 0 } }, "color", bgVar
-  )
-  comp.fills = [bgPaint]
-
-  // Add text with bound color
-  const label = figma.createText()
-  label.fontName = { family: "Inter", style: "Medium" }
-  label.characters = "Button"
-  label.fontSize = 14
-  const textPaint = figma.variables.setBoundVariableForPaint(
-    { type: "SOLID", color: { r: 0, g: 0, b: 0 } }, "color", textVar
-  )
-  label.fills = [textPaint]
-  comp.appendChild(label)
-
-  // 3. CRITICAL: Set explicit mode so this variant renders correctly
-  comp.setExplicitVariableModeForCollection(colors, modeId)
-
-  components.push(comp)
+const collection = colors.variableCollection
+const modeIds = Object.fromEntries(collection.modes.map(m => [m.name, m.modeId]))
+let nextX = 40
+for (const [i, component] of components.entries()) {
+  const node = component.node
+  node.setExplicitVariableModeForCollection(collection, modeIds[modeNames[i]])
+  node.x = nextX
+  node.y = 40
+  nextX += node.width + 40
 }
-
-// 4. Combine into component set
-const componentSet = figma.combineAsVariants(components, figma.currentPage)
-componentSet.name = "Button"
-
-return {
-  componentSetId: componentSet.id,
-  colorCollectionId: colors.id
-}
+set.node.resizeWithoutConstraints(nextX, Math.max(...components.map(c => c.node.height)) + 80)
+return { componentSetId: set.id, colorCollectionId: colors.id }
 ```
 
 ## Large ComponentSet with Variable Modes (Multi-Step Pattern)
 
-For component sets with many variants (50+), split into multiple `use_figma` calls:
+For component sets with many variants (50+), split into multiple `use_figma` calls. Plan nodes do not survive between calls; return real IDs after `$fig.done()` and resolve them again in the next call.
 
 **Call 1: Create variable collections and return IDs**
 
 ```js
-const coll = figma.variables.createVariableCollection("MyComponent/Colors");
-coll.renameMode(coll.modes[0].modeId, "mode1");
-const mode2Id = coll.addMode("mode2");
-
-// Create variables from data map
-const colorData = { "bg/default": ["#0B6BCB", "#636B74"], /* ... */ };
-const modeOrder = ["mode1", "mode2"];
-const modeIds = { mode1: coll.modes[0].modeId, mode2: mode2Id };
-const varIds = {};
-
-for (const [name, values] of Object.entries(colorData)) {
-  const v = figma.variables.createVariable(name, coll, "COLOR");
-  values.forEach((hex_val, i) => {
-    v.setValueForMode(modeIds[modeOrder[i]], figma.util.rgba(hex_val || '#00000000'));
-  });
-  varIds[name] = v.id;
+const modeNames = ['mode1', 'mode2']
+const coll = $fig.varCollection({ name: 'MyComponent/Colors', modes: modeNames })
+const colorData = {
+  'bg/default': ['#0B6BCB', '#636B74'],
+  'bg/hover': ['#084E96', '#424A53'],
+  'text': ['#FFFFFF', '#FFFFFF'],
 }
-
-// Return ALL IDs — needed by subsequent calls
-return { collId: coll.id, modeIds, varIds };
+const variables = Object.fromEntries(Object.entries(colorData).map(([name, values]) => [
+  name,
+  coll.colorVar({ name, values: Object.fromEntries(modeNames.map((mode, i) => [mode, values[i]])) }),
+]))
+await $fig.done()
+return {
+  collId: coll.id,
+  modeIds: Object.fromEntries(coll.variableCollection.modes.map(m => [m.name, m.modeId])),
+  varIds: Object.fromEntries(Object.entries(variables).map(([name, variable]) => [name, variable.id])),
+}
 ```
 
 **Call 2: Create components using stored IDs, combine and layout**
 
 ```js
-await figma.loadFontAsync({ family: "Inter", style: "Semi Bold" });
-
-// Paste IDs from Call 1 as literals
-const collId = "VariableCollectionId:X:Y";
-const modeIds = { mode1: "X:0", mode2: "X:1" };
-const varIds = { /* ... from Call 1 ... */ };
-
-const getVar = async (id) => await figma.variables.getVariableByIdAsync(id);
-const bindColor = async (varId) => figma.variables.setBoundVariableForPaint(
-  { type: 'SOLID', color: { r: 0, g: 0, b: 0 } }, 'color', await getVar(varId)
-);
-const collection = await figma.variables.getVariableCollectionByIdAsync(collId);
-
-const components = [];
-for (const mode of ["mode1", "mode2"]) {
-  for (const state of ["default", "hover"]) {
-    const comp = figma.createComponent();
-    comp.name = `mode=${mode}, state=${state}`;
-    comp.layoutMode = 'HORIZONTAL';
-    comp.primaryAxisAlignItems = 'CENTER';
-    comp.counterAxisAlignItems = 'CENTER';
-    comp.layoutSizingHorizontal = 'HUG';
-    comp.layoutSizingVertical = 'HUG';
-    comp.fills = [await bindColor(varIds[`bg/${state}`])];
-    comp.setExplicitVariableModeForCollection(collection, modeIds[mode]);
-    // ... add text children ...
-    components.push(comp);
+// Replace these literals with the IDs returned by Call 1.
+const collId = 'VariableCollectionId:X:Y'
+const modeIds = { mode1: 'X:0', mode2: 'X:1' }
+const varIds = {
+  'bg/default': 'VariableID:X:2',
+  'bg/hover': 'VariableID:X:3',
+  'text': 'VariableID:X:4',
+}
+const collection = $fig.getVarCollection(collId)
+const backgrounds = {
+  default: $fig.getVar(varIds['bg/default']),
+  hover: $fig.getVar(varIds['bg/hover']),
+}
+const textColor = $fig.getVar(varIds.text)
+const modeNames = ['mode1', 'mode2']
+const states = ['default', 'hover']
+const variants = []
+for (const [row, mode] of modeNames.entries()) {
+  for (const [col, state] of states.entries()) {
+    const component = $fig.component({
+      name: `mode=${mode}, state=${state}`, layoutMode: 'HORIZONTAL',
+      primaryAxisAlignItems: 'CENTER', counterAxisAlignItems: 'CENTER',
+      layoutSizingHorizontal: 'HUG', layoutSizingVertical: 'HUG',
+      paddingLeft: 12, paddingRight: 12, paddingTop: 8, paddingBottom: 8,
+      fills: [{ type: 'SOLID', color: backgrounds[state] }],
+    }, [
+      $fig.text({
+        characters: 'Button', fontName: { family: 'Inter', style: 'Semi Bold' }, fontSize: 14,
+        fills: [{ type: 'SOLID', color: textColor }],
+      }),
+    ])
+    variants.push({ component, mode, row, col })
   }
 }
+const set = $fig.variants({ name: 'MyComponent' }, variants.map(v => v.component))
+const section = $fig.section({ name: 'MyComponent Section' }, [set])
+await $fig.done()
 
-// Combine — all children stack at (0,0)!
-const cs = figma.combineAsVariants(components, figma.currentPage);
-cs.name = "MyComponent";
-
-// CRITICAL: layout variants in a structured grid mapped to variant axes.
-const stateOrder = ["default", "hover"];
-const modeOrder2 = ["mode1", "mode2"];
-const colW = 140, rowH = 56;
-
-for (const child of cs.children) {
-  const props = Object.fromEntries(
-    child.name.split(', ').map(p => p.split('='))
-  );
-  const col = stateOrder.indexOf(props.state);
-  const row = modeOrder2.indexOf(props.mode);
-  child.x = col * colW;
-  child.y = row * rowH;
+// Explicit modes require raw nodes. Variants also need manual grid layout.
+const colW = Math.max(...variants.map(v => v.component.node.width)) + 40
+const rowH = Math.max(...variants.map(v => v.component.node.height)) + 40
+for (const { component, mode, row, col } of variants) {
+  const node = component.node
+  node.setExplicitVariableModeForCollection(collection.variableCollection, modeIds[mode])
+  node.x = 40 + col * colW
+  node.y = 40 + row * rowH
 }
-// Resize from actual child bounds
-let maxX = 0, maxY = 0;
-for (const child of cs.children) {
-  maxX = Math.max(maxX, child.x + child.width);
-  maxY = Math.max(maxY, child.y + child.height);
-}
-cs.resizeWithoutConstraints(maxX + 40, maxY + 40);
-
-// Wrap in section
-const section = figma.createSection();
-section.name = "MyComponent Section";
-section.appendChild(cs);
-section.resize(cs.width + 200, cs.height + 200);
-
-return { csId: cs.id, count: components.length };
+const cs = set.node
+cs.resizeWithoutConstraints(
+  Math.max(...cs.children.map(c => c.x + c.width)) + 40,
+  Math.max(...cs.children.map(c => c.y + c.height)) + 40,
+)
+cs.x = 100
+cs.y = 100
+section.node.resize(cs.width + 200, cs.height + 200)
+return { csId: set.id, sectionId: section.id, count: variants.length }
 ```
 
 ## Read Existing Nodes and Return Data
 
 ```js
-const page = figma.currentPage
-const nodes = page.findAll(n => n.type === 'FRAME')
-const data = nodes.map(n => ({
-  id: n.id,
-  name: n.name,
-  width: n.width,
-  height: n.height,
-  childCount: n.children?.length || 0
+// Query the current page. map receives raw FRAME nodes, so children is safe to read.
+const data = $fig.query('FRAME').map(node => ({
+  id: node.id,
+  name: node.name,
+  width: node.width,
+  height: node.height,
+  childCount: node.children.length,
 }))
 return { frames: data }
 ```

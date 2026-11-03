@@ -4,12 +4,21 @@ description: "**MANDATORY prerequisite** — you MUST invoke this skill BEFORE e
 disable-model-invocation: false
 ---
 # use_figma — Figma Plugin API Skill
+Use the `use_figma` tool to execute JavaScript in Figma files via the Plugin API. All detailed reference docs live in `references/`.
 
-Execute JavaScript in Figma files via the Plugin API. **Always pass `skillNames: "figma-use"` when calling `use_figma`** (logging parameter, doesn't affect execution).
+When available, call `create_session` with `fileKey` and `description` before file reads or edits (create the file first if needed), then pass the returned `sessionId` unchanged to every call that accepts it, including follow-ups and work across files.
+
+**Always include `figma-use` in the comma-separated `skillNames` parameter when calling `use_figma`. If this skill was loaded via an MCP resource, you MUST prefix the name with `resource:` (e.g. `resource:figma-use`).** This is a logging parameter used to track skill usage — it does not affect execution.
+
+**If Figma MCP tools appear as deferred tools, batch-load all their schemas in a single `ToolSearch` call** using the `select:` syntax — e.g. `ToolSearch query="select:use_figma,get_screenshot,get_metadata,create_new_file"`. One round trip beats six.
 
 **MANDATORY for visible design changes:** Before the first mutating `use_figma` call, load [figma-generate-design](../figma-generate-design/SKILL.md) alongside this skill and include both names in every mutating call’s `skillNames`. This applies from a single visible property or element to a full page, screen, or composed multi-section view—even when the user calls that view a component. `figma-use` provides the Plugin API rules; `figma-generate-design` provides design-system discovery through `search_design_system`, asset importing, and incremental assembly.
 
-**If the task involves creating or building a component in Figma** (even a single component), also load [figma-generate-library](../figma-generate-library/SKILL.md). It owns the component-creation workflow — variable foundations first, variant sets, then design token bindings — that `figma-use` alone doesn't cover. Build the token/variable foundation before the component, then bind the component's `fills`/`cornerRadius`/spacing to those variables rather than inlining literals where a token exists.
+**If the task involves creating or building a standalone component or a component library in Figma** (even a single component as the deliverable), also load [figma-generate-library](../figma-generate-library/SKILL.md). It owns the component-creation workflow — variable foundations first, variant sets, then design token bindings — that `figma-use` alone doesn't cover. Build the token/variable foundation before the component, then bind the component's `fills`/`cornerRadius`/spacing to those variables rather than inlining literals where a token exists. For components that exist to be reused **inside a screen you are building**, follow [figma-generate-design → componentization](../figma-generate-design/references/componentization.md) instead.
+
+**3D transforms:** For perspective, depth, X/Y tilt, isometric cubes, or other static 3D poses, load [figma-3d-transforms](../figma-3d-transforms/SKILL.md) when available. It owns the gated `transform3d`, `scene3d`, and `transformOrigin` API guidance, including fields that may be absent from the general typings. Follow this skill's node-creation rules, then apply the 3D poses to the resulting nodes. If the 3D skill or APIs are unavailable, explain that 3D authoring is not enabled in this session. Flat in-plane rotation uses `node.rotation` and does not need the 3D skill.
+
+For other APIs, load [plugin-api-standalone.index.md](references/plugin-api-standalone.index.md) to understand what is possible. When you are asked to write plugin API code, use this context to grep [plugin-api-standalone.d.ts](references/plugin-api-standalone.d.ts) for relevant types, methods, and properties. This is the definitive source of truth for the general API surface. It is a large typings file, so do not load it all at once, grep for relevant sections as needed.
 
 IMPORTANT: Whenever you work with design systems, start with [working-with-design-systems/wwds.md](references/working-with-design-systems/wwds.md) to understand the key concepts, processes, and guidelines for working with design systems in Figma. Then load the more specific references for components, variables, text styles, and effect styles as needed.
 
@@ -43,20 +52,28 @@ $fig.autoLayout(
       [$fig.text({ characters: item, fontName: { family: 'Inter', style: 'Bold' } })],
     ),
   ),
-).screenshot() // Screenshot new node trees to verify. Prefer `.screenshot()` over `get_screenshot` call after `use_figma`.
+).screenshot() // Composition check; do not repeat unless a relevant change needs visual verification.
 ```
 
-**N parallel items for repeated small UI elements like swatches, list items, etc.:**
+**Repeated UI (list items, cards, nav items, table rows, day cells): build ONE component, then place instances.** Do not build N near-identical frames. TEXT/BOOLEAN props carry the per-item differences:
 ```js
 const ITEMS = [
-  { name: 'A', bg: '#ffffff', accent: '#0969da' },
-  { name: 'B', bg: '#fff8f1', accent: '#bf5af2' },
-  // ...add more here
+  { title: 'Inbox', count: '12' },
+  { title: 'Drafts', count: '' },
+  // ...from the source data
 ]
-ITEMS.forEach((v, i) => $fig.autoLayout({ name: v.name, x: i * 410, width: 390, fills: [figma.util.solidPaint(v.bg)] }, [
-  $fig.text({ characters: v.name, fills: [figma.util.solidPaint(v.accent)] }),
-]))
+const item = $fig.component({ name: 'Nav Item', layoutMode: 'HORIZONTAL', itemSpacing: 8 }, [
+  $fig.text({ characters: 'Label' }).textProp('Label'),
+  $fig.text({ characters: '0' }).textProp('Count').booleanProp('Show Count'),
+])
+$fig.autoLayout({ name: 'Nav', layoutMode: 'VERTICAL', width: 240 },
+  ITEMS.map((v) => $fig.instance(item, {
+    layoutSizingHorizontal: 'FILL',
+    props: { Label: v.title, Count: v.count, 'Show Count': v.count !== '' },
+  })),
+).screenshot()
 ```
+When building a screen, keep main components outside the view: in the file's existing component area, or off to the side of the wrapper. Return `item.node.id` (after `await $fig.done()`) when a later call needs more instances: `$fig.instance('ID', { props })`. Only genuinely one-off containers stay plain frames. Full recipe (variants for visual states, nested overrides, differing child counts, structural check): [figma-generate-design → componentization](../figma-generate-design/references/componentization.md).
 
 **Update existing nodes — by query or by id:**
 ```js
@@ -158,6 +175,8 @@ const expandComponents = $fig
 ```
 
 **Perform operations on another page:**
+
+Page context resets to the first page at the start of each `use_figma` call. When an operation needs another current page, switch with `await figma.setCurrentPageAsync(page)` before queuing the plan; never assign `figma.currentPage` directly. Switch at most once per call. Split work requiring multiple current-page contexts into independent calls, one per page; issue independent calls in parallel. A scoped FigQuery search does not itself require a separate call for every page.
 ```js
 // Switch to a specific page (loads its content)
 const targetPage = figma.root.children.find((p) => p.name === "My Page");
@@ -215,17 +234,18 @@ Use the raw API only in these cases:
 1. **Only use `$fig` for creating / bulk-editing nodes** (`$fig.autoLayout(...)`, `$fig.text(...)`, `$fig.query(...).set(...)`). Raw Plugin API is the fallback — use it only when `$fig` can't express the operation (intermediate node-state reads, non-SceneNode types like Variables). Library components are NOT a reason to leave `$fig`: `$fig.get(componentKey)` / `$fig.instance(componentSetKey, { props })` queue the library import and resolve the variant for you. See [references/fig-builder.md](references/fig-builder.md) and [references/critical-rules-deep.md](references/critical-rules-deep.md) for worked WRONG/RIGHT examples.
 
 2. **Do not use `findOne`, `findAll`, `findAllWithCriteria`, `findChildren`, `findChild` directly for node searching** They are more verbose, error-prone, and less efficient than `query()`.  Additionally, do not use recursion to search.
+   `frame.query('[boundVariables.*]')` filters nodes by non-empty bindings: `{ boundVariables: { width: alias } }` matches; `{ boundVariables: {} }` or `{ fills: [paint] }` does not. Selector `*` expands array elements or object values.
 
-3. **Avoid `return` / `$fig.done()` if only using `$fig`** — runtime auto-flushes and returns a `FigDoneResult` with created/updated node IDs. Use `return` if you need raw plugin API mid-script or other data.
+3. **Keep automatic result reporting for pure `$fig` scripts.** The runtime auto-flushes and returns a `FigDoneResult` with created/updated node IDs. Use `await $fig.done()` before reading materialized state or deferred query results, and `return` any additional evidence needed. Include IDs for raw mutations in custom results. JS variables and plan handles do not survive between calls: pass returned IDs as string literals and resolve them again with `$fig.get`, `$fig.getVar`, or `$fig.getStyle`. Keep workflow state outside the Figma file.
 
-4. **Build up larger designs incrementally by section.** Refer to the [figma-generate-design](../figma-generate-design/SKILL.md) skill for the placeholder + replace workflow. Create screens with placeholders inside using the complete parent-and-child example below, then make subsequent `use_figma` calls to replace them and screenshot: `$fig.get("PLACEHOLDER_ID_FROM_PREVIOUS_STEP").replace( ... ).screenshot()`. You can make up to 5 `.screenshot()` calls per tool call. If you need to make more screenshots, you are doing too much work and need to break down the task into multiple `use_figma` calls.
+4. **Size construction calls for safe retry and validate from evidence.** Batch related creation and edits when failures remain recoverable; a complete section or page may be one call. Split for page-context changes, difficult partial recovery, or a targeted retry after failure—not merely to create validation checkpoints. Use returned IDs and relevant counts, names, or bounds as structural evidence; add a separate check only when evidence is missing or a relevant mutation invalidates it. Normally take one screenshot after composition and one after a visual fix. The latest passing screenshot is final; stop when requirements pass. For work spanning calls, the placeholder workflow below remains useful: populate or replace each placeholder and clear `placeholder` when finished.
 
-   ```js
-   $fig.autoLayout({ name: 'Screen', layoutMode: 'VERTICAL', width: 390 }, [
-     $fig.autoLayout({ name: 'Header', layoutSizingHorizontal: 'FILL', placeholder: true }),
-     $fig.autoLayout({ name: 'Content', layoutSizingHorizontal: 'FILL', placeholder: true }),
-   ])
-   ```
+```js
+$fig.autoLayout({ name: 'Screen', layoutMode: 'VERTICAL', width: 390 }, [
+  $fig.autoLayout({ name: 'Header', layoutSizingHorizontal: 'FILL', placeholder: true }),
+  $fig.autoLayout({ name: 'Content', layoutSizingHorizontal: 'FILL', placeholder: true }),
+])
+```
 
 5. **Plain JS with top-level `await`.** Code is auto-wrapped in async. Do NOT wrap in `(async () => {})()`.
 
@@ -237,40 +257,45 @@ Use the raw API only in these cases:
 
 9. **Verify node-type before touching a property.** Only `FRAME / COMPONENT / COMPONENT_SET / INSTANCE / GROUP / SECTION / PAGE` have `.children`. `GROUP` has no `fills` / `strokes` / `cornerRadius`. `TEXT` has no `cornerRadius` / `padding*` / `layoutMode`. `layoutPositioning='ABSOLUTE'` needs parent with `layoutMode !== 'NONE'`. Check `'<prop>' in node` or grep [references/plugin-api-standalone.d.ts](references/plugin-api-standalone.d.ts). Full list in [references/critical-rules-deep.md](references/critical-rules-deep.md).
 
-10. **Don't re-query the same info.** `get_metadata` / `get_comments` on the same target twice yields the same result. Cache mentally.
+10. **Reuse evidence while it remains valid.** Do not repeat metadata reads or screenshots when nothing relevant changed. Reinspect when a mutation, external change, or recovery requirement invalidates earlier evidence.
 
-11. **Be decisive once you have enough info.** Don't keep gathering — the marginal information from a 3rd screenshot or 4th metadata call is near-zero.
+11. **Stop once requirements pass.** Gather enough evidence to establish correctness; avoid redundant checks, but do not leave known defects unresolved to meet a call limit.
 
-12. **"An unexpected error occurred" from `use_figma` is server-side, not your script bug.** Don't retry unchanged — change approach (smaller batch, different selector, drop one node-prop).
+12. **On any `use_figma` error, obey `safeToRetryWithoutCanvasRead`.** If `true`, correct the identified error and retry without adding a diagnostic canvas read. If `false`, read the canvas, determine what changed, then make changes. If the same API or property error occurs twice, inspect its definition and fix the root cause before retrying; do not keep shrinking batches or changing selectors around the same invalid mutation. A generic error message alone does not establish the cause or prove that nothing changed. See [validation-and-recovery.md](references/validation-and-recovery.md).
 
 13. **NEVER call `mcp__figma__get_design_context`. FORBIDDEN.** This tool requires a selection (no selection exists in this environment), so every call will fail. The error is not recoverable — calling it just burns a tool slot and forces a retry. For structured reads of the file, use `mcp__figma__get_metadata` (for top-level frame discovery) and `use_figma` with `$fig.query()` instead. **Never call `get_design_context` for any reason.**
 
 14. **≤3 codebase `Read` calls when the task references source code.** Beyond that, grep only. The 4th codebase Read is forbidden — write your `use_figma` script with what you have.
 
-15. **3 retries of the same error → switch approach.** Most often: switch to `$fig` (which handles ordering automatically). Patching the raw API isn't working.
+15. **Must use auto-layout unless you have a compelling reason not to.** Create auto-layout frames with `$fig.autoLayout(...)` instead of absolutely-positioning nodes.  New auto-layout frames are created with both axes hugging content. Explicitly assign `layoutSizingHorizontal` or `layoutSizingVertical` to `'FILL'` for auto-layout children if you want them to fill the auto-layout container's counter axis.
 
-16. **Must use auto-layout unless you have a compelling reason not to.** Create auto-layout frames with `$fig.autoLayout(...)` instead of absolutely-positioning nodes.  New auto-layout frames are created with both axes hugging content. Explicitly assign `layoutSizingHorizontal` or `layoutSizingVertical` to `'FILL'` for auto-layout children if you want them to fill the auto-layout container's counter axis.
+16. **Gradient paints need ALL fields:** `type`, `gradientStops`, `gradientTransform` (a `[[a,b,tx],[c,d,ty]]` matrix). Missing any throws validation error. See [references/critical-rules-deep.md](references/critical-rules-deep.md).
 
-17. **Gradient paints need ALL fields:** `type`, `gradientStops`, `gradientTransform` (a `[[a,b,tx],[c,d,ty]]` matrix). Missing any throws validation error. See [references/critical-rules-deep.md](references/critical-rules-deep.md).
+17. **Discover available fonts, esp. for style variations.** Use `await figma.listAvailableFontsAsync()` to discover available fonts for `$fig.text({ fontName: ... })`.
 
-18. **Discover available fonts, esp. for style variations.** Use `await figma.listAvailableFontsAsync()` to discover available fonts for `$fig.text({ fontName: ... })`.
+18. **Set variable `scopes` explicitly when creating variables.** The default `ALL_SCOPES` pollutes every property picker. Use specific scopes — `['FRAME_FILL', 'SHAPE_FILL']` for backgrounds, `['TEXT_FILL']` for text, `['GAP']` for spacing, `['CORNER_RADIUS']` for radii; primitives that shouldn't appear in pickers get `[]`. In `$fig`, pass `scopes` to `colorVar` / `numVar`; in the raw API, set `variable.scopes`. See [references/variable-patterns.md](references/variable-patterns.md).
 
-19. **Set variable `scopes` explicitly when creating variables.** The default `ALL_SCOPES` pollutes every property picker. Use specific scopes — `['FRAME_FILL', 'SHAPE_FILL']` for backgrounds, `['TEXT_FILL']` for text, `['GAP']` for spacing, `['CORNER_RADIUS']` for radii; primitives that shouldn't appear in pickers get `[]`. In `$fig`, pass `scopes` to `colorVar` / `numVar`; in the raw API, set `variable.scopes`. See [references/variable-patterns.md](references/variable-patterns.md).
+19. **Never read `componentPropertyDefinitions`, `componentProperties`, or `valuesByMode` across a collection.** Resolve specific node IDs first, then read the property bundle only for those IDs. Reading one resolved node is safe; mapping these getters over `findAll*` results, `children`, or `getLocalVariables*` is the single largest cause of oversized returns.
 
-### Bulk mutation of existing nodes (swap/update/replace) is COMPLETE in 3 `use_figma` calls
+20. **Broad reads return `id`, `name`, `type` and counts only.** Fetch details for selected IDs in later calls. Return each file-wide inventory — variables, text styles, effect styles, paint styles, components, pages — in its own call; do not combine them into one return.
+
+21. **When a read may be large, measure the serialized return before returning it.** Bytes, not array length: `.slice()` bounds row count but not per-item size. If over budget, narrow the ID set or split across calls. Never drop required IDs or silently truncate.
+
+### Bulk mutation of existing nodes (swap/update/replace)
 
 For tasks like "swap N icons", "update M colors", "replace K instances":
-1. **DISCOVER + MUTATE** in one script (find via `figma.currentPage.query()`, import any components, mutate via `$fig.query(...).each(...)`, return count).
-2. **VERIFY** (optional) — read-only `.query()` count.
-3. **FINAL REPORT** in assistant text, no tool call. STOP.
+1. **DISCOVER + MUTATE** together when safe: use scoped `$fig.query()` and planned mutations; return coverage evidence when the automatic result is insufficient.
+2. **VERIFY** only what the mutation result does not establish. Check visual results when needed.
+3. **FIX** any remaining defects with targeted changes, then report once requirements pass.
 
-NO 4th call. NO chasing the last 20% of edge cases. If Call 1 errors, fix and redo — that's still your one mutation call. Full template in [references/critical-rules-deep.md](references/critical-rules-deep.md).
+Choose call boundaries for recoverability, not a fixed call budget. On failure, follow Rule 12. See [validation-and-recovery.md](references/validation-and-recovery.md).
 
 ## Node property gotchas
 
 Do not guess node properties or assume CSS-like properties. Accessing non-existent properties will throw `TypeError: node.foo: no such property 'foo' on TYPE node`. Each throw burns a retry. [plugin-api-standalone.index.md](references/plugin-api-standalone.index.md) contains the list of all symbols in the API. Use that file and grep the full API typings in [plugin-api-standalone.d.ts](references/plugin-api-standalone.d.ts) for the full definitions.
 
 - **Only `FRAME` / `COMPONENT` / `COMPONENT_SET` / `INSTANCE` / `GROUP` / `SECTION` / `PAGE` have `.children`.** `RECTANGLE`, `TEXT`, `ELLIPSE`, `POLYGON`, `STAR`, `VECTOR`, `LINE`, `SLICE`, `STICKY`, `SHAPE_WITH_TEXT`, `STAMP`, `CONNECTOR`, `TABLE`, `WIDGET`, `EMBED`, `MEDIA` do NOT. Check `'children' in node` before accessing a node's children.
+- **Narrow before accessing `characters` or `description`.** Use typed query selectors or a capability guard for text-capable nodes. Set component purpose/usage in `description` only on `COMPONENT` or `COMPONENT_SET`. Optional chaining does not protect unsupported property access.
 - **`GROUP` has NO `fills` / `strokes` / `cornerRadius`.** Apply paints/radii on the child shapes inside.
 - **Figma auto-layout != CSS flexbox.** There is no such thing as margin.
 - **`TEXT` DOES NOT HAVE container properties.** Text has font / size / decoration / fills. Do not use container properties like padding, layout mode, item spacing, etc.

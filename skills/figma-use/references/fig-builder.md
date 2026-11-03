@@ -174,6 +174,8 @@ $fig.component({ name: 'Button' }, [
 
 Prefer these over raw `comp.addComponentProperty(...)`, which must run on a materialized *product* component in the right order — mis-sequencing throws (`"Can only set component property definitions on a product component"`, `"no setter for property"`). The `$fig` methods handle the timing and the variant de-dup for you. To set property *values* on an instance (not define them), use `setProperties` — see [component-patterns.md](component-patterns.md).
 
+**Setting values on instances.** Pass the declared property names (no `#id` suffix) in `props`; a variant axis name selects the variant: `$fig.instance(setId, { props: { State: 'Today', Date: '15', 'Show Event 2': false } })`. For an existing or nested instance, use `$fig.get(instanceId).set({ props: {...} })` — look nested instances up on the materialized parent (`parent.node.children.find(...)`), not with `$fig.query(selector, planNode)`, which can match the same layer in every instance. Worked recipe with component reuse across calls: [figma-generate-design → componentization](../../figma-generate-design/references/componentization.md).
+
 ## Styles — create, reference, apply
 
 Plan-step style API. Creators return per-style handles — `FigPlanPaintStyle` / `FigPlanTextStyle` / `FigPlanEffectStyle` / `FigPlanGridStyle` — with the union exported as `FigPlanStyle`. Existing styles can be wrapped by name or id via `$fig.getStyle()` (returns the union or `null`; narrow via `handle.style?.type`). Every handle supports `.set`, `.remove`, and a `.style` getter for escape-to-live-Figma access post-`done()`. The per-style handles tighten `.style` and the `.set` fn arg to the concrete style class so type-specific fields (e.g. `paints` on paint, `fontName` on text) autocomplete without casts.
@@ -224,7 +226,7 @@ Plan-step variable API. `$fig.varCollection(opts)` creates a new collection; `op
 | `$fig.varCollection(opts)` | `FigPlanVarCollection` | Create a variable collection. `opts.name` + `opts.modes` required. |
 | `$fig.getVarCollection(idOrName)` | `FigPlanVarCollection` | Wrap existing collection by id or name. Throws if not found. |
 | `$fig.getVar(idOrKey)` | `FigPlanVariable` | Wrap an existing variable by real Figma variable id OR a library variable `key` (the value returned by a `search_design_system` `queries` entry with `entity: "variable"`). For an asset key, the plan queues a library import automatically. Throws if not found. |
-| `coll.colorVar(opts)` | `FigPlanColorVar` | Create a COLOR variable. `opts.name` required. `opts.values` as `{ modeName: hexString }`. |
+| `coll.colorVar(opts)` | `FigPlanColorVar` | Create a COLOR variable. `opts.name` required; mode values may be hex colors or `{ color, opacity }` (0–100 opacity; at least one variable reference). |
 | `coll.numVar(opts)` | `FigPlanNumVar` | Create a FLOAT variable. `opts.name` required. `opts.values` as `{ modeName: number }`. |
 | `coll.boolVar(opts)` | `FigPlanBoolVar` | Create a BOOLEAN variable. `opts.values` as `{ modeName: boolean }`. |
 | `coll.stringVar(opts)` | `FigPlanStringVar` | Create a STRING variable. `opts.values` as `{ modeName: string }`. |
@@ -375,6 +377,8 @@ $fig.query('TEXT', card)
 ## Mutating nodes
 
 All mutate methods enqueue operations; they are applied during the auto-flush at the end of the script.
+
+**Pattern paints:** Pass `{ type: 'PATTERN', sourceNodeId: source.id, tileType: 'RECTANGULAR' }` in `fills` or `strokes` on constructors or `.set()`. For a newly created source, `await $fig.done()` first so `source.id` is a real node ID.
 
 | Method | Effect |
 |---|---|
