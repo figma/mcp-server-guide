@@ -333,13 +333,13 @@ if (frame && 'findAllWithCriteria' in frame) {
   // ... same replacement logic as above
 }
 ```
-
 ### Preserving Styled Ranges
-
 When text has mixed styling (bold + regular), replacing `characters` wholesale resets all styling to the first character's style. To preserve ranges, use `deleteCharacters` + `insertCharacters`:
-
 ```javascript
 async function replacePreservingStyles(node, search, replace) {
+  if (!node || !('characters' in node)) {
+    throw new TypeError('replacePreservingStyles requires a text-capable node')
+  }
   // Load all fonts (handles mixed fonts via styled segments)
   const segments = node.getStyledTextSegments(['fontName'])
   await Promise.all(segments.map((s) => figma.loadFontAsync(s.fontName)))

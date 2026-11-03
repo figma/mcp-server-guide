@@ -66,12 +66,9 @@ Once you have a `TextStyle`, apply it to a `TextNode` by assigning its `id` to t
 
 ### Looking up a library text style by key
 
-When a text style is found via a `search_design_system` `queries` entry with `entity: "style"`, pass the returned `key` directly into `$fig.getStyle(styleKey)` — the plan queues the library import automatically, no separate `await figma.importStyleByKeyAsync(...)` step required. The handle can then be applied via the `textStyle` property on any `$fig.text(...)` / `$fig.query('TEXT').set(...)` call.
+When a text style is found via a `search_design_system` `queries` entry with `entity: "style"`, use the returned `key` to reference and apply that library style. Prefer reusing an existing library style over recreating its typography.
 
-```js
-const heading = $fig.getStyle(HEADING_TEXT_STYLE_KEY)
-$fig.text({ characters: 'Title', textStyle: heading })
-```
+For lookup and application examples, see [text-style-patterns.md](../text-style-patterns.md).
 
 ## Common gotchas
 
