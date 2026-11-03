@@ -14,9 +14,6 @@ Gap and padding values for frames are really important and often have to be inte
 
 ## Looking up variables by key
 
-When a variable is found via `search_design_system` (returns a `key` per result) or you already have a library variable key, pass it directly into `$fig.getVar(variableKey)`. The plan queues the library import automatically — you do not need a separate `await figma.variables.importVariableByKeyAsync(...)` step. The same call also accepts a local variable id; the input shape is unified.
+When a variable is found via `search_design_system`, use the returned `key` to reference that library variable. If the variable is local to the file, use its `id`. Bind the variable to the target property rather than copying its resolved value.
 
-```js
-const brand = $fig.getVar(BRAND_COLOR_VAR_KEY)
-$fig.rectangle({ fills: [{ type: 'SOLID', color: brand }] })
-```
+For lookup and binding examples, see [variable-patterns.md](../variable-patterns.md).

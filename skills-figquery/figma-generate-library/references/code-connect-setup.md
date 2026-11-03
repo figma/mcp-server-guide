@@ -44,10 +44,14 @@ Maps one Figma node to one code component.
 
 | Error | Meaning | Fix |
 |-------|---------|-----|
-| `CODE_CONNECT_MAPPING_ALREADY_EXISTS` | Component is already mapped | Disconnect existing mapping in Figma UI first |
-| `CODE_CONNECT_ASSET_NOT_FOUND` | Published component not found | Ensure the component is published to the library |
+| `CODE_CONNECT_MAPPING_ALREADY_EXISTS` | Component is already mapped | Disconnect existing mapping in Figma UI first. Do not retry. |
+| `CODE_CONNECT_COMPONENT_NOT_PUBLISHED` | The component exists in this file but has never been published | Publish the library first. Do not retry until it is published. |
+| `CODE_CONNECT_COMPONENT_UNPUBLISHED` | The component was published, then unpublished | Republish it. Do not retry until it is republished. |
+| `CODE_CONNECT_EXTERNAL_LIBRARY_COMPONENT` | The node is a copy of a component from another library | Map it from the library file that defines it |
+| `CODE_CONNECT_NOT_A_COMPONENT` | The node is a frame, instance, or other non-component | For an instance, map the main component ID given in the message |
+| `CODE_CONNECT_NODE_NOT_FOUND` | No node with this ID in the file | Use a `123:456` node ID from this file |
+| `CODE_CONNECT_ASSET_NOT_FOUND` | No published component at this node, reason unknown | Check the node ID and that the component is published |
 | `CODE_CONNECT_INSUFFICIENT_PERMISSIONS` | No edit access | Request edit permission on the file |
-| `CODE_CONNECT_NO_LIBRARY_FOUND` | File is not published as a library | Publish the file as a Figma library first |
 
 **Usage example:**
 
@@ -123,7 +127,7 @@ Applies multiple Code Connect mappings in one call. Use after `get_code_connect_
 ```
 1. Collect all {nodeId, componentName, source, label} pairs.
 2. Call send_code_connect_mappings({ fileKey, mappings: [...all pairs...] }).
-3. Review reported errors and call add_code_connect_map individually for any failures.
+3. Review reported errors. Fix the cause the message names before retrying; never retry a mapping that failed with `CODE_CONNECT_MAPPING_ALREADY_EXISTS`, `CODE_CONNECT_COMPONENT_NOT_PUBLISHED`, or `CODE_CONNECT_COMPONENT_UNPUBLISHED` unchanged.
 4. Call get_code_connect_map on a sample of nodes to spot-check.
 ```
 
@@ -260,7 +264,7 @@ The response should include `componentName`, `source`, `label`, and a non-empty 
 
 ## 7. Important Constraints
 
-- **Published components only:** `add_code_connect_map` requires the component to be published to a library. If the file is not yet published, the mapping will fail with `CODE_CONNECT_NO_LIBRARY_FOUND`.
+- **Published components only:** `add_code_connect_map` requires the component to be published to a library. Components created in this session are not published yet, so mapping them fails with `CODE_CONNECT_COMPONENT_NOT_PUBLISHED` until the library is published.
 - **One mapping per label per node:** A node can have multiple mappings (one per framework label), but only one per label. Attempting to add a second React mapping to the same node returns `CODE_CONNECT_MAPPING_ALREADY_EXISTS`.
 - **Template mappings are gated:** The `template` parameter is gated behind a server-side feature flag and may not be available in every environment. Use simple mappings unless the user explicitly requests template-level Code Connect.
 - **Start simple, escalate:** Always begin with simple mappings (`source` + `componentName` + `label`). Add `template` only if the user needs precise prop-level snippet rendering.

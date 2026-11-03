@@ -106,8 +106,3 @@ Possible `interactiveSlideElementType` values: `'POLL'`, `'EMBED'`, `'FACEPILE'`
 - **`SlideGridNode.clone()`**: Throws at runtime — you cannot copy the slide grid.
 - **Slide themes**: `slideThemeId` is available as a read-only property on slide nodes for identifying which theme is applied, but theme manipulation APIs are limited.
 - **`figma.createTable()` and `figma.createGif()`**: These FigJam node types (TABLE, MEDIA) are currently blocked in Slides mode by the Plugin API, even though the Slides editor supports tables and media. To work with tables and media in Slides, use the editor UI directly. This is a pre-existing Plugin API limitation, not specific to `use_figma`.
-
-<!-- TODO(dschwartz): Before production launch, fix NODE_TYPES_BLOCKED_IN_SLIDES in
-     share/plugin-api/src/api/constants.ts to unblock TABLE and MEDIA for Slides
-     (same pattern as the SYMBOL unblock for MCP/assistant). Remove this limitation
-     note once fixed. -->
