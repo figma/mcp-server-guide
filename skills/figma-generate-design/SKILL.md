@@ -14,9 +14,9 @@ Use this skill to create or update **screens, views, and multi-section UI contai
 When available, call `create_session` with `fileKey` and `description` before file reads or edits (create the file first if needed), then pass the returned `sessionId` unchanged to every call that accepts it, including follow-ups and work across files.
 
 **Always include `figma-generate-design` in the comma-separated `skillNames` parameter when calling `use_figma` as part of this skill. If this skill was loaded via an MCP resource, you MUST prefix the name with `resource:` (e.g. `resource:figma-generate-design`).** This is a logging parameter — it does not affect execution.
-
+## Image and vector assets
+Reuse available source, captured, or library assets first. If suitable assets are unavailable, use Figma’s `generate_image` for raster images or `generate_vector_illustration` for editable icons, logos, and illustrations.
 ## HTML-to-Figma Exceptions
-
 Use `html_to_figma` for initial creation in these cases:
 
 - The input is an existing raw or static HTML document. Pass it directly to `html_to_figma`.
@@ -377,7 +377,7 @@ Inspect the composition screenshot for:
 - Truncated content from layout sizing bugs
 - Wrong component variants (e.g., Neutral vs Primary button)
 - **Wrong font family** — text rendered in a different typeface than the product uses (e.g. Inter where the product is SF Pro). The script ran without error, so this is invisible at a glance; assert it explicitly (see "Assert the font family is correct" below)
-- **Blank image placeholders** — if images are missing, transfer them from the `generate_figma_design` capture before considering `generate_image` to generate placeholders (see "Transfer images from the generate_figma_design capture" below)
+- **Blank image placeholders** — if images are missing, transfer them from the `generate_figma_design` capture before considering `generate_image` or `generate_vector_illustration` to generate placeholders (see "Transfer images from the generate_figma_design capture" below)
 
 #### Assert the font family is correct
 
@@ -406,11 +406,11 @@ If you ran `generate_figma_design` in parallel, transfer only discrete content a
    ```
 4. Delete the `generate_figma_design` capture output after all images are transferred.
 
-#### Generating placeholder images
+#### Generating placeholder images and vectors
 
-Reuse available source, captured, or library images first. If placeholders remain, call the Figma `generate_image` tool. After generating the images, inform the user that Figma AI credits were used to generate them.
+Reuse existing assets if possible. If not, choose between `generate_image` and `generate_vector_illustration`. Then inform the user that Figma AI credits were used.
 
-If Figma AI is unavailable or its AI credit limit is reached, confirm with the user if alternative image generation tools can be used. Upload only these alternative-provider images with `upload_assets`.
+If Figma AI is unavailable or its credit limit is reached, ask before using an alternative image-generation provider. Upload only these alternative-provider images with `upload_assets`.
 
 ### Step 6: Updating an Existing View
 

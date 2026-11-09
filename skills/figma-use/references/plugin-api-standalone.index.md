@@ -348,9 +348,9 @@ type BaseNode   (L9889) = DocumentNode | PageNode | SceneNode
 
 **ViewportAPI (L1543):** `center: Vector`, `zoom: number`, `scrollAndZoomIntoView(nodes)`, `bounds: Rect`
 
-**UtilAPI (L1419):** `solidPaint(color, overrides?)`, `rgba(color)`, `rgb(color)`, `normalizeMarkdown(markdown)`, `getSfSymbolCharacter(name)`
+**UtilAPI (L1419):** `solidPaint(color, overrides?)`, `rgba(color)`, `rgb(color)`, `normalizeMarkdown(markdown)`, `getSfSymbolCharacter(name)`. Color inputs accept CSS strings (including hex), `RGB`, or `RGBA`. Use `solidPaint` for complete solid paints (alpha becomes opacity), `rgb` for RGB fields (alpha is ignored), and `rgba` for gradient-stop/effect colors.
 
-**TeamLibraryAPI (L1337):** `getAvailableLibraryVariableCollectionsAsync()`, `importVariableByKeyAsync(key)`
+**TeamLibraryAPI (L1337):** `getAvailableLibraryVariableCollectionsAsync()`, `getVariablesInLibraryCollectionAsync(key)`. Import variables with `figma.variables.importVariableByKeyAsync(key)`.
 
 **Image (L10146):** `hash`, `getBytesAsync()`, `getSizeAsync()`
 
