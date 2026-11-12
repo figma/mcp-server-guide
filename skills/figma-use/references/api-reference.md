@@ -353,6 +353,9 @@ function walk(node) {
 | `figma.showUI()` | No-op (silently ignored) |
 | `figma.openExternal()` | No-op (silently ignored) |
 | `figma.loadAllPagesAsync()` | Not implemented |
+| `figma.setFileThumbnailNodeAsync()` | Not implemented |
+| `figma.saveVersionHistoryAsync()` | Not implemented |
+| `figma.currentUser` | Not implemented |
 | `figma.variables.extendLibraryCollectionByKeyAsync()` | Not implemented |
 | `figma.teamLibrary.*` | Not implemented (requires the team-library backend) |
 | `figma.getLocalComponents*()` | **Does not exist** — unlike styles, there is no `getLocalComponents()` or `getLocalComponentSetsAsync()` (or any `getLocalComponent*` variant). Use `page.findAllWithCriteria({ types: ['COMPONENT', 'COMPONENT_SET'] })` to locate components in the current file (avoid the slower `findAll(n => n.type === '…')` predicate scan). |
