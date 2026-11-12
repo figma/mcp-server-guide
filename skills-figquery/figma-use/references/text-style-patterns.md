@@ -2,24 +2,11 @@
 
 > Part of the [use_figma skill](../SKILL.md). How to create, apply, and inspect text styles using the Plugin API.
 >
-> For design system context (when to create text styles, how they relate to tokens, `use_figma` limitations), see [wwds-text-styles](working-with-design-systems/wwds-text-styles.md).
-
-## Prefer `$fig` for creation + binding
-
-For new text styles + binding them to text nodes, reach for `$fig` first — fonts preload automatically, the style and the binding go in the same plan, and the binding uses the natural `textStyle` property (no `*StyleId` suffix to remember):
-
-```javascript
-const heading = $fig.textStyle({
-  name: "Heading/1",
-  fontName: { family: "Inter", style: "Bold" },
-  fontSize: 48,
-})
-$fig.text({ characters: "Title", textStyle: heading })
-```
-
 See [fig-builder.md](fig-builder.md#styles---create-reference-apply) for the full surface (`paintStyle` / `textStyle` / `effectStyle` / `gridStyle` / `getStyle`, the `FigPlanStyle` handle methods, and the `fills` / `strokes` / `effects` / `layoutGrids` / `textStyle` property routing).
 
-The raw Plugin API patterns below are the fallback for when you genuinely need to interleave style ops with mid-script async calls or read computed properties off the live `TextStyle` before deciding what to do next.
+Use the raw Plugin API for discovery and `$fig` for creating and binding. Flush pending `$fig` work with `await $fig.done()` before reading live styles or making raw API mutations.
+
+> For design system context (when to create text styles, how they relate to tokens, `use_figma` limitations), see [wwds-text-styles](working-with-design-systems/wwds-text-styles.md).
 
 ## Contents
 
@@ -27,7 +14,7 @@ The raw Plugin API patterns below are the fallback for when you genuinely need t
 - Creating a Text Style
 - Discovering Available Font Styles
 - Creating a Type Ramp (Multi-Step)
-- Importing Library Text Styles
+- Using Library Text Styles by Key (preferred)
 - Applying Text Styles to Nodes
 
 ## Listing Text Styles
@@ -61,31 +48,19 @@ return results;
 
 ## Creating a Text Style
 
-Font **MUST** be loaded before setting `fontName`. `lineHeight` and `letterSpacing` must be `{value, unit}` objects — bare numbers throw.
+`$fig` loads the font automatically when the plan is flushed. `lineHeight` and `letterSpacing` must be `{value, unit}` objects; line height also accepts `{ unit: 'AUTO' }`.
 
 ```javascript
-/**
- * Creates a text style with all typographic properties set.
- * Font MUST be loaded before calling.
- *
- * @param {string} name - Slash-delimited name, e.g. "body/base"
- * @param {{ family: string, style: string }} fontName
- * @param {number} fontSize - In pixels
- * @param {{ value: number, unit: 'PIXELS' | 'PERCENT' } | { unit: 'AUTO' }} lineHeight
- * @param {{ value: number, unit: 'PIXELS' | 'PERCENT' }} [letterSpacing]
- * @param {string} [description] - e.g. the CSS variable name "CSS: var(--font-body-base)"
- * @returns {TextStyle}
- */
-function createTextStyleFull(name, fontName, fontSize, lineHeight, letterSpacing, description) {
-  const style = figma.createTextStyle();
-  style.name = name;
-  style.fontName = fontName;
-  style.fontSize = fontSize;
-  style.lineHeight = lineHeight; // { unit: 'AUTO' } | { value, unit: 'PIXELS'|'PERCENT' }
-  if (letterSpacing) style.letterSpacing = letterSpacing;
-  if (description) style.description = description;
-  return style;
-}
+const body = $fig.textStyle({
+  name: "body/base",
+  fontName: { family: "Inter", style: "Regular" },
+  fontSize: 16,
+  lineHeight: { unit: "AUTO" },
+  letterSpacing: { value: 0, unit: "PIXELS" },
+  description: "CSS: var(--font-body-base)",
+});
+
+$fig.text({ characters: "Body", textStyle: body })
 ```
 
 ## Discovering Available Font Styles
@@ -112,29 +87,10 @@ async function getAvailableFontStyles(family) {
 Handles font loading, deduplication, and idempotency. Each entry: `[name, fontFamily, fontStyle, fontSize_px, lineHeight, cssVar]`.
 
 ```javascript
-/**
- * Creates a full type ramp from a token definition array.
- * Handles font loading, deduplication, and idempotency.
- *
- * Each entry: [name, fontFamily, fontStyle, fontSize_px, lineHeight, cssVar]
- *   - lineHeight: { unit: 'AUTO' } or { value: number, unit: 'PIXELS' | 'PERCENT' }
- *
- * @param {Array} defs - Array of [name, fontFamily, fontStyle, fontSize, lineHeight, cssVar] tuples
- * @returns {Promise<{ created: string[], skipped: string[] }>}
- */
 async function createTypeRamp(defs) {
-  const uniqueFonts = new Set();
-  for (const [, family, style] of defs) {
-    uniqueFonts.add(JSON.stringify({ family, style }));
-  }
-  await Promise.all(
-    [...uniqueFonts].map(f => figma.loadFontAsync(JSON.parse(f)))
-  );
-
   const existing = new Set(
     (await figma.getLocalTextStylesAsync()).map(s => s.name)
   );
-
   const created = [];
   const skipped = [];
 
@@ -143,15 +99,19 @@ async function createTypeRamp(defs) {
       skipped.push(name);
       continue;
     }
-    const ts = figma.createTextStyle();
-    ts.name = name;
-    ts.fontName = { family, style };
-    ts.fontSize = fontSize;
-    ts.lineHeight = lineHeight ?? { unit: 'AUTO' };
-    if (cssVar) ts.description = `CSS: var(${cssVar})`;
+    $fig.textStyle({
+      name,
+      fontName: { family, style },
+      fontSize,
+      lineHeight: lineHeight ?? { unit: 'AUTO' },
+      ...(cssVar ? { description: `CSS: var(${cssVar})` } : {}),
+    });
+    existing.add(name);
     created.push(name);
   }
 
+  // Fonts are deduplicated and loaded automatically for the plan.
+  await $fig.done();
   return { created, skipped };
 }
 ```
@@ -170,7 +130,7 @@ const result = await createTypeRamp(defs);
 return result;
 ```
 
-## Using Library Text Styles by key (preferred)
+## Using Library Text Styles by Key (preferred)
 
 A style found via a `search_design_system` `queries` entry with `entity: "style"` returns a `key`. Pass it directly into `$fig.getStyle(styleKey)` and apply via the `textStyle` property on any `$fig.text(...)` / `$fig.query('TEXT').set(...)` — the plan queues the library import automatically.
 
@@ -180,6 +140,7 @@ $fig.text({ characters: 'Title', textStyle: heading })
 
 // Bulk apply to existing text nodes
 $fig.query('TEXT[name=Heading]').set({ textStyle: heading })
+await $fig.done()
 ```
 
 Prefer reusing library text styles over creating new ones.
@@ -194,32 +155,21 @@ await textNode.setTextStyleIdAsync(headingStyle.id);
 
 ## Applying Text Styles to Nodes
 
-Prefer `$fig.query(...).set({ textStyle })` over `findAllWithCriteria` + a manual loop — the selector matches name patterns directly, and `$fig` batches the writes and resolves the style id at flush time. The `textStyle` property accepts a `$fig.getStyle(...)` handle (local id OR library `key` from `search_design_system`) or a raw style id string.
+Pass the handle returned by `$fig.textStyle()` or `$fig.getStyle()` as `textStyle`. `$fig` loads fonts and resolves the style when the plan is flushed.
 
 ```javascript
-// Library style by key — $fig queues the import; no separate await needed.
-const heading = $fig.getStyle(HEADING_TEXT_STYLE_KEY)
+// Accepts a local style ID or a library key from search_design_system.
+const heading = $fig.getStyle(HEADING_TEXT_STYLE_KEY);
 
-// Apply to every TEXT whose name contains 'Heading' on the current page
-const result = $fig.query('TEXT[name*=Heading]').set({ textStyle: heading })
-return { applied: result.length }
+// Apply to every TEXT whose name contains 'Heading' on the current page.
+const matching = $fig.query('TEXT[name*=Heading]').set({ textStyle: heading });
+await $fig.done();
+return { applied: matching.length };
 ```
 
-Scope to a subtree or another page via a second arg / a parent handle:
+Scope the query to a node:
 
 ```javascript
-// Scoped to one frame
-const card = $fig.get('1:42')
-$fig.query('TEXT[name*=Heading]', card).set({ textStyle: heading })
-
-// Across the whole document (all pages)
-$fig.query('TEXT[name*=Heading]', figma.root).set({ textStyle: heading })
-```
-
-If you already have a local style id (not a key) and don't want a `$fig.getStyle` wrap, the raw setter still works:
-
-```javascript
-$fig.query('TEXT[name*=Heading]').each(async (n) => {
-  await n.node?.setTextStyleIdAsync('STYLE_ID')   // only after $fig.done() / auto-flush
-})
+const card = $fig.get('1:42').query('TEXT[name*=Heading]').set({ textStyle: heading });
+await $fig.done();
 ```

@@ -190,7 +190,7 @@ Examples:
 Overview
 Status Key
 ---
-FPL COMPONENTS (go/fpl)
+FPL COMPONENTS
 [C-flag] FPL [Green] Buttons
 [C-flag] FPL [Green] Inputs
 [C-flag] FPL [Yellow] Popovers [future]
