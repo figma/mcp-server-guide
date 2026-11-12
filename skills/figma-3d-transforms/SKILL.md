@@ -10,7 +10,12 @@ Use this skill when a request needs the third dimension and plain 2D rotation ca
 
 Not this skill:
 - Flat, in-plane rotation → set the node's 2D `rotation` instead; there's nothing 3D about it.
-- Animating a 3D pose over time → set the static pose here, then use the `figma-use-motion` skill for the keyframes. This skill defines the pose, not the motion.
+
+## Animating 3D transforms
+
+A request may implicitly be a motion task. Assume it isn't unless the context suggests otherwise, the language describes a quality of movement ("smoothly flips", "gently sways"), or the field being changed is already keyframed. These are pointers; use the context you have. For a motion task, set the pose with this skill and keyframe it with `figma-use-motion`; don't deliver static poses or "state" frames in place of an animation.
+
+Keyframes override static 3D fields during playback, so before changing a node's `transform3d` or a container's `scene3d.perspective`, use `use_figma` to read `manualKeyframeTracks` and `animationStyles` on the node whose field you change. Edit keyframes on the fields being changed; other tracks (e.g. opacity) don't require animating the pose. If `manualKeyframeTracks` is `undefined`, Motion is unavailable: make static edits, and tell the user animation isn't available if the request needs it.
 
 ## Runtime
 

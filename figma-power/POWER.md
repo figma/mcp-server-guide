@@ -34,6 +34,7 @@ The Figma MCP server provides these tools:
 | Tool | Description |
 |------|-------------|
 | `get_design_context` | Fetches structured design data (layout, typography, colors, spacing, component structure) for a layer or selection |
+| `get_comments` | Reads comment threads and feedback from a file |
 | `get_metadata` | Returns a sparse XML representation with basic layer properties like IDs, names, and dimensions |
 | `get_screenshot` | Captures a visual screenshot of a Figma selection to preserve layout fidelity |
 | `get_variable_defs` | Retrieves variables and styles (colors, spacing, typography) from selections |
