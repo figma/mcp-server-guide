@@ -73,7 +73,7 @@ The easing on a keyframe controls how to animate from the previous keyframe to t
 
 ### Animatable Fields
 
-The Plugin API accepts only the public allowlist below. Do not use generated/internal scenegraph field names even if they appear in codegen types: fields such as `SHEAR`, `SCROLL_OFFSET_X`, `SCROLL_OFFSET_Y`, `DISSOLVE_PROGRESS`, `MEDIA_CURRENT_TIME`, 3D transform fields, polygon/arc fields, and `VARIANT_PROPERTIES` intentionally throw.
+The Plugin API accepts only the public allowlist below, plus the separately gated [3D transform fields](3d-transforms.md). Do not use generated/internal scenegraph field names even if they appear in codegen types: fields such as `SHEAR`, `SCROLL_OFFSET_X`, `SCROLL_OFFSET_Y`, `DISSOLVE_PROGRESS`, `MEDIA_CURRENT_TIME`, polygon/arc fields, and `VARIANT_PROPERTIES` intentionally throw.
 
 Two semantic categories. Read the "Compose with" column before writing values — these are the only differences agents trip on.
 
