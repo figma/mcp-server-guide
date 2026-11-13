@@ -2,8 +2,6 @@ name: Video interaction mapper tests
 
 on:
   push:
-    branches:
-      - main
     paths:
       - "workflow-skills/video-interaction-mapper/**"
       - ".github/workflows/video-interaction-mapper-tests.yml"
