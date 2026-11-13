@@ -50,11 +50,15 @@ that parameter.
 ### 1. Validate and Prepare
 
 Confirm the video path exists, then check `ffmpeg -version`. If Pillow is missing,
-install it in the active Python environment:
+install it in an isolated virtual environment:
 
 ```bash
-pip install Pillow --break-system-packages -q
+python3 -m venv .venv && .venv/bin/pip install Pillow
 ```
+
+When running helper scripts across separate agent tool calls, invoke them using the
+virtual environment interpreter (`.venv/bin/python <SKILL_DIR>/scripts/...`) or ensure
+your active virtual environment is maintained.
 
 Do local analysis before creating or modifying the Figma file. Create a Figma file
 only after `key_moments.json`, `upload_manifest.json`, and generated Figma scripts

@@ -30,7 +30,7 @@ def prepare_image(
     try:
         from PIL import Image
     except ImportError as exc:
-        raise RuntimeError("Pillow is required: pip install Pillow --break-system-packages") from exc
+        raise RuntimeError("Pillow is required. Please install it in an isolated virtual environment: pip install Pillow") from exc
 
     with Image.open(input_path) as img:
         if img.mode != "RGB":
