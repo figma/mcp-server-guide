@@ -1,0 +1,43 @@
+name: Video interaction mapper tests
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "workflow-skills/video-interaction-mapper/**"
+      - ".github/workflows/video-interaction-mapper-tests.yml"
+  pull_request:
+    paths:
+      - "workflow-skills/video-interaction-mapper/**"
+      - ".github/workflows/video-interaction-mapper-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test-script-helpers:
+    name: Test script helpers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Run unit tests
+        run: >-
+          python -m unittest discover
+          -s workflow-skills/video-interaction-mapper/tests
+          -p "test_*.py"
+          -v
+
+      - name: Compile workflow scripts and tests
+        run: >-
+          python -m compileall -q
+          workflow-skills/video-interaction-mapper/scripts
+          workflow-skills/video-interaction-mapper/tests
