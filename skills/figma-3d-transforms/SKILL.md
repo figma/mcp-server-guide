@@ -127,11 +127,11 @@ backFace.transform3d = { type: 'FIXED_ORDER', translateZ: 0, rotateX: 0, rotateY
 ```
 
 ## Gotchas
-- **Opacity, blend mode, effects and clipping don't render on a preserve-3D frame itself** (the editor disables
-  them). Its children can still take them, unless they're preserve-3D frames too, but each child then blends on its
-  own, so overlapping children show through each other rather than fading as one group. To fade the group, put them
-  on a flat ancestor instead, keeping the existing hierarchy where you can:
-  - If the flat frame holding the perspective contains only what's being faded, apply them to it, or to a wrapper around it.
+- **Opacity, blend mode, effects and clipping don't render on a preserve-3D frame itself** (the editor disables them,
+  and the API rejects them). Its children can still take them, unless they're preserve-3D frames too, but each child
+  then blends on its own, so overlapping children show through each other rather than fading as one group. To fade
+  the group, put them on an ancestor with `preserve3d: false` instead, keeping the existing hierarchy where you can:
+  - If the frame holding the perspective has `preserve3d: false` and contains only what's being faded, apply them to it, or to a wrapper around it.
   - Otherwise, wrap just the faded content in a new transparent frame (`fills = []`) at `x = 0, y = 0` inside the
     frame holding the perspective, with that frame's width
     and height, and `scene3d = { ...frame.scene3d, preserve3d: false }`. The original keeps its perspective for the
