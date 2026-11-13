@@ -16,14 +16,6 @@ When available, call `create_session` with `fileKey` and `description` before fi
 **Always include `figma-generate-design` in the comma-separated `skillNames` parameter when calling `use_figma` as part of this skill. If this skill was loaded via an MCP resource, you MUST prefix the name with `resource:` (e.g. `resource:figma-generate-design`).** This is a logging parameter — it does not affect execution.
 ## Image and vector assets
 Reuse available source, captured, or library assets first. If suitable assets are unavailable, use Figma’s `generate_image` for raster images or `generate_vector_illustration` for editable icons, logos, and illustrations.
-## HTML-to-Figma Exceptions
-Use `html_to_figma` for initial creation in these cases:
-
-- The input is an existing raw or static HTML document. Pass it directly to `html_to_figma`.
-- The prompt asks to create a new design and there is no rendered UI implementation to reproduce. Create a self-contained HTML document and pass it to `html_to_figma`.
-
-If `html_to_figma` is unavailable, follow the existing workflow below.
-
 ## Skill Boundaries
 
 - Use this skill when the deliverable is a **composed Figma view** (new or updated) — including a form, dashboard, list, table, card, header, panel, dialog, message preview, or other multi-section container — built from design system component instances. This applies even when the user calls the composed view a component.
