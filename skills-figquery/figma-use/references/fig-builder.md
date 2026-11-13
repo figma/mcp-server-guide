@@ -64,7 +64,6 @@ card.text({ characters: 'Description', fontSize: 14 })
 | `$fig.component(opts?, children?)` | `SYMBOL` (main component) |
 | `$fig.page(opts?, children?)` | `PAGE` (new page node) |
 | `$fig.svg(svgString, opts?)` | Node tree parsed from SVG |
-| `$fig.svgComponent(svgString, opts?)` | Main component from SVG: converts the imported outer frame into a component without adding a wrapper. Available in Design and Slides. |
 | `$fig.instance(compRef, opts?)` | `INSTANCE` — `compRef` is a component plan node, a node ID string, OR a library asset key (`componentKey` or `componentSetKey` from `search_design_system`); the import is queued in the plan automatically. |
 
 FigJam-only types (`$fig.sticky`, `$fig.connector`, `$fig.shapeWithText`, `$fig.codeBlock`, `$fig.table`) are available when the script runs in a FigJam file; Slides-only types (`$fig.slide`, `$fig.slideRow`) are available in Slides.
@@ -242,9 +241,7 @@ Plan-step variable API. `$fig.varCollection(opts)` creates a new collection; `op
 | `variable.resolvedType` | `string` | `'COLOR'` / `'FLOAT'` / `'BOOLEAN'` / `'STRING'`. |
 | `variable.variable` | `Variable \| null` | `null` before `done()`, the live Figma `Variable` object after. |
 
-`opts.scopes: VariableScope[]` on variable creators controls which Figma property pickers show the variable. Specify intentionally — defaults can bind to unwanted properties. Common scopes: `['WIDTH_HEIGHT']`, `['GAP']`, `['CORNER_RADIUS']`, `['SHAPE_FILL', 'FRAME_FILL']`, `['TEXT_FILL']`, `['OPACITY']`. Valid values: `ALL_SCOPES`, `TEXT_CONTENT`, `CORNER_RADIUS`, `WIDTH_HEIGHT`, `GAP`, `ALL_FILLS`, `FRAME_FILL`, `SHAPE_FILL`, `TEXT_FILL`, `STROKE_COLOR`, `STROKE_FLOAT`, `EFFECT_FLOAT`, `EFFECT_COLOR`, `OPACITY`, `FONT_FAMILY`, `FONT_STYLE`, `FONT_WEIGHT`, `FONT_SIZE`, `LINE_HEIGHT`, `LETTER_SPACING`, `PARAGRAPH_SPACING`, `PARAGRAPH_INDENT`; there is no `STROKE` scope.
-
-Variable names may not contain `.`, `{`, or `}`, and no `/`-separated segment may be empty or start with `$`. Build names from decimal values without the dot: `space/0-5`, not `space/0.5`.
+`opts.scopes: VariableScope[]` on variable creators controls which Figma property pickers show the variable. Specify intentionally — defaults can bind to unwanted properties. Common scopes: `['WIDTH_HEIGHT']`, `['GAP']`, `['CORNER_RADIUS']`, `['SHAPE_FILL', 'FRAME_FILL']`, `['TEXT_FILL']`, `['OPACITY']`.
 
 `opts.codeSyntax: { WEB?, ANDROID?, iOS? }` links a variable to its code counterpart. Pass at creation time or via `variable.set()` afterward:
 
@@ -405,7 +402,7 @@ The object returned by every create method has its own methods that operate on t
 | Method | Effect |
 |---|---|
 | `planNode.<create>(...)` | Any basic create method (`.frame(...)`, `.text(...)`, `.rectangle(...)`, etc.) appends as a child |
-| `planNode.svg(svgStr, opts?)` / `.svgComponent(svgStr, opts?)` / `.instance(compRef, opts?)` | Append as a child; `.svgComponent` is available in Design and Slides |
+| `planNode.svg(svgStr, opts?)` / `.instance(compRef, opts?)` | Append as a child |
 | `planNode.set(props)` | Apply props to this node |
 | `planNode.remove()` | Delete this node |
 | `planNode.clone(props?)` | Clone this node (sibling by default) |

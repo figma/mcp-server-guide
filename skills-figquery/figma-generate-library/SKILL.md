@@ -52,15 +52,6 @@ If the user changes the deliverable, update the scope and acceptance checklist. 
 
 Every scope begins with focused discovery: analyze the relevant code, inspect the target Figma assets and conventions, call `get_libraries` before `search_design_system`, and resolve code/Figma conflicts before mutation. Batch independent searches and reuse their results. Lock the requested inventory, then run only its path below.
 
-### Nested-component reuse for component and library tasks
-
-Apply this checklist to single components, component families, full libraries, and affected components in reconciliation tasks. It applies even when `figma-generate-design` is not loaded.
-
-1. **Inventory dependencies before building.** Read the requested source component and list the reusable components it actually renders, including icons, buttons, avatars, and repeated child elements. Record each dependency's source identity, required occurrences, and relevant variants or properties. Include a source-defined component even when rendered only once. Exclude unused imports and dead components.
-2. **Decide reuse, create once, or frame.** For each dependency, reuse a compatible existing local or library component, or create one missing local main component. Use a plain frame only for a genuinely one-off container that the source does not define as reusable. Resolve the scoped discovery results before choosing to create.
-3. **Build dependencies before parents.** Keep main components in the file's component area, outside the composed view. Put `$fig.instance(...)` children in the parent and its variants. Preserve nested instances when applying text, state, and property overrides.
-4. **Check nested instances before finishing.** After `await $fig.done()`, inspect the requested component's variants and descendants. Match each dependency's expected occurrences to `INSTANCE` nodes and their main component IDs. Check inside nested instances as well as direct children. Fix dependencies drawn as copied vectors or frames, detached instances, and unused main components. A matching screenshot alone does not establish reuse.
-
 ### Tokens / foundations
 
 1. Create or update the requested collections, modes, primitives, semantic aliases, scopes, and code syntax.

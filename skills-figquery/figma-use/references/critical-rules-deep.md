@@ -180,6 +180,7 @@ Observed worst case before this rule: 35 `use_figma` calls chasing the same 2-3 
 
 ```js
 // RIGHT — one query, all pages, all instances
+await Promise.all(figma.root.children.map(p => figma.loadAllPagesAsync ? null : figma.setCurrentPageAsync(p)))  // ensure pages loaded
 const instances = figma.root.findAll(n => n.type === 'INSTANCE' && n.name === 'arrow_drop_down')
 // OR — using $fig.query (preferred):
 $fig.query('INSTANCE[name=arrow_drop_down]', figma.root)

@@ -484,7 +484,6 @@ Plan-based builder — see [fig-builder.md](fig-builder.md) for details.
 | `$fig.frame` / `.rectangle` / `.ellipse` / `.polygon` / `.star` / `.line` / `.vector` / `.text` / `.section` / `.component` / `.page` / `.slice` | `FigPlanNode` | Create a plan node of the given type: `(opts?, children?)` |
 | `$fig.autoLayout(opts?, children?)` | `FigPlanNode` | `FRAME` with auto-layout pre-configured (both axes hugging content). Default direction `HORIZONTAL`; pass `layoutMode: 'VERTICAL'` in opts to switch. |
 | `$fig.svg(svgString, opts?)`  | `FigPlanNode` | Create a node tree from SVG |
-| `$fig.svgComponent(svgString, opts?)` | `FigPlanNode` | Create a main component directly from the SVG outer frame, without an extra wrapper (Design and Slides) |
 | `$fig.instance(compRef, opts?)` | `FigPlanNode` | Create an instance from a component or component set (handle, ID, or library key); use `opts.props` to select variant values |
 | `$fig.group` / `.union` / `.subtract` / `.intersect` / `.exclude` / `.variants` | `FigPlanNode` | Wrap children in a group, boolean op, or component set |
 | `$fig.get(idOrKey)` | `FigPlanNode` | Wrap a local node by ID or queue a library component/component-set import by key |

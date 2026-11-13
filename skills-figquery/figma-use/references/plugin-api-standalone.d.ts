@@ -10432,16 +10432,6 @@ interface FigAPI {
   svg(svgStr: string, opts?: FigCreatorOpts<FrameNode>): FigPlanNode
 
   /**
-   * Creates a top-level component from an SVG string.
-   * Converts the imported SVG's outer frame directly into a component, preserving its children
-   * without adding a wrapping frame.
-   * Available in Design and Slides.
-   * @param svgStr Valid SVG markup to import.
-   * @param opts Additional properties applied to the resulting component.
-   */
-  svgComponent(svgStr: string, opts?: FigCreatorOpts<ComponentNode>): FigPlanNode
-
-  /**
    * Creates a top-level component instance on the current page.
    * @param compRef ID string of the main component, or a plan node representing it.
    * @param opts Instance properties (`props` key is applied via `setProperties`).
@@ -10740,16 +10730,6 @@ interface FigPlanNode {
    * @param opts Additional properties applied to the resulting frame.
    */
   svg(svgStr: string, opts?: FigCreatorOpts<FrameNode>): FigPlanNode
-
-  /**
-   * Appends a component created from an SVG string to this node.
-   * Converts the imported SVG's outer frame directly into a component, preserving its children
-   * without adding a wrapping frame.
-   * Available in Design and Slides.
-   * @param svgStr Valid SVG markup to import.
-   * @param opts Additional properties applied to the resulting component.
-   */
-  svgComponent(svgStr: string, opts?: FigCreatorOpts<ComponentNode>): FigPlanNode
 
   /**
    * Appends a child component instance to this node.

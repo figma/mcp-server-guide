@@ -18,7 +18,7 @@ Motion APIs might not be enabled for the calling user. When unavailable, every m
 
 Custom animation styles might not be enabled even when other motion APIs work. See [motion-custom-styles.md](references/motion-custom-styles.md) for availability checks and fallback guidance.
 
-3D keyframes require both motion and 3D transform APIs to be enabled. For animated tilt, card flips, depth, or perspective, and for rotation backwards, forwards, toward or away from the viewer (3D `TRANSFORM_3D_ROTATION_X` / `_Y`, not flat 2D `ROTATION`), load [3d-transforms.md](references/3d-transforms.md) and the `figma-3d-transforms` skill when available. Establish the static scene first; ordinary 2D motion does not require 3D access.
+3D keyframes require both motion and 3D transform APIs to be enabled. For animated tilt, card flips, depth, or perspective, load [3d-transforms.md](references/3d-transforms.md) and the `figma-3d-transforms` skill when available. Establish the static scene first; ordinary 2D motion does not require 3D access.
 
 Discover `TextStagger` through `figma.motion.figmaAnimationStyles()` before applying it. If it is absent, explain that text motion is unavailable in this session; do not bypass discovery or silently substitute whole-layer motion.
 

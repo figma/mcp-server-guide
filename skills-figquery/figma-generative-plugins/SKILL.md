@@ -34,15 +34,6 @@ Never stop after `create_generative_plugin`: the starter must be replaced with t
 3. Preserve existing UI, controls, relaunch behavior, validation, and user-visible affordances unless the user asks to change them.
 4. Call `update_generative_plugin` with complete replacement content for every changed existing file. Use `{ path: "code.ts", content: "..." }` for the entrypoint and `{ path: "ui.html", content: "..." }` for the UI. Unspecified files are preserved.
 
-## Version notes
-
-For every `update_generative_plugin` call, check the tool's advertised input schema and include each field below when that field is exposed:
-
-- `versionDescription`: A concise, nonblank, single-line summary of the changes delivered, focused on the user-visible result.
-- `versionDetail`: One or two nonblank sentences explaining the key implementation detail. Keep the detail proportional to the change, support it with the work performed, and avoid repeating the summary.
-
-If either field is absent from the advertised schema, omit that field and continue the update. Always include the required `commitMessage`. Do not send empty placeholders or claim unperformed work.
-
 ## Authoring rules
 
 - Before writing replacement files, read [Plugin source authoring](references/authoring.md). It covers the file replacement contract, UI/message lifecycle, PropsKit controls, dynamic-page compatibility, fonts, relaunch behavior, bounded work, geometry, and Plugin API gotchas.

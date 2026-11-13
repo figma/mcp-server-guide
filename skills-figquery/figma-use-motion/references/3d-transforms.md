@@ -18,21 +18,13 @@ These fields use ordinary manual keyframe tracks with `FLOAT` values:
 | `TRANSFORM_3D_ROTATION_Y` | degrees | Rotation about the vertical axis. |
 | `TRANSFORM_3D_ROTATION_Z` | degrees | In-plane rotation after X and Y, matching the static 3D pose. |
 | `TRANSFORM_3D_TRANSLATION_Z` | pixels | Depth; negative values are valid. |
-| `SCENE_3D_PERSPECTIVE` | pixels | Nonnegative perspective on a FRAME, COMPONENT, or INSTANCE; values below 1 render as 1px. |
+| `SCENE_3D_PERSPECTIVE` | pixels | Nonnegative perspective on a FRAME, COMPONENT, or INSTANCE. |
 
 Use these exact names, including the `TRANSFORM_3D_` prefix. The rotations use degrees without the sign inversion of ordinary 2D `ROTATION`.
 
-Establish a `FIXED_ORDER` pose before animating; imported `FREEFORM` transforms are not supported for 3D keyframing. Keyframe values are absolute: a 3D track replaces that `transform3d` field for the whole timeline, so start each track from the node's current value. A node posed at `rotateY: -46.5` makes one full turn with `-46.5 → 313.5`, and a card at `translateZ: 800` moves 300px toward the viewer and back with `800 → 1100 → 800`. Keep perspective on the container above the transformed object, following the static skill's scene rules.
-
-For a two-sided card, turn each face 180° from its own pose with the same timing: front `0 → 180`, back `180 → 360`. Alternatively, animate a `preserve3d` container holding both faces `0 → 180`.
+Establish a `FIXED_ORDER` pose before animating; imported `FREEFORM` transforms are not supported for 3D keyframing. Rotation and depth tracks compose with the resting pose, so read it before choosing values. A neutral rotation keyframe of `0` retains the resting angle. Keep perspective on the container above the transformed object, following the static skill's scene rules.
 
 `backfaceVisible`, `visible`, `preserve3d`, and `transformOrigin` are static properties, not keyframe fields.
-
-Perspective keyframes preserve their authored values, but distances from `0` to below `1px` render as `1px`, matching CSS. Animating toward zero keeps perspective active; it does not switch to an orthographic view. For a camera push, prefer distances comfortably above `1px` to avoid extreme distortion.
-
-Static `scene3d.perspective: -1` disables perspective. The manual keyframe API still rejects negative `SCENE_3D_PERSPECTIVE` values, so do not write `-1` keyframes to disable it. For no perspective throughout an animation, use the static `-1` value without a perspective track.
-
-The API rejects `OPACITY` and effects keyframes or transition overrides on a preserve-3D frame, because they aren't supported there, so they have no effect, and fading animation styles (Opacity, Fade, New, or Move/Rotate with `fade`) have no effect there either; animate them on an ancestor with `preserve3d: false` that contains only what's animating or, failing that, on a new transparent wrapper with `preserve3d: false` and the perspective copied onto it, as the 3D skill describes. Children can still take them but blend on their own, so overlaps show through.
 
 ## Add a turn to an existing pose
 
@@ -40,23 +32,14 @@ For a node with its static scene already configured, add a Y-axis half-turn over
 
 ```javascript
 const node = await figma.getNodeByIdAsync('123:456');
-const pose = node.transform3d;
-if (pose === undefined) {
-  throw new Error('3D transforms are not available in this environment.');
-}
-if (pose.type === 'FREEFORM') {
-  throw new Error('Set a FIXED_ORDER pose with figma-3d-transforms first.');
-}
-// A node with no 3D transform starts from 0.
-const startY = pose.type === 'FIXED_ORDER' ? pose.rotateY : 0;
 node.applyManualKeyframeTrack(
   { type: 'PROPERTY', name: 'TRANSFORM_3D_ROTATION_Y' },
   {
     keyframes: [
-      { timelinePosition: 0, value: { type: 'FLOAT', value: startY } },
+      { timelinePosition: 0, value: { type: 'FLOAT', value: 0 } },
       {
         timelinePosition: 0.6,
-        value: { type: 'FLOAT', value: startY + 180 },
+        value: { type: 'FLOAT', value: 180 },
         easing: { type: 'EASE_IN_AND_OUT' },
       },
     ],

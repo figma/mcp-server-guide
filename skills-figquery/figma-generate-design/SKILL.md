@@ -15,8 +15,8 @@ Use this skill to create or update **screens, views, and multi-section UI contai
 When available, call `create_session` with `fileKey` and `description` before file reads or edits (create the file first if needed), then pass the returned `sessionId` unchanged to every call that accepts it, including follow-ups and work across files.
 
 **Always include `figma-generate-design` in the comma-separated `skillNames` parameter when calling `use_figma` as part of this skill. If this skill was loaded via an MCP resource, you MUST prefix the name with `resource:` (e.g. `resource:figma-generate-design`).** This is a logging parameter — it does not affect execution.
-## Image and vector assets
-Reuse available source, captured, or library assets first. If suitable assets are unavailable, use Figma’s `generate_image` for raster images or `generate_vector_illustration` for editable icons, logos, and illustrations.
+## Image assets
+Reuse available source, captured, or library images first. If the requested design needs images and suitable assets are unavailable, call Figma's `generate_image` tool to create them.
 ## Skill Boundaries
 
 - Use this skill when the deliverable is a **composed Figma view** (new or updated) — including a form, dashboard, list, table, card, header, panel, dialog, message preview, or other multi-section container — built from design system component instances. This applies even when the user calls the composed view a component.
@@ -63,7 +63,8 @@ Before touching Figma, understand what you're building:
 2. Identify the major sections of the view (e.g., for a page: Header, Hero, Content Panels, Footer; for a modal: Title Bar, Form Sections, Action Bar; for a sidebar: Navigation, Content Area, Footer Actions).
 3. For each section, list the UI components involved (buttons, inputs, cards, navigation pills, accordions, etc.).
 4. **Identify the product's font family from the source. Do not default to Inter.** Find *which* typeface the product uses before writing any script. See [references/discover-product-font.md](references/discover-product-font.md) for where to look (CSS variables, component files) and how to resolve messy Figma font names.
-5. **Check whether the view contains any images** (e.g., `<img>`, `<Image>`, background images, product photos, avatars, icons loaded from URLs). If it does and this is a web app, you **must** run the parallel `generate_figma_design` capture workflow — start it immediately alongside Step 2 so the capture runs while you discover components. See "Parallel Workflow with generate_figma_design" above.
+5. **Build a reuse inventory.** List every element that repeats (rendered 2+ times, e.g. inside a `.map()`) or that the source defines as a reusable component (`<DayCell>`, `<StatusBadge>`, `<NavItem>`, `<MetricCard>`, `<Button>`). For each, note what differs between occurrences: text, optional parts, and visual state. Step 2d turns this into a reuse decision.
+6. **Check whether the view contains any images** (e.g., `<img>`, `<Image>`, background images, product photos, avatars, icons loaded from URLs). If it does and this is a web app, you **must** run the parallel `generate_figma_design` capture workflow — start it immediately alongside Step 2 so the capture runs while you discover components. See "Parallel Workflow with generate_figma_design" above.
 
 ### Step 2: Collect Component Keys, Variables, and Styles
 
@@ -256,11 +257,29 @@ Import library styles with `figma.importStyleByKeyAsync(key)`, then apply with `
 
 See [text-style-patterns.md](../figma-use/references/text-style-patterns.md) and [effect-style-patterns.md](../figma-use/references/effect-style-patterns.md) for details.
 
+#### 2d: Decide reuse for every inventory item — REQUIRED
+
+For each item from the Step 1 reuse inventory, record exactly one decision:
+
+- **Reuse** a published or existing local component (key or node ID from 2a).
+- **Create once** as a local main component (or component set) when nothing covers it. Library search returning nothing — including in an empty file — is the normal trigger for this, not a reason to hand-build copies.
+- **Frame** only for unique layout containers and one-off elements.
+
+Differences between occurrences become component properties: TEXT for labels, numbers, and dates; BOOLEAN for optional parts; variants only for meaningful visual states. Do not make every label or value a variant. See [references/componentization.md](references/componentization.md).
+
+```
+Reuse decisions:
+- Day Cell → create once: set State=Default/Today/Outside; TEXT Date; BOOLEAN Show Event 1..3
+- Event Chip → create once: set Color=Blue/Green; TEXT Title
+- Button/Primary → reuse: key "abc123"
+- Month grid, Header bar → frame
+```
+
 ### Step 3: Create the Wrapper Frame First With Placeholders
 
-**MUST use $fig** Use `$fig` for all node creation. Start with the `$fig` quick reference in [figma-use](../figma-use/SKILL.md); open [fig-builder.md](../figma-use/references/fig-builder.md) only for APIs it does not list.
+**MUST use $fig** Use `$fig` for all node creation. See [fig-builder.md](../figma-use/references/fig-builder.md) for API reference.
 
-**Use as few `use_figma` calls as safely possible.** When the view fits in one retry-safe script, create the wrapper and build its sections in that same call. Use placeholders only for sections that must be built in a later call. New nodes with `placeholder: true` show up in the tool call result after plan changes are auto-flushed, e.g. `{ created: { '0:3': 'My Screen', '0:4': 'Header Placeholder' }}`
+**Use placeholders and do not fill in all sections at once** — New nodes with `placeholder: true` will show up in the tool call result after plan changes are auto-flushed, e.g. `{ created: { '0:3': 'My Screen', '0:4': 'Header Placeholder' }}`
 
 If Step 2 selected a whole-view composite, instance it inside the wrapper with `$fig.instance(...)` and create placeholders only for the sections it does not cover. Customize its covered descendants in Step 4; never append children directly to an instance.
 
@@ -289,9 +308,15 @@ $fig.autoLayout(
 )
 ```
 
-### Step 4: Build the Sections Inside the Wrapper
+### Step 3b: Create Local Main Components Once — REQUIRED when 2d has "create once" rows
 
-**This is the most important step.** Batch related sections into one `use_figma` call when the script stays safe to retry. Split only for page-context boundaries, hard-to-recover partial execution, or a targeted retry after a failure—not merely to create a validation checkpoint. When a section was left as a placeholder by an earlier call, fetch it by ID and replace it with the real section.
+In a dedicated `use_figma` call, build every "create once" component or set from 2d, outside the view: in the file's existing component page or area if it has one, otherwise in a dedicated components area off to the side of the wrapper. `return` their node IDs. Create shared parts first: a component nested in another (Event Chip inside Day Cell) must exist before the parent. Section calls in Step 4 then place instances by ID. A plan handle does not survive between calls, so the returned node ID is how later calls reuse the component.
+
+Follow the complete, tested recipe in [references/componentization.md](references/componentization.md). It covers variants plus TEXT and BOOLEAN properties, instances with different values, nested overrides, and differing child counts without detaching.
+
+### Step 4: Build Each Section Inside the Wrapper
+
+**This is the most important step.** Build one section at a time, each in its own `use_figma` call. At the start of each script, fetch the section placeholder by ID and replace it with a real section.
 
 ```js
 const header = $fig.get("HEADER_PLACEHOLDER_ID_FROM_STEP_3");
@@ -323,10 +348,10 @@ header.replace(
       $fig.instance(primaryButton)
     ]
   )
-)
+).screenshot()
 ```
 
-Use the runtime's automatically returned created/updated node IDs as structural evidence. If needed, `await $fig.done()` before reading materialized nodes and return relevant counts, names, or bounds. Follow Step 5 for the full-view composition screenshot and any post-fix visual validation.
+Validate the section with `.screenshot()` before moving on. Look closely for cropped/clipped text (line heights cutting off content) and overlapping elements — these are the most common issues and easy to miss at a glance.
 
 #### Override instance text with setProperties()
 
@@ -368,6 +393,18 @@ Componentization is part of the **default** workflow, not an optional follow-up.
 - **Design-system instances are already componentized** (Step 2). Prefer them.
 - **For anything the design system does not cover that repeats or maps to a reusable source component, create a local component once with `$fig.component(...)` and place instances with `$fig.instance(...)`**, instead of hand-building N near-identical frames. One source component maps to one Figma main component.
 
+Place **instances** of the Step 3b components for every repeated element, with per-item `props`. Do not hand-build a copy of an element you already made a component:
+
+```js
+$fig.get("GRID_PLACEHOLDER_ID").replace(
+  $fig.autoLayout({ name: 'Metrics', layoutSizingHorizontal: 'FILL', itemSpacing: 16 },
+    METRICS.map((m) => $fig.instance("METRIC_CARD_SET_ID", {
+      name: m.label,
+      props: { Trend: m.up ? 'Up' : 'Down', Label: m.label, Value: m.value },
+    })),
+  ),
+).screenshot()
+```
 
 See [references/componentization.md](references/componentization.md) for the build-once-place-instances pattern and code.
 
@@ -408,7 +445,11 @@ Inspect the composition screenshot for:
 - Truncated content from layout sizing bugs
 - Wrong component variants (e.g., Neutral vs Primary button)
 - **Wrong font family** — text rendered in a different typeface than the product uses (e.g. Inter where the product is SF Pro). The script ran without error, so this is invisible at a glance; assert it explicitly (see "Assert the font family is correct" below)
-- **Blank image placeholders** — if images are missing, transfer them from the `generate_figma_design` capture before considering `generate_image` or `generate_vector_illustration` to generate placeholders (see "Transfer images from the generate_figma_design capture" below)
+- **Blank image placeholders** — if images are missing, transfer them from the `generate_figma_design` capture before considering `generate_image` to generate placeholders (see "Transfer images from the generate_figma_design capture" below)
+
+#### Validate the component structure
+
+Screenshots cannot show whether repeated items are instances. Run the read-only structural check in [references/componentization.md](references/componentization.md#validate-structure-not-just-the-screenshot) on the wrapper. Every inventory item marked "reuse" or "create once" must appear as instances. There must be no unused main components, no main components inside the view, and no repeated item left as duplicated frames. Fix what it reports before finishing.
 
 #### Assert the font family is correct
 
@@ -437,9 +478,9 @@ If you ran `generate_figma_design` in parallel, transfer only discrete content a
    ```
 4. Delete the `generate_figma_design` capture output after all images are transferred.
 
-#### Generating placeholder images and vectors
+#### Generating placeholder images
 
-Reuse existing assets if possible. If not, choose between `generate_image` and `generate_vector_illustration`. Then inform the user that Figma AI credits were used.
+After generation, inform the user that Figma AI credits were used.
 
 If Figma AI is unavailable or its credit limit is reached, ask before using an alternative image-generation provider. Upload only these alternative-provider images with `upload_assets`.
 
@@ -502,7 +543,7 @@ Because this skill works in retry-safe construction phases, errors are naturally
 - **Componentize by default.** Build repeated or reusable elements as a component once, then place instances. Do not ship a flat tree of one-off frames that needs a second "make it componentized" pass.
 - **MUST use $fig for all node creation.** Do not use `figma.createFrame()`, `figma.createText()`, etc. Use `$fig.autoLayout()`, `$fig.text()`, `$fig.rectangle()`, etc.
 - **Use auto-layout unless you have a compelling reason not to.** Auto-layout is the most reliably way to layout nodes. The only reason you should not use auto-layout is when you are asked not to, or if surrounding content does not use it.
-- **Work in retry-safe construction phases.** Batch related sections into one `use_figma` call when the script stays safe to retry; split only at page-context boundaries, hard-to-recover mutations, or a targeted retry after an actual failure.
-- **Validate visually with one composition screenshot.** Take one full-view screenshot after composition, and one more only after a targeted visual fix; the most recent passing screenshot is final.
+- **Work section by section.** Never build more than one major section per `use_figma` call.
+- **Validate visually after each section.** Call `.screenshot()` on nodes to catch issues early.
 - **Assert the font family, not just a successful load.** A script can load the wrong font without error. After building, verify rendered text uses the product font identified in Step 1 (see Step 5).
 - **Match existing conventions.** If the file already has screens, match their naming, sizing, and layout patterns.

@@ -32,7 +32,7 @@ Perspective keyframes preserve their authored values, but distances from `0` to 
 
 Static `scene3d.perspective: -1` disables perspective. The manual keyframe API still rejects negative `SCENE_3D_PERSPECTIVE` values, so do not write `-1` keyframes to disable it. For no perspective throughout an animation, use the static `-1` value without a perspective track.
 
-The API rejects `OPACITY` and effects keyframes or transition overrides on a preserve-3D frame, because they aren't supported there, so they have no effect, and fading animation styles (Opacity, Fade, New, or Move/Rotate with `fade`) have no effect there either; animate them on an ancestor with `preserve3d: false` that contains only what's animating or, failing that, on a new transparent wrapper with `preserve3d: false` and the perspective copied onto it, as the 3D skill describes. Children can still take them but blend on their own, so overlaps show through.
+`OPACITY` and effects keyframes or transition overrides and fading animation styles (Opacity, Fade, New, or Move/Rotate with `fade`) have no effect on a preserve-3D frame, because 3D rendering ignores them there; animate them on a flat ancestor as the 3D skill describes. Children can still take them but blend on their own, so overlaps show through.
 
 ## Add a turn to an existing pose
 

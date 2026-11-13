@@ -38,32 +38,6 @@ IMPORTANT: Whenever you work with design systems, start with [working-with-desig
 - Prefer `$fig.instance(componentPlanNode, opts)` or `planNode.instance(componentPlanNode, opts)` to create instances of plan component nodes, with no intermediate flush.
 - Use `planNode.node` only when you need raw state or an operation `$fig` or plan nodes do not expose. Flush pending changes first. Do not mix raw plugin code amongst pending changes.
 
-### `$fig` quick reference
-
-This is the full `$fig` surface. Open [references/fig-builder.md](references/fig-builder.md) for worked details: gridding variant sets, style handle semantics, variable aliasing, query screenshots, and mid-script materialization.
-
-| Need | Call |
-|---|---|
-| Create nodes | `$fig.autoLayout(opts, children?)` (hugs both axes; default `HORIZONTAL`), `$fig.frame`, `$fig.text({ characters, fontName, fontSize, fills })`, `$fig.rectangle`, `$fig.ellipse`, `$fig.polygon`, `$fig.star`, `$fig.line`, `$fig.vector`, `$fig.section`, `$fig.page`: all `(opts?, children?)` |
-| Create from SVG | `$fig.svg(svgString, opts?)` builds a vector node tree; `$fig.svgComponent(svgString, opts?)` builds it as a main component (icons). |
-| Group and boolean | `$fig.group`, `$fig.union`, `$fig.subtract`, `$fig.intersect`, `$fig.exclude`: all `(opts?, children?)` |
-| Add children | `parent.append(a, b)`, `parent.addAt(index, child)`, or call a constructor on the plan node: `card.text({ ... })` |
-| Components | `$fig.component(opts, children)`; variant set: `$fig.variants({ name }, [$fig.component({ name: 'State=Default' }, [...]), ...])`. Variants stack at (0,0), so grid them afterward (fig-builder.md). |
-| Component properties | On a layer inside the component: `.textProp('Label')`, `.booleanProp('Show Icon')`, `.instanceSwapProp('Icon')`, `.slotProp('Content')` (on a descendant frame) |
-| Instances | `$fig.instance(compRef, { props: { Label: 'Save', State: 'Hover' } })`, where `compRef` is a component plan node, a node ID, or a library `componentKey` / `componentSetKey` (import is queued); existing instance: `$fig.get(id).set({ props: { ... } })` |
-| Existing nodes | `$fig.get(idOrLibraryKey)`; `$fig.query(selector, scope?)` with CSS-like selectors (`'FRAME[name*=Card] TEXT'`) |
-| Query results | `length`, `first()`, `last()`, `at(i)`, `find(fn)`, `filter(fn)`, `slice(start, end?)`, `query(selector)`, `each(fn)` / `forEach(fn)`, `map(fn)`, `values(paths)`, `toArray()`, `set(props)`, `moveTo(parent, index?)`, `replace(newNode)`, `remove()`, `screenshot(opts?)` |
-| Edit, move, delete | Plan node: `.set(props)`, `.replace(newNode)`, `.moveTo(parent, index?)`, `.clone(props?)`, `.remove()`, `.reorderChildren(children)`, `.gradient(type, stops, transform?)`, `.image(hash, scaleMode?)`. Global: `$fig.set(target, props)`, `$fig.delete(...nodes)`, `$fig.move(target, parent, index?)`, `$fig.clone(target, props?)`, `$fig.append(parent, child)`, `$fig.addAt(parent, index, child)`, `$fig.replace(old, new)`, `$fig.reorder(parent, children)`, `$fig.gradient(node, type, stops, transform?)`, `$fig.image(node, hash, scaleMode?)` |
-| Variables | `const tokens = $fig.varCollection({ name, modes: ['Light', 'Dark'] })`, then `tokens.colorVar({ name, values: { Light: '#FFFFFF', Dark: '#000000' }, scopes })`, `.numVar`, `.stringVar`, `.boolVar`; existing: `$fig.getVar(idOrLibraryKey)` |
-| Bind a variable | Pass the handle as the value: `paddingLeft: space`, `cornerRadius: radius` (all four corners), `fills: [{ type: 'SOLID', color: brand }]` |
-| Styles | Create with `$fig.paintStyle` / `$fig.textStyle` / `$fig.effectStyle({ name, ... })`; existing: `$fig.getStyle(nameOrIdOrKey)`; apply with `fills: style`, `effects: style`, `textStyle: style` |
-| Screenshot | `node.screenshot({ scale?, contentsOnly? })`: queued, no `await`, one per node |
-| Real nodes and IDs | `await $fig.done()`, then `planNode.node` (null before the flush). Without it, the script auto-flushes and returns the created IDs. |
-
-Library keys (`componentKey`, `componentSetKey`, and style or variable `key` values) come from `search_design_system`; `$fig.get`, `$fig.instance`, `$fig.getStyle`, and `$fig.getVar` queue their import in the plan.
-
-**Icons:** **Prefer real vector icons:** import the icon's SVG source (inline `<svg>`, the `.svg` asset, or the source icon-library glyph — e.g. lucide/heroicons) via `$fig.svg(...)` rather than approximating an icon with a typed emoji/Unicode glyph (★ ⚙ 🔍 ☰ ▾) or a plain rectangle. A simple glyph or shape is a fine fallback when the real SVG genuinely can't be obtained — just reach for the SVG first. (Don't reconstruct an icon from rotated line/rect primitives, though — that renders broken.) Full recipe (viewBox+width/height sizing, `currentColor`, INSTANCE_SWAP for design-system icons): [figma-generate-design → Icons](../figma-generate-design/SKILL.md#icons-import-the-svg-never-reconstruct-from-rotated-primitives).
-
 ### Copy these patterns
 
 **Build an auto-layout frame with children — single call:**
@@ -99,24 +73,7 @@ $fig.autoLayout({ name: 'Nav', layoutMode: 'VERTICAL', width: 240 },
   })),
 ).screenshot()
 ```
-When building a screen, keep main components outside the view: in the file's existing component area, or off to the side of the wrapper. Return `item.node.id` (after `await $fig.done()`) when a later call needs more instances: `$fig.instance('ID', { props })`. Only genuinely one-off containers stay plain frames. See [figma-generate-design → componentization](../figma-generate-design/references/componentization.md).
-
-**Source-defined or repeated icons: import the SVG once into a component, then place instances.** Reuse a compatible local or library icon component when one exists. Otherwise, when the source uses an icon component (even once inside the requested component) or repeats an icon, create one local main component with `$fig.svgComponent(svgStr, opts)`. It converts the imported SVG's outer frame into the component, preserving its children without adding a wrapper. Keep that main component in the existing component area, outside the composed view. Insert instances into parent components and their variants so the icon remains a reusable dependency. Direct SVG children are appropriate for genuinely one-off artwork that the source does not define as a reusable component.
-```js
-// Read this exact SVG from the source asset or icon library first.
-const chevronSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m9 6 6 6-6 6" stroke="#111827" stroke-width="2"/></svg>'
-const chevron = $fig.svgComponent(chevronSvg, { name: 'ChevronRight', width: 24, height: 24 })
-const iconButton = $fig.component({ name: 'IconButton', layoutMode: 'HORIZONTAL' }, [
-  $fig.instance(chevron),
-])
-const preview = $fig.autoLayout({ name: 'Preview', x: 400, layoutMode: 'HORIZONTAL' }, [
-  $fig.instance(iconButton),
-  $fig.instance(iconButton),
-])
-await $fig.done()
-return { iconId: chevron.node.id, buttonId: iconButton.node.id, previewId: preview.node.id }
-```
-A later call can reuse the returned icon ID with `$fig.instance(iconId)`. The SVG is imported only in the main icon component, and each button contains an icon instance.
+When building a screen, keep main components outside the view: in the file's existing component area, or off to the side of the wrapper. Return `item.node.id` (after `await $fig.done()`) when a later call needs more instances: `$fig.instance('ID', { props })`. Only genuinely one-off containers stay plain frames. Full recipe (variants for visual states, nested overrides, differing child counts, structural check): [figma-generate-design → componentization](../figma-generate-design/references/componentization.md).
 
 **Update existing nodes — by query or by id:**
 ```js
@@ -251,6 +208,16 @@ card.text({ characters: 'Title', fontSize: 20 })
 card.text({ characters: 'Description', fontSize: 14 })
 ```
 
+### `$fig` create + mutate API (full surface)
+
+- **Create:** `$fig.autoLayout / .frame / .text / .rectangle / .ellipse / .polygon / .star / .line / .vector / .section / .component / .page` — all `(opts?, children?)`. Plan nodes are chainable.
+- **Create from SVG — the preferred ICON path:** `$fig.svg(svgStr, opts?)` builds a vector node tree from an SVG string. **Prefer real vector icons:** import the icon's SVG source (inline `<svg>`, the `.svg` asset, or the source icon-library glyph — e.g. lucide/heroicons) via `$fig.svg(...)` rather than approximating an icon with a typed emoji/Unicode glyph (★ ⚙ 🔍 ☰ ▾) or a plain rectangle. A simple glyph or shape is a fine fallback when the real SVG genuinely can't be obtained — just reach for the SVG first. (Don't reconstruct an icon from rotated line/rect primitives, though — that renders broken.) Full recipe (viewBox+width/height sizing, `currentColor`, INSTANCE_SWAP for design-system icons): [figma-generate-design → Icons](../figma-generate-design/SKILL.md#icons-import-the-svg-never-reconstruct-from-rotated-primitives).
+- **Create an instance of a component:** `$fig.instance(compRef, opts?)` — `compRef` is a component plan node, a node ID string, OR a library asset key (`componentKey` or `componentSetKey` from `search_design_system`); the import is queued in the plan automatically.
+- **Grouping/boolean:** `$fig.group / .union / .subtract / .intersect / .exclude / .variants` — all `(opts?, children?)`.
+- **Read:** `$fig.get(id)` wraps an existing `SceneNode` — `id` can be a real node ID OR a library asset key (`componentKey` or `componentSetKey` from `search_design_system`); the import is queued in the plan automatically. `$fig.query(selector, scope?)` returns `{ length, values(paths), first(), last(), each(fn), filter(fn), set(props), moveTo(parent, idx?), remove() }`. Selectors are CSS-like (e.g. `'FRAME[name*=Card] TEXT'`). `$fig.getStyle(nameOrIdOrKey)` and `$fig.getVar(nameOrIdOrKey)` accept the matching `key` values from `search_design_system`.
+- **Mutate:** `$fig.set(target, props)`, `.delete(...nodes)`, `.move(target, parent, idx?)`, `.clone(target, props?)`, `.append(parent, child)`, `.addAt(parent, idx, child)`, `.replace(old, new)`, `.reorder(parent, children)`, `.gradient(node, type, stops, transform?)`, `.image(node, hash, scaleMode?)`.
+- **Plan-node methods (chainable):** `.set()`, `.remove()`, `.clone()`, `.moveTo(parent, idx?)`, `.append(child)`, `.query(selector)`, `.screenshot({scale?, contentsOnly?})`, and the `.node` getter for the materialized `SceneNode` (null pre-flush).
+
 ### When to use the raw Figma Plugin API
 
 Keep raw Plugin API code that reads or changes document state separate from planned creation and mutations. Run it before `$fig` code, or after an explicit `await $fig.done()` that flushes all pending changes. Do not pass plan nodes to raw methods such as `regularNode.appendChild(planNode)` or `insertChild`; use `$fig.get(regularNode.id).append(planNode)` or `.addAt(index, planNode)` instead. Planned changes are not visible to raw reads such as `regularNode.children` until the plan is flushed. After flushing, use `planNode.node` when a raw API needs the real node. Pure color helpers such as `figma.util.solidPaint`, `.rgb`, and `.rgba` can be used inside `$fig` expressions.
@@ -306,7 +273,7 @@ $fig.autoLayout({ name: 'Screen', layoutMode: 'VERTICAL', width: 390 }, [
 
 17. **Discover available fonts, esp. for style variations.** Use `await figma.listAvailableFontsAsync()` to discover available fonts for `$fig.text({ fontName: ... })`.
 
-18. **Set variable `scopes` explicitly when creating variables.** The default `ALL_SCOPES` pollutes every property picker. Use specific scopes — `['FRAME_FILL', 'SHAPE_FILL']` for backgrounds, `['TEXT_FILL']` for text, `['GAP']` for spacing, `['CORNER_RADIUS']` for radii; primitives that shouldn't appear in pickers get `[]`. In `$fig`, pass `scopes` to `colorVar` / `numVar`; in the raw API, set `variable.scopes`. There is no `STROKE` scope (use `STROKE_COLOR` or `STROKE_FLOAT`), and variable names cannot contain `.` (`space/0-5`, not `space/0.5`); [references/fig-builder.md](references/fig-builder.md) lists every scope and naming rule. See [references/variable-patterns.md](references/variable-patterns.md).
+18. **Set variable `scopes` explicitly when creating variables.** The default `ALL_SCOPES` pollutes every property picker. Use specific scopes — `['FRAME_FILL', 'SHAPE_FILL']` for backgrounds, `['TEXT_FILL']` for text, `['GAP']` for spacing, `['CORNER_RADIUS']` for radii; primitives that shouldn't appear in pickers get `[]`. In `$fig`, pass `scopes` to `colorVar` / `numVar`; in the raw API, set `variable.scopes`. See [references/variable-patterns.md](references/variable-patterns.md).
 
 19. **Never read `componentPropertyDefinitions`, `componentProperties`, or `valuesByMode` across a collection.** Resolve specific node IDs first, then read the property bundle only for those IDs. Reading one resolved node is safe; mapping these getters over `findAll*` results, `children`, or `getLocalVariables*` is the single largest cause of oversized returns.
 
@@ -338,7 +305,7 @@ Do not guess node properties or assume CSS-like properties. Accessing non-existe
 
 ## References
 
-- [references/fig-builder.md](references/fig-builder.md) — full `$fig` API and worked patterns; start with the quick reference above
+- [references/fig-builder.md](references/fig-builder.md) — full `$fig` API and worked patterns
 - [references/critical-rules-deep.md](references/critical-rules-deep.md) — WRONG/RIGHT examples, full node-type pitfall list, bulk-mutation template, syntax-bug checklist
 - [references/gotchas.md](references/gotchas.md) — raw Plugin API edge cases
 - [references/plugin-api-standalone.d.ts](references/plugin-api-standalone.d.ts) — type definitions (grep, don't read whole)
