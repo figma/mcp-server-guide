@@ -77,8 +77,8 @@ Every scope begins with focused discovery: analyze the relevant code, inspect th
 ### Reconciliation / update
 
 1. Inventory existing assets and identify exact drift from the current code source.
-2. Update affected assets in place, preserving valid names, IDs, bindings, and library structure where possible.
-3. Validate the changed assets and their known dependents; then stop.
+2. Update affected assets in place, preserving valid names, IDs, bindings, and library structure where possible. Before the first write, save a snapshot of every field you will change (name, value or alias, scopes, description) with variable IDs to a file. When you annotate a retired asset, append to its `description`; never replace it.
+3. Validate the changed assets and their known dependents: report per-page bound-node counts for every variable whose value changed, and search text nodes on foundations and documentation pages, and variable descriptions, for the old names and values. Then stop.
 
 If a required acceptance check fails, fix the scoped defect before continuing. Do not substitute fake assets, approximate typography, broken interactions, or unverified state.
 
@@ -110,9 +110,10 @@ This skill's selected workflow, search cadence, validation rules, and definition
 10. **Deterministic naming** — use consistent, unique node names for idempotent cleanup and resumability. Track created node IDs via return values and the state ledger.
 11. **No destructive cleanup** — cleanup scripts identify nodes by name convention or returned IDs, not by guessing.
 12. **Validate from evidence before proceeding** — never build on unvalidated work. Rely on the structural evidence returned by writes (IDs plus relevant counts, names, and bounds); run one batched structural audit per coherent phase only when needed to establish the acceptance checks or when a relevant mutation invalidated prior evidence. Take one visual review per coherent composition phase, plus one post-fix screenshot only after a targeted visual fix.
-13. **NEVER parallelize `use_figma` calls** — Figma state mutations must be strictly sequential. Even if your tool supports parallel calls, never run two use_figma calls simultaneously.
+13. **Run `use_figma` calls that change the file one at a time.** Mutations must be strictly sequential. Read-only calls may run in parallel, including `figma-use`'s one-call-per-page read fan-out.
 14. **Never hallucinate Node IDs** — always read IDs from the state ledger returned by previous calls. Never reconstruct or guess an ID from memory.
 15. **Use the helper scripts** — embed scripts from `scripts/` into your use_figma calls. Don't write 200-line inline scripts from scratch.
+16. **`use_figma` accepts at most 50,000 characters of code.** A build spec larger than about 30,000 characters (a kit exported as JSON, for example) goes in as several calls, one per group of top-level components. Give each call the target page's ID as a literal and have it skip components already on that page, so a failed call can be repeated.
 
 ---
 
