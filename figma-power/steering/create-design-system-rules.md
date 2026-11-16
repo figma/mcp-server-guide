@@ -37,18 +37,18 @@ Use this skill when:
 
 **Follow these steps in order. Do not skip steps.**
 
-### Step 1: Run the Create Design System Rules Tool
+### Step 1: Run the Create Design System Rules Prompt
 
-Call the Figma MCP server's `create_design_system_rules` tool to get the foundational prompt and template.
+Invoke the Figma MCP server's `create_design_system_rules` prompt to get the foundational prompt and template. `create_design_system_rules` is an MCP prompt rather than a tool — MCP prompts are invoked using commands specific to your agent or client, and not all agents and clients support them.
 
 **Parameters:**
 
 - `clientLanguages`: Comma-separated list of languages used in the project (e.g., "typescript,javascript", "python", "javascript")
 - `clientFrameworks`: Framework being used (e.g., "react", "vue", "svelte", "angular", "unknown")
 
-This tool returns guidance and a template for creating design system rules.
+This prompt returns guidance and a template for creating design system rules.
 
-Structure your design system rules following the template format provided in the tool's response.
+Structure your design system rules following the template format provided in the prompt's response.
 
 ### Step 2: Analyze the Codebase
 
@@ -264,7 +264,7 @@ User says: "Create design system rules for my React project"
 
 **Actions:**
 
-1. Run `create_design_system_rules(clientLanguages="typescript,javascript", clientFrameworks="react")`
+1. Invoke the `create_design_system_rules` prompt (`clientLanguages="typescript,javascript"`, `clientFrameworks="react"`)
 2. Analyze codebase structure
 3. Generate rules:
 
@@ -310,7 +310,7 @@ User says: "Set up Figma rules for my Vue app"
 
 **Actions:**
 
-1. Run `create_design_system_rules(clientLanguages="typescript,javascript", clientFrameworks="vue")`
+1. Invoke the `create_design_system_rules` prompt (`clientLanguages="typescript,javascript"`, `clientFrameworks="vue"`)
 2. Discover that project uses CSS modules and a custom design token system
 3. Generate rules:
 
@@ -356,7 +356,7 @@ User says: "Generate rules for our design system library"
 
 **Actions:**
 
-1. Run `create_design_system_rules(clientLanguages="typescript", clientFrameworks="react")`
+1. Invoke the `create_design_system_rules` prompt (`clientLanguages="typescript"`, `clientFrameworks="react"`)
 2. Analyze the monorepo structure with design system package
 3. Generate comprehensive rules:
 
