@@ -34,7 +34,7 @@ Batch related operations when the resulting script stays safe to retry. Split at
 Stop when all conditions for the chosen scope are true:
 
 - The final deliverable covers the locked inventory and is materially faithful to the applicable source of truth, including requested variant/state coverage, required assets, and in-scope review examples.
-- For component tasks, keep main components and construction assets outside the final review frame, and show the requested states as instances in one compact frame. Before stopping, inspect that frame at normal scale and repair clipped, truncated, low-contrast, empty, misplaced, or detached content.
+- For component tasks, keep main components and construction assets outside the final review frame, and show the requested states as instances in one compact frame. Before stopping, inspect that frame at normal scale and repair clipped, truncated, low-contrast, empty, misplaced, or detached content. If a defect comes from the source spec (layout coordinates in an exported JSON, for example), don't change the Figma file to hide it: report it with the file and the values, and list it under unresolved limitations.
 - Required variable scopes, aliases, code syntax, component properties, variants, and bindings are verified.
 - The requested artifact passes applicable structural and visual validation. Confirm requested content is fully visible unless clipping or truncation is intentional; repair defects and recheck only the affected output.
 - Replace placeholders when the source provides the required asset; remove temporary instances, test frames, captures, abandoned artifacts, and unrelated stray nodes.
@@ -78,6 +78,7 @@ Every scope begins with focused discovery: analyze the relevant code, inspect th
 
 1. Inventory existing assets and identify exact drift from the current code source.
 2. Update affected assets in place, preserving valid names, IDs, bindings, and library structure where possible. Before the first write, save a snapshot of every field you will change (name, value or alias, scopes, description) with variable IDs to a file. When you annotate a retired asset, append to its `description`; never replace it.
+2a. If the source change can't be applied in place (variant axes or counts change), build the new assets beside the old ones. Before touching the old ones, count their instances (`getInstancesAsync`) and report the count. Rename each old main component with a retired suffix instead of deleting it: deleting a main component detaches its instances. Say in the final summary how many instances still point at the retired assets.
 3. Validate the changed assets and their known dependents: report per-page bound-node counts for every variable whose value changed, and search text nodes on foundations and documentation pages, and variable descriptions, for the old names and values. Then stop.
 
 If a required acceptance check fails, fix the scoped defect before continuing. Do not substitute fake assets, approximate typography, broken interactions, or unverified state.
@@ -113,7 +114,7 @@ This skill's selected workflow, search cadence, validation rules, and definition
 13. **Run `use_figma` calls that change the file one at a time.** Mutations must be strictly sequential. Read-only calls may run in parallel, including `figma-use`'s one-call-per-page read fan-out.
 14. **Never hallucinate Node IDs** — always read IDs from the state ledger returned by previous calls. Never reconstruct or guess an ID from memory.
 15. **Use the helper scripts** — embed scripts from `scripts/` into your use_figma calls. Don't write 200-line inline scripts from scratch.
-16. **`use_figma` accepts at most 50,000 characters of code.** A build spec larger than about 30,000 characters (a kit exported as JSON, for example) goes in as several calls, one per group of top-level components. Give each call the target page's ID as a literal and have it skip components already on that page, so a failed call can be repeated.
+16. **`use_figma` accepts at most 50,000 characters of code.** A build spec larger than about 30,000 characters (a kit exported as JSON, for example) goes in as several calls, one per group of top-level components. Each call repeats the shared builder code and variable data, so size each group to stay under the cap with them included. Give each call the target page's ID as a literal, have it check a hash of its pasted data first, and have it skip components already on that page, so a failed call can be repeated. To port a Figma plugin, paste its builder function, not its entry file: the entry calls `figma.notify`, `figma.closePlugin` or `figma.showUI`, which the MCP rejects.
 
 ---
 
@@ -130,9 +131,9 @@ This skill's selected workflow, search cadence, validation rules, and definition
 
 Record every returned ID in the state ledger immediately after creation. Never use a fuzzy lookup to authorize deletion.
 
-**State persistence**: Do NOT rely solely on conversation context for the state ledger. Write it to disk:
+**State persistence**: Do NOT rely solely on conversation context for the state ledger. Write it to disk, in the harness's scratch directory when it names one and in `/tmp` otherwise:
 ```
-/tmp/design-system-state-{RUN_ID}.json
+<scratch dir>/design-system-state-{RUN_ID}.json
 ```
 Re-read this file at the start of every turn. In long workflows, conversation context will be truncated — the file is the source of truth.
 
