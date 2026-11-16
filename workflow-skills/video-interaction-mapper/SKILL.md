@@ -34,6 +34,28 @@ Run the bundled files in `scripts/` as executable workflow helpers. They are par
 of the skill's implementation, not reference material. Read or modify them only
 when debugging, adapting to an unusual environment, or changing the skill itself.
 
+## Non-Negotiable Screenshot Quality
+
+Scout frames are analysis thumbnails only. Never place a scout frame, contact-sheet
+crop, or other low-resolution derivative in Figma.
+
+Every screenshot placed on the canvas must:
+
+- Come from the resolved high-quality selected frame.
+- Be at least 1440 px wide for landscape/desktop recordings or 900 px wide for
+  portrait/mobile recordings, unless the source video itself is smaller. In that
+  case, preserve the native source width and never upscale it.
+- Pass `prepare_upload_frames.py` with `readability_passed: true` and
+  `upload_within_budget: true`.
+- Be uploaded with `upload_assets`; never reduce dimensions to fit a `use_figma`
+  payload or embed image bytes in generated JavaScript.
+- Use a Figma screenshot container at the prepared asset's pixel dimensions so the
+  asset is not enlarged beyond its source resolution.
+
+These are hard gates. If an asset cannot meet both the readable-width requirement
+and the upload-size limit, stop and report the blocker. Never silently shrink,
+substitute, or blur the screenshot to complete the storyboard.
+
 Use a Figma Design file (`figma.com/design/...`) as the target. The generated
 Plugin API code creates pages and image-fill frames, which are Design-file
 operations. If the user provides a FigJam or Slides URL, ask for a Design file or
@@ -197,7 +219,9 @@ python <SKILL_DIR>/scripts/prepare_upload_frames.py \
 The script writes optimized JPEGs under `<output_dir>/upload_assets/` and creates
 `upload_manifest.json`. Defaults are 1440 px wide for landscape recordings and 900
 px wide for portrait recordings at JPEG quality 75. It records image dimensions,
-actual JPEG quality, file size, and whether each asset fits the upload budget.
+actual JPEG quality, file size, and whether each asset fits the upload and
+readability budgets. Compression may lower JPEG quality to 45, but it must fail
+instead of shrinking below the required readable width.
 
 ### 6. Generate Figma Call Files
 
@@ -265,6 +289,10 @@ containers.
 Run `get_screenshot`, `download_assets`, or `get_design_context` to verify that:
 
 - Screenshots are visible and nonblank.
+- Each uploaded screenshot has the expected pixel dimensions from
+  `upload_manifest.json`.
+- Text and controls are legible in an individual screenshot-node capture at 100%
+  scale. A page-wide overview is not sufficient evidence of readability.
 - Blue marker rings sit on the intended target/result locations.
 - Native annotations use human labels and do not expose coordinate values.
 - Ambiguous or inferred targets are suppressed unless explicitly forced with
@@ -319,5 +347,5 @@ Report back with:
   screenshot container remains in the file and can be reused.
 - `upload_assets` succeeds but images do not render: run the generated fill pass
   with the returned image hashes.
-- `upload_assets` is unavailable: warn that the fallback path is slower because it
-  must embed image data directly in `use_figma` calls.
+- `upload_assets` is unavailable: stop before modifying Figma and report the
+  blocker. Do not embed, downscale, or substitute screenshots.
