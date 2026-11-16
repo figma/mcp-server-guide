@@ -18,7 +18,7 @@ These fields use ordinary manual keyframe tracks with `FLOAT` values:
 | `TRANSFORM_3D_ROTATION_Y` | degrees | Rotation about the vertical axis. |
 | `TRANSFORM_3D_ROTATION_Z` | degrees | In-plane rotation after X and Y, matching the static 3D pose. |
 | `TRANSFORM_3D_TRANSLATION_Z` | pixels | Depth; negative values are valid. |
-| `SCENE_3D_PERSPECTIVE` | pixels | Nonnegative perspective on a FRAME, COMPONENT, or INSTANCE; values below 1 render as 1px. |
+| `SCENE_3D_PERSPECTIVE` | pixels | Nonnegative perspective on a FRAME, COMPONENT, or INSTANCE. |
 
 Use these exact names, including the `TRANSFORM_3D_` prefix. The rotations use degrees without the sign inversion of ordinary 2D `ROTATION`.
 
@@ -28,11 +28,11 @@ For a two-sided card, turn each face 180° from its own pose with the same timin
 
 `backfaceVisible`, `visible`, `preserve3d`, and `transformOrigin` are static properties, not keyframe fields.
 
-Perspective keyframes preserve their authored values, but distances from `0` to below `1px` render as `1px`, matching CSS. Animating toward zero keeps perspective active; it does not switch to an orthographic view. For a camera push, prefer distances comfortably above `1px` to avoid extreme distortion.
+For a camera push, keep distances comfortably above `1px` to avoid extreme distortion.
 
 Static `scene3d.perspective: -1` disables perspective. The manual keyframe API still rejects negative `SCENE_3D_PERSPECTIVE` values, so do not write `-1` keyframes to disable it. For no perspective throughout an animation, use the static `-1` value without a perspective track.
 
-`OPACITY` and effects keyframes or transition overrides and fading animation styles (Opacity, Fade, New, or Move/Rotate with `fade`) have no effect on a preserve-3D frame, because 3D rendering ignores them there; animate them on a flat ancestor as the 3D skill describes. Children can still take them but blend on their own, so overlaps show through.
+The API rejects `OPACITY` and effects keyframes or transition overrides on a preserve-3D frame, because they aren't supported there, so they have no effect, and fading animation styles (Opacity, Fade, New, or Move/Rotate with `fade`) have no effect there either; animate them on an ancestor with `preserve3d: false` that contains only what's animating or, failing that, on a new transparent wrapper with `preserve3d: false` and the perspective copied onto it, as the 3D skill describes. Children can still take them but blend on their own, so overlaps show through.
 
 ## Add a turn to an existing pose
 

@@ -33,6 +33,15 @@ Never stop after `create_shader`: the starter scaffold is only a structural star
 3. Preserve existing controls and behavior unless the user asks to change them.
 4. Call `update_shader` with the complete replacement `main.ts` in the `files` array, not a diff or partial fragment. An empty `files` array is valid only for a metadata-only update.
 
+## Version notes
+
+For every `update_shader` call, check the tool's advertised input schema and include each field below when that field is exposed:
+
+- `versionDescription`: A concise, nonblank, single-line summary of the changes delivered, focused on the user-visible result.
+- `versionDetail`: One or two nonblank sentences explaining the key implementation detail. Keep the detail proportional to the change, support it with the work performed, and avoid repeating the summary.
+
+If either field is absent from the advertised schema, omit that field and continue the update. Always include the required `commitMessage`. Do not send empty placeholders or claim unperformed work.
+
 ## Authoring rules
 
 - Before writing the `main.ts` replacement, read [Shader source authoring](references/authoring.md). It contains the required module shape, WebGPU lifecycle, supported parameter schemas, effect/fill alpha rules, and WGSL failure checklist.

@@ -148,7 +148,7 @@ iconInstance.componentPropertyReferences = {
 
 Slots are designated drop zones inside a component where designers can place arbitrary content in instances — more flexible than INSTANCE_SWAP (which only swaps component instances). They appear as `SlotNode` (type `'SLOT'`) in the Plugin API and as a `SLOT`-typed component property.
 
-### Option 1 — `planFrame.slotProp()` (preferred)
+### Builder: `planFrame.slotProp()` (preferred)
 
 For new components, use `$fig.component` and attach `.slotProp(name)` to a descendant frame to create a slot property.
 
@@ -175,7 +175,7 @@ await $fig.done();
 return Object.keys(cardWithFooter.node.componentPropertyDefinitions);
 ```
 
-### Option 2 — `component.createSlot()`
+### Raw Plugin API: `component.createSlot()` (preferred)
 
 Creates a `SlotNode` as a direct child of the component and automatically creates a linked `SLOT` component property. No manual wiring needed.
 
@@ -212,7 +212,7 @@ return Object.keys(card.componentPropertyDefinitions);
 // → ["Content#7:1", "Footer#7:2"]
 ```
 
-### Option 3 — Manual binding via addComponentProperty
+### Manual binding via `addComponentProperty()`
 
 Link a regular frame to a `SLOT` property with `componentPropertyReferences`:
 
@@ -243,7 +243,7 @@ await $fig.done();
 - Widgets, Stickies, and ComponentNodes cannot be appended directly to a slot
 - Frames nested inside another slot cannot themselves be bound to a slot property
 - `instance.setProperties({ [slotPropKey]: ... })` throws — slot content is set by appending children, not via `setProperties`
-- For a raw `SlotNode` in an instance, `slotNode.resetSlot()` reverts the slot to its default empty state. Do not assume a frame bound by `.slotProp()` exposes this method.
+- For a raw `SlotNode` in an instance, `slotNode.resetSlot()` restores the original component slot content. Do not assume a frame bound to a `SLOT` property exposes this method.
 
 ## INSTANCE_SWAP: Avoiding Variant Explosion
 
