@@ -65,7 +65,7 @@ Decide before posing the scene, in this order:
 3. Also automatically add perspective when **only one node receives only an X or Y rotation**. Without it, a flat node only foreshortens and the depth direction is hard to see.
 4. For other new 3D requests, briefly ask whether to add perspective. Until confirmed, default to **no perspective**; "make it 3D" or "make a cube" alone does not authorize it. If asked to continue without an answer, proceed with no perspective. Preserve an existing projection when merely editing an established scene unless the user requests a change.
 
-For perspective, start at least around 80% of the longest object/scene dimension; use larger distances for a subtler look. Tiny distances can make geometry explode toward the camera. For no perspective, use `perspective: -1`. Any negative distance means none; `0` and positive distances below `1px` render as `1px`. Preserve authored distances in storage rather than rewriting them to the rendering minimum. A full six-face cube needs `preserve3d: true`; a three-face isometric cube uses independently posed faces in a flat container. See [cube recipes](references/cubes.md) for both constructions.
+For perspective, start at least around 80% of the longest object/scene dimension; use larger distances for a subtler look. Tiny distances can make geometry explode toward the camera. For no perspective, use `perspective: -1`. A full six-face cube needs `preserve3d: true`; a three-face isometric cube uses independently posed faces in a flat container. See [cube recipes](references/cubes.md) for both constructions.
 
 **Perspective always lives on the container.** `scene3d.perspective` is the only perspective the API exposes; elements themselves only carry rotation and `translateZ`. So a single tilted object and a whole fan of cards are built the same way: `scene3d` on the parent, `transform3d` on the child / children. One shared vanishing point is what makes a group read as a single coherent space.
 
@@ -127,11 +127,11 @@ backFace.transform3d = { type: 'FIXED_ORDER', translateZ: 0, rotateX: 0, rotateY
 ```
 
 ## Gotchas
-- **Opacity, blend mode, effects and clipping don't render on a preserve-3D frame itself** (the editor disables
-  them). Its children can still take them, unless they're preserve-3D frames too, but each child then blends on its
-  own, so overlapping children show through each other rather than fading as one group. To fade the group, put them
-  on a flat ancestor instead, keeping the existing hierarchy where you can:
-  - If the flat frame holding the perspective contains only what's being faded, apply them to it, or to a wrapper around it.
+- **Opacity, blend mode, effects and clipping don't render on a preserve-3D frame itself** (the editor disables them,
+  and the API rejects them). Its children can still take them, unless they're preserve-3D frames too, but each child
+  then blends on its own, so overlapping children show through each other rather than fading as one group. To fade
+  the group, put them on an ancestor with `preserve3d: false` instead, keeping the existing hierarchy where you can:
+  - If the frame holding the perspective has `preserve3d: false` and contains only what's being faded, apply them to it, or to a wrapper around it.
   - Otherwise, wrap just the faded content in a new transparent frame (`fills = []`) at `x = 0, y = 0` inside the
     frame holding the perspective, with that frame's width
     and height, and `scene3d = { ...frame.scene3d, preserve3d: false }`. The original keeps its perspective for the
