@@ -21,10 +21,9 @@ When available, call `create_session` with `fileKey` and `description` before fi
 For other APIs, load [plugin-api-standalone.index.md](references/plugin-api-standalone.index.md) to understand what is possible. When you are asked to write plugin API code, use this context to grep [plugin-api-standalone.d.ts](references/plugin-api-standalone.d.ts) for relevant types, methods, and properties. This is the definitive source of truth for the general API surface. It is a large typings file, so do not load it all at once, grep for relevant sections as needed.
 
 IMPORTANT: Whenever you work with design systems, start with [working-with-design-systems/wwds.md](references/working-with-design-systems/wwds.md) to understand the key concepts, processes, and guidelines for working with design systems in Figma. Then load the more specific references for components, variables, text styles, and effect styles as needed.
+## $fig — the plan-based builder API
 
-## $fig — the plan-based builder API (ALL NODE CREATION MUST USE THIS)
-
-`$fig` is a global that is responsible for all node creation. It auto-flushes at script end (no `$fig.done()` needed), handles font preloading, batches mutations, and orders property assignment correctly. **Use it for all node creation and mutation operations.** Never use `figma.createFrame()`, `figma.createText()` or any `figma.create*` methods. They do not exist in this environment.
+`$fig` is a global for node creation. It auto-flushes at script end (no `$fig.done()` needed), handles font preloading, batches mutations, and orders property assignment correctly. **Use it for node creation and mutation operations, except FigJam page creation and duplication, which use `figma.createPage()` and `sourcePage.clone()` directly.** For other node creation, use the `$fig` constructors instead of `figma.create*` methods.
 
 **Constructors queue creation, not inert templates.** Every `$fig` node constructor like `$fig.frame(...)` queues a node creation in the plan, even if its returned plan node is never used, returned, or screenshotted. Unattached nodes become top-level nodes at flush. Plan nodes meant to be used as children should be appended or used in `$fig.frame(opts, children)` **before flushing**.
 
@@ -51,7 +50,7 @@ This is the full `$fig` surface. Open [references/fig-builder.md](references/fig
 | Components | `$fig.component(opts, children)`; variant set: `$fig.variants({ name }, [$fig.component({ name: 'State=Default' }, [...]), ...])`. Variants stack at (0,0), so grid them afterward (fig-builder.md). |
 | Component properties | On a layer inside the component: `.textProp('Label')`, `.booleanProp('Show Icon')`, `.instanceSwapProp('Icon')`, `.slotProp('Content')` (on a descendant frame) |
 | Instances | `$fig.instance(compRef, { props: { Label: 'Save', State: 'Hover' } })`, where `compRef` is a component plan node, a node ID, or a library `componentKey` / `componentSetKey` (import is queued); existing instance: `$fig.get(id).set({ props: { ... } })` |
-| Existing nodes | `$fig.get(idOrLibraryKey)`; `$fig.query(selector, scope?)` with CSS-like selectors (`'FRAME[name*=Card] TEXT'`) |
+| Existing nodes | `$fig.get(idOrLibraryKey)`; `$fig.query(selector, scope?)` with CSS-like selectors (`'FRAME[name*="Card"] TEXT'`) |
 | Query results | `length`, `first()`, `last()`, `at(i)`, `find(fn)`, `filter(fn)`, `slice(start, end?)`, `query(selector)`, `each(fn)` / `forEach(fn)`, `map(fn)`, `values(paths)`, `toArray()`, `set(props)`, `moveTo(parent, index?)`, `replace(newNode)`, `remove()`, `screenshot(opts?)` |
 | Edit, move, delete | Plan node: `.set(props)`, `.replace(newNode)`, `.moveTo(parent, index?)`, `.clone(props?)`, `.remove()`, `.reorderChildren(children)`, `.gradient(type, stops, transform?)`, `.image(hash, scaleMode?)`. Global: `$fig.set(target, props)`, `$fig.delete(...nodes)`, `$fig.move(target, parent, index?)`, `$fig.clone(target, props?)`, `$fig.append(parent, child)`, `$fig.addAt(parent, index, child)`, `$fig.replace(old, new)`, `$fig.reorder(parent, children)`, `$fig.gradient(node, type, stops, transform?)`, `$fig.image(node, hash, scaleMode?)` |
 | Variables | `const tokens = $fig.varCollection({ name, modes: ['Light', 'Dark'] })`, then `tokens.colorVar({ name, values: { Light: '#FFFFFF', Dark: '#000000' }, scopes })`, `.numVar`, `.stringVar`, `.boolVar`; existing: `$fig.getVar(idOrLibraryKey)` |
@@ -61,6 +60,8 @@ This is the full `$fig` surface. Open [references/fig-builder.md](references/fig
 | Real nodes and IDs | `await $fig.done()`, then `planNode.node` (null before the flush). Without it, the script auto-flushes and returns the created IDs. |
 
 Library keys (`componentKey`, `componentSetKey`, and style or variable `key` values) come from `search_design_system`; `$fig.get`, `$fig.instance`, `$fig.getStyle`, and `$fig.getVar` queue their import in the plan.
+
+Quote free-form attribute values in selectors, such as layer names. For a name discovered at runtime, reuse its node ID when available or use `$fig.query('FRAME', scope).filter(n => n.name === targetName)`.
 
 **Icons:** **Prefer real vector icons:** import the icon's SVG source (inline `<svg>`, the `.svg` asset, or the source icon-library glyph — e.g. lucide/heroicons) via `$fig.svg(...)` rather than approximating an icon with a typed emoji/Unicode glyph (★ ⚙ 🔍 ☰ ▾) or a plain rectangle. A simple glyph or shape is a fine fallback when the real SVG genuinely can't be obtained — just reach for the SVG first. (Don't reconstruct an icon from rotated line/rect primitives, though — that renders broken.) Full recipe (viewBox+width/height sizing, `currentColor`, INSTANCE_SWAP for design-system icons): [figma-generate-design → Icons](../figma-generate-design/SKILL.md#icons-import-the-svg-never-reconstruct-from-rotated-primitives).
 
@@ -120,7 +121,7 @@ A later call can reuse the returned icon ID with `$fig.instance(iconId)`. The SV
 
 **Update existing nodes — by query or by id:**
 ```js
-$fig.query('FRAME[name=Header] TEXT[name=Title]').set({ characters: 'New Title', fontSize: 24 })
+$fig.query('FRAME[name="Header"] TEXT[name="Title"]').set({ characters: 'New Title', fontSize: 24 })
 $fig.get('1:42').set({ opacity: 0.8, cornerRadius: 12 })
 ```
 
@@ -202,29 +203,38 @@ $fig.instance(BUTTON_SET_KEY, { props: { Size: 'Large', Kind: 'Secondary' } })
 **Bulk component swap — `$fig.query().set()`:**
 ```js
 const chevron = $fig.get('CHEVRON_KEY')
-$fig.query('INSTANCE[name=arrow_drop_down]').set({ mainComponent: chevron })
+$fig.query('INSTANCE[name="arrow_drop_down"]').set({ mainComponent: chevron })
 ```
 
 **`.query()` and `.values()` for search and projecting child values**
 ```js
+const menu = figma.root.children.find(page => page.name === 'Menu')
+if (!menu) return { pageNotFound: 'Menu' }
+
 const menuArrows = $fig
-  .query('PAGE[name=Menu] INSTANCE[mainComponent.name*=arrow], PAGE[name=Menu] INSTANCE[mainComponent.name*=chevron]')
+  .query(
+    'INSTANCE[mainComponent.name*="arrow"], INSTANCE[mainComponent.name*="chevron"]',
+    menu,
+  )
   .values(['id', 'name', 'mainComponent.name', 'mainComponent.id']);
 
-// Use quotes for multi-word selector values
 const expandComponents = $fig
-  .query('COMPONENT[name*=expand], COMPONENT[name*=chevron_down], COMPONENT[name*=chevron_up], COMPONENT[name*="multi word name"]')
+  .query('COMPONENT[name*="expand"], COMPONENT[name*="chevron_down"], COMPONENT[name*="chevron_up"], COMPONENT[name*="multi word name"]')
   .values(['id', 'name']);
+
+return { menuArrows, expandComponents }
 ```
 
 **Perform operations on another page:**
 
-Page context resets to the first page at the start of each `use_figma` call. When an operation needs another current page, switch with `await figma.setCurrentPageAsync(page)` before queuing the plan; never assign `figma.currentPage` directly. Switch at most once per call. Split work requiring multiple current-page contexts into independent calls, one per page; issue independent calls in parallel. A scoped FigQuery search does not itself require a separate call for every page.
+Page context resets to the first page at the start of each `use_figma` call. When an operation needs another current page, switch with `await figma.setCurrentPageAsync(page)` before queuing the plan; never assign `figma.currentPage` directly. Switch at most once per call. Split work requiring multiple current-page contexts into independent calls, one per page; issue independent calls in parallel. A scoped FigQuery search does not itself require a separate call for every page. Prefer a resolved page ID. On `pageNotFound`, list pages and resolve the target before retrying.
 ```js
 // Switch to a specific page (loads its content)
-const targetPage = figma.root.children.find((p) => p.name === "My Page");
+const pageName = "My Page";
+const targetPage = figma.root.children.find(p => p.name === pageName);
+if (!targetPage) return { pageNotFound: pageName };
 await figma.setCurrentPageAsync(targetPage);
-$fig.query('INSTANCE[name=arrow_drop_down]').set({ ... })
+$fig.query('INSTANCE[name="arrow_drop_down"]').set({ opacity: 0.8 })
 ```
 
 **Gradient via helper — no manual transform matrix needed:**
@@ -257,6 +267,7 @@ Keep raw Plugin API code that reads or changes document state separate from plan
 
 Use the raw API only in these cases:
 
+- **FigJam pages:** use `figma.createPage()` to create a page and `sourcePage.clone()` to duplicate one.
 - **Color conversion:** `figma.util.solidPaint`, `.rgb`, and `.rgba` convert literal colors for `$fig` properties without creating or mutating nodes.
 - **Mid-script async result needed:** `await figma.setCurrentPageAsync(...)`, `await figma.loadFontAsync(...)` — must complete before subsequent plan steps can use the result. (Importing library components is NOT one of these cases: pass the matching `componentKey` or `componentSetKey` straight into `$fig.get(...)` / `$fig.instance(...)` and pass variant property values in `props`. `$fig` queues the library import in the plan and resolves the variant for you.)
 - **Mid-script real node state read:** measured `width` / `height` after auto-layout, computed colors, getStyledTextSegments — materialize mid-script, then read `.node` on the plan node. See [references/fig-builder.md](references/fig-builder.md) for the mid-script inspection pattern.
@@ -313,6 +324,7 @@ $fig.autoLayout({ name: 'Screen', layoutMode: 'VERTICAL', width: 390 }, [
 20. **Broad reads return `id`, `name`, `type` and counts only.** Fetch details for selected IDs in later calls. Return each file-wide inventory — variables, text styles, effect styles, paint styles, components, pages — in its own call; do not combine them into one return.
 
 21. **When a read may be large, measure the serialized return before returning it.** Bytes, not array length: `.slice()` bounds row count but not per-item size. If over budget, narrow the ID set or split across calls. Never drop required IDs or silently truncate.
+22. **Keep the full JSON request within 100 KiB (UTF-8).** Split oversized calls. Do not embed Base64 image data or image byte arrays.
 
 ### Bulk mutation of existing nodes (swap/update/replace)
 

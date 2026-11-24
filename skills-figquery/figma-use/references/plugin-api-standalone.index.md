@@ -44,7 +44,7 @@
 | `createVector()`                    | `VectorNode`                                                                                                                                   |
 | `createText()`                      | `TextNode`                                                                                                                                     |
 | `createSection()`                   | `SectionNode`                                                                                                                                  |
-| `createPage()`                      | `PageNode` — **Design files only** (`figma.com/design/...`); throws in both FigJam (`figma.com/board/...`) and Slides (`figma.com/slides/...`) |
+| `createPage()`                      | `PageNode` — Design (`figma.com/design/...`) and FigJam (`figma.com/board/...`); throws in Slides (`figma.com/slides/...`) |
 | `createSlice()`                     | `SliceNode`                                                                                                                                    |
 | `createTable(rows?, cols?)`         | `TableNode`                                                                                                                                    |
 | `createImage(data: Uint8Array)`     | `Image`                                                                                                                                        |

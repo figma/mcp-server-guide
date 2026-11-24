@@ -10,7 +10,7 @@ This skill contains FigJam-specific context for the `use_figma` MCP tool. The [f
 
 **Always include `figma-use-figjam` in the comma-separated `skillNames` parameter when calling `use_figma` for FigJam operations. If this skill was loaded via an MCP resource, you MUST prefix the name with `resource:` (e.g. `resource:figma-use-figjam`).** This is a logging parameter used to track skill usage — it does not affect execution.
 
-> **FigJam URL is `figma.com/board/...`.** Do NOT call `figma.createPage()` in FigJam — it throws `TypeError: figma.createPage no such property 'createPage' on the figma global object`. `createPage()` is a Design-file API only (`figma.com/design/...`). FigJam files have a single implicit page; organize content with sections instead (see [create-section](references/create-section.md)).
+> **FigJam URL is `figma.com/board/...`.** FigJam supports multiple pages, including page creation and duplication through `use_figma`. Use [sections](references/create-section.md) to organize content within a page.
 
 ## Inspecting FigJam Files
 
@@ -20,6 +20,29 @@ This skill contains FigJam-specific context for the `use_figma` MCP tool. The [f
 - **`get_metadata` does NOT work on FigJam files** — it is design-mode only and will fail immediately with "unsupported for FigJam files".
 - **`get_screenshot` requires a valid `nodeId`** — passing an empty nodeId returns "invalid nodeId" error. Get IDs from `get_figjam` first.
 - If you forgot to `return` an ID from a previous `use_figma` call and need it now, call `get_figjam` rather than re-running an inspection script.
+
+## Creating and Duplicating Pages
+
+Create a blank, named page:
+
+```js
+const page = figma.createPage()
+page.name = 'Next week'
+return { createdNodeIds: [page.id] }
+```
+
+To carry an existing board layout into a new week, duplicate its page. Use a source page ID from inspection and load that page before cloning so its contents are included:
+
+```js
+const sourcePage = await figma.getNodeByIdAsync('SOURCE_PAGE_ID')
+if (!sourcePage || sourcePage.type !== 'PAGE') throw new Error('Expected a source page')
+await figma.setCurrentPageAsync(sourcePage)
+const copy = sourcePage.clone()
+copy.name = 'Next week'
+return { createdNodeIds: [copy.id], sourcePageId: sourcePage.id }
+```
+
+Creating or cloning a page does not switch to it. In a subsequent `use_figma` call, resolve the returned page ID and call `await figma.setCurrentPageAsync(page)` before editing its contents. Switch at most once per call and return created IDs for later calls.
 
 ## Loading Reference Docs Efficiently
 

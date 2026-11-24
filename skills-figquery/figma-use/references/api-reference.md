@@ -33,7 +33,7 @@ figma.createVector()
 figma.createPolygon()
 figma.createBooleanOperation()
 figma.createSlice()
-figma.createPage()              // Design files ONLY (figma.com/design/...). Throws "no such property 'createPage'" in both FigJam (figma.com/board/...) and Slides (figma.com/slides/...). Child persistence is limited in use_figma.
+figma.createPage()              // Design and FigJam files. Unavailable in Slides. Does not switch the current page.
 figma.createSection()
 figma.createTextPath()
 ```

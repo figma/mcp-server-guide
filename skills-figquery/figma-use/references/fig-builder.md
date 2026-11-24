@@ -204,7 +204,7 @@ $fig.text({ characters: 'Title', textStyle: headingStyle })
 
 // Existing styles work the same way
 const existing = $fig.getStyle('Brand/Secondary')
-$fig.query('FRAME[name^=Card]').set({ fills: existing })
+$fig.query('FRAME[name^="Card"]').set({ fills: existing })
 ```
 
 Properties that accept a `FigPlanStyle`: `fills` → `fillStyleId`, `strokes` → `strokeStyleId`, `effects` → `effectStyleId`, `layoutGrids` → `gridStyleId`, `textStyle` → `textStyleId`. Plain paint/effect/grid arrays in those properties still apply as direct values (no style binding).
@@ -292,7 +292,7 @@ $fig.frame({
 })
 
 // queryResult.set works too
-$fig.query('FRAME[name^=Card]').set({ width: w })
+$fig.query('FRAME[name^="Card"]').set({ width: w })
 ```
 
 Properties that route `FigPlanNumVar` to `setBoundVariable`: any numeric-typed bindable field — `width`, `height`, `opacity`, `topLeftRadius` / `topRightRadius` / `bottomLeftRadius` / `bottomRightRadius`, `paddingLeft` / `paddingRight` / `paddingTop` / `paddingBottom`, `itemSpacing`, `counterAxisSpacing`, `strokeWeight`, `minWidth` / `maxWidth` / `minHeight` / `maxHeight`.
@@ -367,7 +367,7 @@ const button = $fig.get(BUTTON_KEY)
 $fig.instance(button, { name: 'Submit' })
 
 // CSS-like search over the current page (or a scope node)
-$fig.query('FRAME[name*=Card] TEXT').set({
+$fig.query('FRAME[name*="Card"] TEXT').set({
   fills: [{ type: 'SOLID', color: { r: 1, g: 0, b: 0 } }],
 })
 
@@ -375,7 +375,17 @@ $fig.query('FRAME[name*=Card] TEXT').set({
 $fig.query('TEXT', card)
 ```
 
-`$fig.query(selector, scope?)` returns a result object with `.length`, `.first()`, `.last()`, `.each(fn)`, `.set(props)`, `.remove()`, and `.screenshot(opts?)`. Selector syntax matches `node.query()` (see the main SKILL — types, attributes, combinators, pseudo-classes).
+`$fig.query(selector, scope?)` returns a result object with `.length`, `.first()`, `.last()`, `.each(fn)`, `.set(props)`, `.remove()`, and `.screenshot(opts?)`. It uses the same CSS-like selector syntax as `node.query()`.
+
+Quote free-form attribute values, such as layer names. Booleans, numbers, enum tokens, and IDs of the form `2:5` can stay bare. Quote IDs that contain semicolons.
+
+In the selector text, escape embedded double quotes as `\"` and backslashes as `\\`. Use a `String.raw` template to pass those escapes through JavaScript unchanged:
+
+```js
+return $fig.query(String.raw`FRAME[name="Café \"Menu\" \\Nord"]`).values(['id', 'name'])
+```
+
+For a name discovered at runtime, reuse its node ID when available or use `$fig.query('FRAME', scope).filter(n => n.name === targetName)`.
 
 ## Mutating nodes
 
@@ -441,14 +451,14 @@ Child-creation methods like `.text()` return the new child, not `this`, so they 
 
 ### `queryResult.screenshot(opts?)` — bulk screenshots from a query
 
-Same chainable plan-step contract as `planNode.screenshot()`, but emits one shot per matched node. Available on both `$fig.query()` and raw `node.query()` (same surface; same cap behavior).
+On a `$fig.query()` result, `.screenshot()` queues one capture per match. The captures run when the plan flushes. Await `$fig.done()` when the script needs the captures to finish before it continues.
 
 ```js
 // Canonical pattern from the eval workload — set + screenshot the matches.
-$fig.query('FRAME[name=Button]').set({ fills: brand }).screenshot()
+$fig.query('FRAME[name="Button"]').set({ fills: brand }).screenshot()
 
-// Raw plugin API works too.
-figma.currentPage.query('RECTANGLE[name^=Card-]').screenshot({ scale: 2 })
+$fig.query('RECTANGLE[name^="Card-"]').screenshot({ scale: 2 })
+await $fig.done()
 ```
 
 **Capped at 5 matches by default.** Pass `{ max: N }` to raise (or lower) the cap. Over-cap **throws** rather than silently truncating, so the agent has to make a deliberate choice: filter the result, call `.first()`, or pass `max` explicitly. Examples:
