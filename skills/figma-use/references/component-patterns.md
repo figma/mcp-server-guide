@@ -262,6 +262,7 @@ Then issue one `use_figma` call per page in parallel. Each script runs:
 // Step 2 — one call per page, currentPage set exactly once.
 // Issue these calls in parallel; do not loop pages inside the script.
 const page = await figma.getNodeByIdAsync(PAGE_ID); // PAGE_ID supplied by caller
+if (page?.type !== 'PAGE') return { pageNotFound: PAGE_ID };
 await figma.setCurrentPageAsync(page);
 // Indexed type lookup — much faster than findAll with a side-effect predicate.
 const matches = page.findAllWithCriteria({ types: ['COMPONENT', 'COMPONENT_SET'] });
@@ -296,6 +297,7 @@ return figma.root.children.map(p => ({ id: p.id, name: p.name }));
 
 ```javascript
 const page = await figma.getNodeByIdAsync(PAGE_ID);
+if (page?.type !== 'PAGE') return { pageNotFound: PAGE_ID };
 await figma.setCurrentPageAsync(page);
 // Indexed type lookup — much faster than findAll with a side-effect predicate.
 const components = page.findAllWithCriteria({ types: ['COMPONENT'] });

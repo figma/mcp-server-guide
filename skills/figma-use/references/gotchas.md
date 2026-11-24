@@ -219,12 +219,13 @@ Then in the **next assistant turn**, emit **N parallel `use_figma` tool-use bloc
 // CORRECT — step 2: one call per page, currentPage set exactly once.
 // The assistant issues N of these in parallel — do NOT loop pages inside the script.
 const page = await figma.getNodeByIdAsync(PAGE_ID)  // PAGE_ID supplied by caller
+if (page?.type !== 'PAGE') return { pageNotFound: PAGE_ID }
 await figma.setCurrentPageAsync(page)
 // ... read or mutate this page ...
 return { pageId: page.id, components: page.findAllWithCriteria({ types: ['COMPONENT'] }).map(n => n.id) }
 ```
 
-This applies to discovery, mutation, component-set creation, and audits — reads and writes alike. **The only acceptable reason to switch pages multiple times in one script is when splitting would break a transactional/atomicity guarantee** (i.e., the operation must succeed across all pages or none, and a partial failure between calls would corrupt state). "It's read-only" and "I want a consistent snapshot" are *not* exceptions — fan out in parallel.
+This applies to discovery, mutation, component-set creation, and audits — reads and writes alike. **The only acceptable reason to switch pages multiple times in one script is when splitting would break a transactional/atomicity guarantee** (i.e., the operation must succeed across all pages or none, and a partial failure between calls would corrupt state). Resolve every target page before making or queuing changes. If a target becomes unavailable after changes start, throw an error so the call rolls back. "It's read-only" and "I want a consistent snapshot" are *not* exceptions — fan out in parallel.
 
 The same rule generalizes to *any* traversal: scope it to the smallest known ancestor — see [Scope traversal to the smallest known ancestor](#scope-traversal-to-the-smallest-known-ancestor).
 
@@ -944,7 +945,7 @@ Common shapes the bug takes — what you tried vs. where the member actually liv
 | `createInstance` | `COMPONENT` only | every other type |
 | `addComponentProperty`, `componentPropertyDefinitions` | `COMPONENT_SET`, or a non-variant `COMPONENT` (one whose parent is NOT a `COMPONENT_SET`) | every other type, **including variant `COMPONENT`s** — invoking on a variant throws `"Can only get/set component property definitions of a component set or non-variant component"`. Add properties on the variant before `combineAsVariants`, or on the parent `COMPONENT_SET` after. |
 | `defaultVariant`, `variantGroupProperties` | `COMPONENT_SET` only | every other type |
-| `figma.createPage` | Design files only (`figma.com/design/...`) | FigJam (`/board/`) and Slides (`/slides/`) — see Page Rules |
+| `figma.createPage` | Design (`/design/`) and FigJam (`/board/`) | Slides (`/slides/`) — see Page Rules |
 
 Verify any member you're unsure about against [plugin-api-standalone.d.ts](plugin-api-standalone.d.ts) before using it. Names that "sound plausible" but aren't in the typings will always throw — the typings are the source of truth.
 For `componentPropertyDefinitions`, checking only `node.type === 'COMPONENT'` is insufficient because variants have that type too. Resolve the owner first: keep a `COMPONENT_SET`, promote a variant `COMPONENT` to its parent set, keep a non-variant `COMPONENT`, and reject every other node type. See [component-patterns.md → Component-property owner narrowing](component-patterns.md#component-property-owner-narrowing) for the owner-narrowing rule.

@@ -25,7 +25,9 @@
 Page context resets between `use_figma` calls — `figma.currentPage` always starts on the first page. Use `await figma.setCurrentPageAsync(page)` at the start of each invocation to switch to the correct page. The sync setter `figma.currentPage = page` does **NOT work** and will throw — always use the async method.
 
 ```javascript
-const targetPage = figma.root.children.find(p => p.name === "My Page");
+const pageName = "My Page";
+const targetPage = figma.root.children.find(p => p.name === pageName);
+if (!targetPage) return { pageNotFound: pageName };
 await figma.setCurrentPageAsync(targetPage);
 // targetPage.children is now populated
 ```

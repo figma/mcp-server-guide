@@ -60,10 +60,14 @@ await figma.spec.editContent({
   edits: [{ oldText: 'First paragraph.', newText: 'Edited first paragraph.' }],
 })
 
+// PATTERN EDIT — a regex literal; with `g` it replaces every match, without `g` exactly one.
+await figma.spec.editContent({
+  specNodeId: before.specNodeId,
+  edits: [{ pattern: '/^### /gm', newText: '## ' }],
+})
+
 const after = await figma.spec.getContent({ specNodeId: before.specNodeId })
-if (!after.markdown.includes('Edited first paragraph.')) {
-  throw new Error('The targeted Figma spec edit was not applied')
-}
+return { applied: after.markdown.includes('Edited first paragraph.') }
 ```
 
 - Use **`getContent`** with the same `specNodeId` before edits and to verify writes; DON'T rely on screenshots.
@@ -72,16 +76,23 @@ if (!after.markdown.includes('Edited first paragraph.')) {
 
 ## Critical rules
 
-1. **`editContent` requires exactly one match.** Zero or multiple `oldText` matches fail without changes. Add surrounding context to make it unique.
-2. **Pass Markdown as plain strings.** Never encode it with `Buffer`/base64 or decode it with `atob()`. Base64 is only for image data URLs inside Markdown.
-3. **Keep Markdown and traversal separate.** `figma.spec.*` handles content; node traversal exposes only document roots and embedded-canvas branches.
-4. **Preserve comment markers.** Keep overlapping `[comment:<uuid>]…[/comment:<uuid>]` pairs unchanged around the same text, or the thread may detach or disappear. When in doubt copy the marked span exactly and edit around it.
-5. **Use portable references.** Shared Figma specs must use links such as GitHub permalinks, never machine-local paths or `localhost` URLs.
+1. **Change every match with one `g` pattern.** For "all"/"every" requests, use a single `pattern` edit with the `g` flag instead of an `oldText` per target, then confirm none of the old pattern remains.
+2. **Each `oldText`, and each `pattern` without `g`, must match exactly once.** Zero or multiple matches fail without changes; add surrounding context to make it unique. A `pattern` with `g` must match at least once. Each edit has `oldText` or `pattern`, plus `newText`.
+3. **Pass Markdown as plain strings.** Never encode it with `Buffer`/base64 or decode it with `atob()`. Base64 is only for image data URLs inside Markdown.
+4. **Keep Markdown and traversal separate.** `figma.spec.*` handles content; node traversal exposes only document roots and embedded-canvas branches.
+5. **Preserve comment markers.** Keep overlapping `[comment:<uuid>]…[/comment:<uuid>]` pairs unchanged around the same text, or the thread may detach or disappear. When in doubt copy the marked span exactly and edit around it.
+6. **Use portable references.** Shared Figma specs must use links such as GitHub permalinks, never machine-local paths or `localhost` URLs.
+
+## Edit patterns
+
+- **Verify within the edited section**, since removed words often appear elsewhere. Return the check's result instead of throwing; a throw discards the edit.
+- **Tables:** replace the whole table in one edit and copy the header cells you keep exactly, without restyling them; `editContent` matches columns by header text. Restyle headers in a separate edit.
+- **Selections:** apply the change to exactly the selected content, even if nearby content is styled differently.
 
 ## Style
 
-- Keep the title block first and formatted as H1, even when its text is empty. Never remove it or insert blocks before it.
-- Prefer bold text in table header row.
+- Keep the title block first and formatted as H1, even when its text is empty. Never remove it or insert blocks before it. Retitle a spec by editing that H1, not the root `title` that `getContent` returns.
+- Prefer bold text in the header row of tables you create.
 - Use `<ins>` for underline, including combined formatting: `<ins>**bold and underlined**</ins>`. Do not use `<u>`, which only works in HTML imports.
 
 ## Images

@@ -7,6 +7,7 @@ Use this reference when producing the complete `main.ts` replacement passed to `
 - [Plan before writing](#plan-before-writing)
 - [Required module contract](#required-module-contract)
 - [Runtime lifecycle](#runtime-lifecycle)
+- [Render scale and pixel vs point-space](#render-scale-and-pixel-vs-point-space)
 - [Animation and mouse input](#animation-and-mouse-input)
 - [WebGPU patterns](#webgpu-patterns)
 - [Controls and parameters](#controls-and-parameters)
@@ -71,6 +72,7 @@ Rules:
 | --- | --- |
 | `frame.input` | Input `GPUTexture` or `null`. Effects may sample it; fills must not. |
 | `frame.output` | Target texture. Render into `frame.output.createView()`. |
+| `frame.renderScale` | Factor to convert from point to pixel space. |
 | `frame.params` | Values declared by `defineProperties`. |
 | `frame.state` | Persistent mutable bag for modules, buffers, samplers, layouts, and pipelines. |
 | `frame.time` | Absolute animation clock in milliseconds. |
@@ -78,9 +80,17 @@ Rules:
 | `frame.frame` | Zero-based rendered-frame counter. |
 | `frame.mousePosition` | Layer-local mouse position. |
 
-Use `frame.output.width` and `frame.output.height` for dimensions. Allocate format-independent resources once in `setup`. Write live params into buffers and construct input-dependent bind groups in `render`, because the input texture may be recreated.
+Use `frame.output.width` and `frame.output.height` for pixel-space dimensions. Allocate format-independent resources once in `setup`. Write live params into buffers and construct input-dependent bind groups in `render`, because the input texture may be recreated.
 
 Available JavaScript includes WebGPU enums, `Float32Array`, integer typed arrays, `Math`, collections, JSON, and promises. There is no DOM, `window`, `document`, `navigator`, `fetch`, console, timer, animation-frame, microtask, `Float64Array`, or `Float16Array`. Use `Math.sin`, `Math.max`, and similar JavaScript forms—not bare WGSL-style math in JavaScript.
+
+## Render scale and pixel vs point-space
+
+- Render scale defines how shader-defined visuals in point (pt) space are rasterized to the pixels (px) of the final output texture. A 200×200 px texture at render scale 2 should have the same appearance as a 100×100 px texture at render scale 1, with only a higher resolution.
+- Author shaders so that changes in render scale affect the output pixel resolution but retain the visual composition. New MCP-authored shaders declare `renderScaleAware: true` in `features.json` - replacement source must preserve this contract.
+- Conversion between pixel and point space is given by `pt = px / frame.renderScale`.
+- Define user-exposed shader properties in unit space, point space, or a pixel-agnostic space (for example, -100 to 100). Treat user-specified values as point-space values. Logic that operates in pixels, such as blur offsets, must account for render scale.
+- Unless otherwise noted assume passed-in coordinates (e.g. mouse) to be in px-space.
 
 ## Animation and mouse input
 
@@ -188,7 +198,7 @@ Expose values users will tune per layer. Keep implementation details hardcoded i
 
 Dropdowns must be numeric selects. Do not use a string with `control: "select"`; it becomes unstable after edits.
 
-Percent positions are layer-relative and should be divided by 100 for UVs. Pixel values are absolute local pixels and do not scale with layer resizing.
+Percent positions are layer-relative and should be divided by 100 for UVs. User-specified values are in point space: they do not scale with layer resizing, but must account for render scale when converted to pixels.
 
 ## Effect and fill contracts
 
@@ -244,5 +254,6 @@ Before calling `update_shader` with `files: [{ path: "main.ts", content: source 
 11. Alpha handling matches the kind.
 12. WGSL starts with the diagnostic directive and uses valid entrypoint names.
 13. No mutated `let`, swizzle assignment, bracket array literal, GLSL builtin, or non-uniform implicit-derivative sample.
+14. Visual composition is preserved across different render scales.
 
 On a build error, fix the specific compiler failure with the smallest change and retry once.
