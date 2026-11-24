@@ -21,7 +21,6 @@ When available, call `create_session` with `fileKey` and `description` before fi
 For other APIs, load [plugin-api-standalone.index.md](references/plugin-api-standalone.index.md) to understand what is possible. When you are asked to write plugin API code, use this context to grep [plugin-api-standalone.d.ts](references/plugin-api-standalone.d.ts) for relevant types, methods, and properties. This is the definitive source of truth for the general API surface. It is a large typings file, so do not load it all at once, grep for relevant sections as needed.
 
 IMPORTANT: Whenever you work with design systems, start with [working-with-design-systems/wwds.md](references/working-with-design-systems/wwds.md) to understand the key concepts, processes, and guidelines for working with design systems in Figma. Then load the more specific references for components, variables, text styles, and effect styles as needed.
-
 ## 1. Critical Rules
 1.  **Use `return` to send data back.** The return value is JSON-serialized automatically (objects, arrays, strings, numbers). Do NOT call `figma.closePlugin()` or wrap code in an async IIFE — this is handled for you.
 2.  **Write plain JavaScript with top-level `await` and `return`.** Code is automatically wrapped in an async context. Do NOT wrap in `(async () => { ... })()`.
@@ -33,7 +32,7 @@ IMPORTANT: Whenever you work with design systems, start with [working-with-desig
 6.  Colors are **0–1 range** (not 0–255): `{r: 1, g: 0, b: 0}` = red. Paint `color` objects use `{r, g, b}` **only — no `a` field**; opacity goes at the paint level (`{ type: 'SOLID', color: {...}, opacity: 0.5 }`).
 7.  Fills/strokes are **read-only arrays** — clone, modify, reassign
 8.  **Every text edit follows the canonical recipe: load font → `await` → mutate → return affected node IDs.** Skipping the load throws `Cannot write to node with unloaded font "<family> <style>"`. The rule covers more than `characters` — it applies to any operation on nodes with unloaded fonts (`appendChild`, `insertChild`, `setBoundVariable`, `setExplicitVariableModeForCollection`, `setValueForMode`, `findAll` callbacks touching text). When mutating existing text, load the node's *current* fonts via `getStyledTextSegments(['fontName'])`, not a hardcoded default. Inter is preloaded in most environments so other families surface this bug more often — the recipe is the same for every font. Use `await figma.listAvailableFontsAsync()` first if the style string is unverified — **never guess** (`"SemiBold"` vs `"Semi Bold"` is a common footgun). For `FONT_FAMILY`-scoped variables, load every value across every relevant mode before `setBoundVariable("fontFamily", …)`, `setValueForMode`, or `setExplicitVariableModeForCollection`. `lineHeight`/`letterSpacing` take `{unit, value}`, not bare numbers. See [Canonical text-edit recipe](references/gotchas.md#canonical-text-edit-recipe-font-load--await--mutate--return-ids).
-9.  **Pages load incrementally** — use `await figma.setCurrentPageAsync(page)` to switch pages and load their content. The sync setter `figma.currentPage = page` does **NOT** work and throws `"Setting figma.currentPage is not supported"`. Page context resets to the **first page** at the start of every `use_figma` call, so re-switch each call; switch **at most once per call** and fan multi-page work out in parallel — see [Page Rules](#2-page-rules-critical) and [gotchas.md](references/gotchas.md#set-current-page-once-per-use_figma-call--split-multi-page-work-into-parallel-calls).
+9.  **Pages load incrementally** — use `await figma.setCurrentPageAsync(page)` to switch pages and load their content. Prefer a resolved page ID. On `pageNotFound`, list pages and resolve the target before retrying the edit. The sync setter `figma.currentPage = page` does **NOT** work and throws `"Setting figma.currentPage is not supported"`. Page context resets to the **first page** at the start of every `use_figma` call, so re-switch each call; switch **at most once per call** and fan multi-page work out in parallel — see [Page Rules](#2-page-rules-critical) and [gotchas.md](references/gotchas.md#set-current-page-once-per-use_figma-call--split-multi-page-work-into-parallel-calls).
 10. `setBoundVariableForPaint` returns a **NEW** paint — must capture and reassign
 11. `createVariable` accepts collection **object or ID string** (object preferred)
 12. **`layoutSizingHorizontal/Vertical` is value-restricted by structural context — `FIXED` always works, `HUG` and `FILL` do not.** `'HUG'` is valid only on an auto-layout frame itself OR on a **TEXT** child of one. `'FILL'` is valid only on a child of an auto-layout frame that is also not absolute-positioned, not inside an immutable frame, and not a canvas-grid child. Practical consequence: append to an auto-layout parent FIRST, then set `HUG`/`FILL` — a newly-created or unparented node can't satisfy the rule yet. The property itself exists on every `SceneNode`; the error is value-rejection, not "no such property". See [Gotchas](references/gotchas.md#layoutsizinghorizontallayoutsizingvertical-value-rules-fixed-hug-fill).
@@ -49,6 +48,7 @@ IMPORTANT: Whenever you work with design systems, start with [working-with-desig
 19. **Never read `componentPropertyDefinitions`, `componentProperties`, or `valuesByMode` across a collection.** Resolve specific node IDs first, then read the property bundle only for those IDs. Reading one resolved node is safe; mapping these getters over `findAll*` results, `children`, or `getLocalVariables*` is the single largest cause of oversized returns.
 20. **Broad reads return `id`, `name`, `type` and counts only.** Fetch details for selected IDs in later calls. Return each file-wide inventory — variables, text styles, effect styles, paint styles, components, pages — in its own call; do not combine them into one return.
 21. **When a read may be large, measure the serialized return before returning it.** Bytes, not array length: `.slice()` bounds row count but not per-item size. If over budget, narrow the ID set or split across calls. Never drop required IDs or silently truncate.
+22. **Keep the full JSON request within 100 KiB (UTF-8).** Split oversized calls. Do not embed Base64 image data or image byte arrays.
 > For detailed WRONG/CORRECT examples of each rule, see [Gotchas & Common Mistakes](references/gotchas.md).
 
 ## 2. Page Rules (Critical)
@@ -90,8 +90,6 @@ Available in Slides mode: Rectangle, Frame, Component, Text, Ellipse, Star, Line
 
 **Blocked** in Slides mode: Sticky, Connector, ShapeWithText, CodeBlock, Webpage, Page.
 
-**Design-only APIs (not just node types):** `figma.createPage()` is available only in Design files (`figma.com/design/...`). In both FigJam (`figma.com/board/...`) and Slides (`figma.com/slides/...`) it throws `TypeError: figma.createPage no such property 'createPage' on the figma global object`. Do not emit `figma.createPage()` in FigJam or Slides workflows.
-
 > **Slides note:** There is no dedicated read tool for Slides files yet. Use `use_figma` with read-only scripts for inspection (see Section 6 "Inspect first" pattern), and `get_screenshot` / `await node.screenshot()` for visual context. For Slides-specific API guidance, load the [figma-use-slides](../figma-use-slides/SKILL.md) skill.
 
 ## 5. Efficient APIs — Prefer These Over Verbose Alternatives
@@ -107,15 +105,25 @@ Find nodes within a subtree using CSS-like selectors. Replaces verbose `findAll`
 const texts = frame.findAll(n => n.type === 'TEXT' && n.name === 'Title')
 
 // AFTER — one-liner with query
-const texts = frame.query('TEXT[name=Title]')
+const texts = frame.query('TEXT[name="Title"]')
 ```
+
+Quote free-form attribute values, including layer names with spaces, non-ASCII characters, or punctuation, as in `FRAME[name="Café / Menu"]`. Booleans, numbers, enum tokens, and IDs of the form `2:5` can stay bare. Quote IDs that contain semicolons.
+
+In the selector text, escape embedded double quotes as `\"` and backslashes as `\\`. Use a `String.raw` template to pass those escapes through JavaScript unchanged:
+
+```js
+return figma.currentPage.query(String.raw`FRAME[name="Café \"Menu\" \\Nord"]`).values(['id', 'name'])
+```
+
+For a name discovered at runtime, reuse its node ID when available or use `scope.query('FRAME').filter(n => n.name === targetName)`.
 
 **Selector syntax:**
 - Type: `FRAME`, `TEXT`, `RECTANGLE`, `ELLIPSE`, `COMPONENT`, `INSTANCE`, `SECTION` (case-insensitive)
-- Attribute exact: `[name=Card]`, `[visible=true]`, `[opacity=0.5]`
-- Attribute substring: `[name*=art]` (contains), `[name^=Header]` (starts-with), `[name$=Nav]` (ends-with)
+- Attribute exact: `[name="Card"]`, `[visible=true]`, `[opacity=0.5]`
+- Attribute substring: `[name*="art"]` (contains), `[name^="Header"]` (starts-with), `[name$="Nav"]` (ends-with)
 - Dot-path traversal: `[fills.0.type=SOLID]`, `[fills.*.type=SOLID]` (wildcard index)
-- Instance matching: `[mainComponent=nodeId]`, `[mainComponent.name=Button]`
+- Instance matching: `[mainComponent=2:5]`, `[mainComponent.name="Button"]`
 - Combinators: `FRAME > TEXT` (direct child), `FRAME TEXT` (any descendant), `A + B` (adjacent sibling), `A ~ B` (general sibling)
 - Pseudo-classes: `:first-child`, `:last-child`, `:nth-child(2)`, `:not(TYPE)`, `:is(FRAME, RECTANGLE)`, `:where(TEXT, ELLIPSE)`
 - Node ID: `#nodeId` or bare GUID
@@ -142,7 +150,7 @@ const texts = frame.query('TEXT[name=Title]')
 **Examples:**
 ```js
 // Recolor all text inside cards
-figma.currentPage.query('FRAME[name^=Card] TEXT').set({
+figma.currentPage.query('FRAME[name^="Card"] TEXT').set({
   fills: [{type: 'SOLID', color: {r: 0.2, g: 0.2, b: 0.8}}]
 })
 
@@ -150,7 +158,7 @@ figma.currentPage.query('FRAME[name^=Card] TEXT').set({
 return figma.currentPage.query('FRAME').values(['name', 'x', 'y'])
 
 // Find the first component named "Button"
-const btn = figma.currentPage.query('COMPONENT[name=Button]').first()
+const btn = figma.currentPage.query('COMPONENT[name="Button"]').first()
 
 // Find all instances of a specific component
 figma.currentPage.query(`INSTANCE[mainComponent=${compId}]`)
@@ -180,7 +188,7 @@ frame.set({ opacity: 0.5, cornerRadius: 8, name: "Card" })
 **Chaining with query:**
 ```js
 // Find all rectangles named "Divider" and update them
-figma.currentPage.query('RECTANGLE[name=Divider]').set({
+figma.currentPage.query('RECTANGLE[name="Divider"]').set({
   fills: [{type: 'SOLID', color: {r: 0.9, g: 0.9, b: 0.9}}],
   cornerRadius: 2
 })
@@ -344,6 +352,7 @@ return figma.root.children.map(p => ({ id: p.id, name: p.name }));
 Step 2: in the **next assistant turn, emit one `use_figma` per page in parallel** (a single message containing N tool-use blocks). Each runs:
 ```js
 const page = await figma.getNodeByIdAsync(PAGE_ID);
+if (page?.type !== 'PAGE') return { pageNotFound: PAGE_ID };
 await figma.setCurrentPageAsync(page);
 // findAllWithCriteria uses an indexed type lookup — hundreds of times faster
 // than the findAll(n => n.type === '…') side-effect-in-predicate antipattern.
