@@ -31,19 +31,7 @@ Reuse available source, captured, or library assets first. If suitable assets ar
 
 ## Parallel Workflow with generate_figma_design (Web Apps Only)
 
-When building a screen from a **web app** that can be rendered in a browser, the best results come from running both approaches in parallel:
-
-1. **In parallel:**
-   - Start building the screen using this skill's workflow (use_figma + design system components) against the target Figma file (`fileKey`).
-   - Run `generate_figma_design` against the **same `fileKey`** to capture a pixel-perfect screenshot of the running web app into that file. `generate_figma_design` always requires `fileKey` — if the user does not yet have a Figma file, first invoke `/figma-create-new-file` (or call the `create_new_file` MCP tool) to get one, and reuse that file_key for both this skill and the capture.
-2. **Once both complete:** Update the use_figma output to match the pixel-perfect layout from the `generate_figma_design` capture. The capture provides the exact spacing, sizing, and visual treatment to aim for, while your use_figma output has proper component instances linked to the design system. If the capture contains images, transfer them to your use_figma output by copying `imageHash` values from the capture's image fills (see Step 5 for details).
-3. **Once confirmed looking good:** Delete the `generate_figma_design` output — it was only used as a visual reference.
-
-This combines the best of both: `generate_figma_design` gives pixel-perfect layout accuracy, while use_figma gives proper design system component instances that stay linked and updatable.
-
-**This parallel workflow is MANDATORY when the source contains discrete content images used by the app, such as photos, avatars, logos, or icons. A screenshot or flattened rendering of the complete UI is a visual reference, not a content image.** The `use_figma` Plugin API cannot fetch external image URLs — it can only set image fills by copying `imageHash` values from nodes already in the file. `generate_figma_design` rasterizes all visible images into Figma, providing the hashes you need. If you skip the capture when these content images are present, their image frames will be left blank.
-
-For non-web apps (iOS, Android, etc.) or when updating existing screens, use the standard workflow below.
+When building a screen from a renderable **web app**, run this skill's `use_figma` workflow and `generate_figma_design` in parallel against the **same `fileKey`** (create a file first if needed). Use the capture as a visual/layout reference and to copy `imageHash` values for discrete content images (photos, avatars, logos, icons), then delete the capture once confirmed. **This parallel workflow is MANDATORY when the source contains discrete content images** because `use_figma` cannot fetch external URLs. Never transfer the capture root or any complete-UI screenshot. See [references/web-capture-and-images.md](references/web-capture-and-images.md) for the full parallel workflow and image-transfer scripts.
 
 ## Required Workflow
 
@@ -79,126 +67,24 @@ You need three things from the design system: **components** (buttons, cards, et
 
 For each component you need (e.g., Button, Card, Input), search for its Code Connect file — glob or grep by component name (e.g., `**/Button.figma.tsx`, `**/Card.figma.ts`). Only read files that match components you actually need.
 
-From each matching Code Connect file, extract the Figma component URL. Parse `fileKey` and `nodeId` from the URL (convert hyphens to colons: `123-456` → `123:456`). Then resolve component keys via `use_figma`:
-
-**Example:** Code Connect file contains `// url=https://figma.com/design/ABC123/File?node-id=609-35535`. Parse `fileKey` = `ABC123`, `nodeId` = `609:35535`. Run `use_figma` against the **library file** (fileKey `ABC123`, not the target file) to resolve the key:
-
-```js
-const node = await figma.getNodeByIdAsync("609:35535");
-const set = node?.parent?.type === "COMPONENT_SET" ? node.parent : node;
-if (set?.type === "COMPONENT_SET") {
-  return { assetType: "component_set", componentSetKey: set.key };
-}
-if (set?.type === "COMPONENT") {
-  return { assetType: "component", componentKey: set.key };
-}
-throw new Error("Expected a component or component set");
-```
-
-Batch multiple lookups in a single call. Use the returned keys with either `importComponentByKeyAsync()` or `importComponentSetByKeyAsync()` depending on each item's `assetType` in Step 4.
-
-Mark resolved components and continue with unresolved ones.
+From each matching Code Connect file, extract the Figma component URL, parse `fileKey` and `nodeId` (convert hyphens to colons: `123-456` → `123:456`), and batch-resolve component/component-set keys via `use_figma` against the **library file** (`fileKey` from the URL, not the target file). See [references/discovery-scripts.md](references/discovery-scripts.md#2a-i-resolve-code-connect-component-keys) for the lookup script. Mark resolved components and continue with unresolved ones.
 
 **2a-ii — REQUIRED: Select the library scope, then search and inspect the whole view.** Call `get_libraries`. If the user names one or more libraries, use their exact keys whether they appear in `libraries_added_to_file` or `libraries_available_to_add`. Otherwise search across all libraries in `libraries_added_to_file` together. Pass the selected keys in `includeLibraryKeys` on every search. Only when unresolved gaps have no suitable match, add specifically relevant libraries from `libraries_available_to_add` and retry those unresolved queries; do not broaden to unrelated available libraries. In the first batched `search_design_system` call, include one component query for the requested view or flow alongside queries for unresolved items already known from source or Code Connect inspection. Name the whole-view query by purpose and container (for example, `billing settings drawer`). Inspect the strongest candidate. If it covers two or more requested sections, select it as a foundation; otherwise continue without a whole-view composite.
 
-**2a-iii — Inspect existing screens.** Check if the target file already contains screens using the same design system. One read-only `use_figma` call inventories an existing frame — its component keys, bound variables, and text/effect styles — in a single authoritative pass. Run it once here and reuse the result in 2b and 2c rather than re-walking the frame:
+**2a-iii — Inspect existing screens.** If the target file already contains screens using the same design system, run one read-only `use_figma` pass to inventory an existing frame's component keys, bound variables, and text/effect styles, then reuse that result in 2b and 2c. See [references/discovery-scripts.md](references/discovery-scripts.md#2a-iii-single-pass-existing-screen-inventory) for the inventory script. Match `components` against your unresolved components; Code Connect keys from 2a-i stay authoritative.
 
-```js
-const frame = figma.currentPage.findOne(n => n.name === "Existing Screen");
-const components = new Map();
-const styles = { text: new Map(), effect: new Map() };
-const variableIds = new Set();
-
-// boundVariables and style ids can sit on any scene node, so walk them all.
-for (const node of frame?.findAll(() => true) ?? []) {
-  if (node.type === "INSTANCE") {
-    const mc = node.mainComponent;
-    const cs = mc?.parent?.type === "COMPONENT_SET" ? mc.parent : null;
-    const key = cs ? cs.key : mc?.key;
-    if (key && !components.has(key)) {
-      components.set(key, { name: cs ? cs.name : mc.name, key, isSet: !!cs, sampleVariant: mc.name });
-    }
-  }
-  for (const b of Object.values(node.boundVariables ?? {}).flat()) {
-    if (b?.id) variableIds.add(b.id);
-  }
-  for (const [prop, bucket] of [["textStyleId", "text"], ["effectStyleId", "effect"]]) {
-    if (prop in node && typeof node[prop] === "string" && node[prop]) {
-      const s = await figma.getStyleByIdAsync(node[prop]);
-      if (s) styles[bucket].set(s.id, { name: s.name, id: s.id, key: s.key });
-    }
-  }
-}
-const vars = await Promise.all([...variableIds].map(id => figma.variables.getVariableByIdAsync(id)));
-
-return {
-  components: [...components.values()],
-  variables: vars.filter(Boolean).map(v => ({ name: v.name, id: v.id, key: v.key, type: v.resolvedType, remote: v.remote })),
-  textStyles: [...styles.text.values()],
-  effectStyles: [...styles.effect.values()],
-};
-```
-
-Match `components` against your unresolved components; Code Connect keys from 2a-i stay authoritative. Mark any newly resolved.
-
-**2a-iv — Search only the gaps needed for construction.** After Code Connect, whole-view discovery, and existing-screen inspection, search for unresolved components and tokens the design still needs. Batch independent one-intent entries, keep `includeLibraryKeys` restricted to the selected library scope, and carry selected keys into the build. Do not delay construction to exhaustively search every unresolved role.
-
-```
-// Step 1: Discover available libraries
-get_libraries({ fileKey })
-// Returns: {
-//   libraries_added_to_file: [...],
-//   libraries_available_to_add: [...],
-//   libraries_available_to_add_next_offset: number | null
-// }
-
-// Step 2: Search within a specific library using its libraryKey
-search_design_system({ queries: [{ entity: "component", query: "button" }], fileKey, includeLibraryKeys: ["lk-abc123..."] })
-```
-
-Org libraries in `libraries_available_to_add` are paginated (20 per page). When `libraries_available_to_add_next_offset` is non-null, more org libraries are available — call `get_libraries` again with `offset` set to that value to fetch the next page. Community UI kits only appear on the first page. If the user names a specific library you don't see in the current page, page further before giving up.
-
-This is especially useful when the file has many libraries and you want targeted results (e.g. searching only within "iOS 26" or "Material 3" instead of getting matches from every library).
-
-**Use one intent per query.** `search_design_system` does not apply OR semantics, so never pack alternatives or synonyms into one string ("Button IconButton icon" matches nothing useful). Use an exact design-system name or component type when known; otherwise search by the asset's UI role, such as "archive action icon" or "primary submit button".
-Map every selected key to a section or property. Reuse applicable composite descendants instead of building parallel replacements, and keep nested instances intact unless only an example/template wrapper must be detached.
-
-**Include component properties** in your map — you need to know which TEXT properties each component exposes for text overrides. Create a temporary instance, read its `componentProperties` (and those of nested instances), then remove the temp instance.
-
-Example component map with property info:
-
-```
-Component Map:
-- Button → key: "abc123", type: COMPONENT_SET
-  Properties: { "Label#2:0": TEXT, "Has Icon#4:64": BOOLEAN }
-- PricingCard → key: "ghi789", type: COMPONENT_SET
-  Properties: { "Device": VARIANT, "Variant": VARIANT }
-  Nested "Text Heading" has: { "Text#2104:5": TEXT }
-  Nested "Button" has: { "Label#2:0": TEXT }
-```
+**2a-iv — Search only the gaps needed for construction.** After Code Connect, whole-view discovery, and existing-screen inspection, search for unresolved components and tokens the design still needs. Batch independent one-intent entries (`search_design_system` does not apply OR semantics — never pack synonyms into one string), keep `includeLibraryKeys` restricted to the selected library scope, and carry selected keys into the build. Org libraries in `libraries_available_to_add` paginate (20 per page via `offset`). Map every selected key to a section or property, reuse applicable composite descendants, and include component properties (read `componentProperties` on a temporary instance, then remove it). See [references/discovery-scripts.md](references/discovery-scripts.md#2a-iv-get_libraries-and-search_design_system-usage) for `get_libraries`, `search_design_system`, and component map examples.
 
 #### 2b: Discover variables (colors, spacing, radii)
 
-**Inspect existing screens first.** Reuse `variables` from the 2a-iii inventory; if that step was skipped, run the inventory here when an existing screen is available. For unresolved variables, use `search_design_system` with `queries` entries whose `entity` is `"variable"`.
+**Inspect existing screens first.** Reuse `variables` from the 2a-iii inventory; for unresolved variables, use `search_design_system` with `{ "entity": "variable", "query": "..." }` entries scoped with `includeLibraryKeys`.
 
 > **WARNING: Two different variable discovery methods — do not confuse them.**
->
-> - `use_figma` with `figma.variables.getLocalVariableCollectionsAsync()` — returns **only local variables defined in the current file**. If this returns empty, it does **not** mean no variables exist. Remote/published library variables are invisible to this API.
-> - `search_design_system` with `entity: "variable"` query entries — searches remote and published library variables. Scope every query to the library keys selected in 2a-ii with `includeLibraryKeys`.
->
-> **Never conclude "no variables exist" based solely on `getLocalVariableCollectionsAsync()` returning empty.** Always also run `search_design_system` with variable query entries to check for library variables before deciding to create your own.
+> - `figma.variables.getLocalVariableCollectionsAsync()` returns **only local variables in the current file** — remote/published library variables are invisible to it.
+> - `search_design_system` (`entity: "variable"`) searches remote/published library variables.
+> - **Never conclude "no variables exist" based solely on `getLocalVariableCollectionsAsync()` returning empty.**
 
-**Query strategy:** `search_design_system` matches against **variable names** (e.g., "Gray/gray-9", "core/gray/100", "space/400"), not categories. Put multiple short, simple searches in one `queries` call rather than one compound query. Every array entry must be an `{ "entity": "variable", "query": "..." }` object, never a bare string:
-
-- **Primitive colors:** `{ "entity": "variable", "query": "gray" }`, `{ "entity": "variable", "query": "red" }`, etc.
-- **Semantic colors:** `{ "entity": "variable", "query": "background" }`, `{ "entity": "variable", "query": "surface" }`, etc.
-- **Spacing/sizing:** `{ "entity": "variable", "query": "space" }`, `{ "entity": "variable", "query": "radius" }`, etc.
-
-If initial searches return empty, try shorter fragments or different naming conventions — libraries vary widely ("grey" vs "gray", "spacing" vs "space", "color/bg" vs "background").
-
-For library variables (remote = true), import them by key with `figma.variables.importVariableByKeyAsync(key)`. For local variables, use `figma.variables.getVariableByIdAsync(id)` directly.
-
-See [variable-patterns.md](../figma-use/references/variable-patterns.md) for binding patterns.
+See [references/discovery-scripts.md](references/discovery-scripts.md#2b-variable-search-query-strategy) for variable search query strategies. Import library variables (`remote = true`) with `figma.variables.importVariableByKeyAsync(key)` and local variables with `figma.variables.getVariableByIdAsync(id)`. See [variable-patterns.md](../figma-use/references/variable-patterns.md) for binding patterns.
 
 #### 2c: Discover styles (text styles, effect styles)
 
@@ -210,103 +96,17 @@ See [text-style-patterns.md](../figma-use/references/text-style-patterns.md) and
 
 ### Step 3: Create the Wrapper Frame
 
-**Do NOT build sections as top-level page children and reparent them later** — moving nodes across `use_figma` calls with `appendChild()` silently fails and produces orphaned frames. Create a mutable wrapper frame first, then build each section directly inside it.
-
-Import and instantiate any selected whole-view composite inside the wrapper. Customize its covered descendants and append missing sections to the wrapper alongside it; never append children directly to an instance. Position the wrapper away from existing content and return its ID:
-
-```js
-// Find clear space
-let maxX = 0;
-for (const child of figma.currentPage.children) {
-  maxX = Math.max(maxX, child.x + child.width);
-}
-
-const wrapper = figma.createAutoLayout("VERTICAL");
-
-// --- Size the wrapper based on container type ---
-// Full page:       wrapper.resize(1440, 100); wrapper.name = "Homepage";
-// Modal/dialog:    wrapper.resize(640, 100);  wrapper.name = "Settings Modal";
-// Drawer/sidebar:  wrapper.resize(360, 100);  wrapper.name = "Navigation Drawer";
-// Panel:           wrapper.resize(400, 100);  wrapper.name = "Details Panel";
-// Adapt width to match the source code's actual dimensions.
-
-wrapper.name = "VIEW_NAME";
-wrapper.primaryAxisAlignItems = "CENTER";
-wrapper.counterAxisAlignItems = "CENTER";
-wrapper.resize(WIDTH, 100);
-wrapper.layoutSizingHorizontal = "FIXED";
-wrapper.x = maxX + 200;
-wrapper.y = 0;
-
-return { success: true, wrapperId: wrapper.id };
-```
+**Do NOT build sections as top-level page children and reparent them later** — moving nodes across `use_figma` calls with `appendChild()` silently fails and produces orphaned frames. Create a mutable `VERTICAL` auto-layout wrapper frame first (sized to the container type, positioned clear of existing content), instantiate any selected whole-view composite inside it (never append children directly to an instance), and return `wrapperId`. See [references/build-scripts.md](references/build-scripts.md#step-3-create-wrapper-frame) for the wrapper creation script.
 
 ### Step 4: Customize Covered Sections and Build Missing Sections
 
-**This is the most important step.** Start with the selected composite: customize the descendants it already covers and build only missing sections. Work in retry-safe construction phases, batching related sections when safe. Split only for page-context boundaries, hard-to-recover partial execution, or a targeted retry after a failure—not merely to create a validation checkpoint. At the start of each script, fetch the mutable wrapper frame by ID. Append new content to that frame, never to a component instance.
-
-```js
-const createdNodeIds = [];
-
-// Resolve the wrapper and import every design system dependency in parallel.
-// Sequential awaits here serialize N independent IPC round-trips at the top
-// of every section build; one Promise.all is dramatically faster.
-const [wrapper, buttonSet, bgColorVar, spacingVar, shadowStyle] = await Promise.all([
-  figma.getNodeByIdAsync("WRAPPER_ID_FROM_STEP_3"),
-  figma.importComponentSetByKeyAsync("BUTTON_SET_KEY"),
-  figma.variables.importVariableByKeyAsync("BG_COLOR_VAR_KEY"),
-  figma.variables.importVariableByKeyAsync("SPACING_VAR_KEY"),
-  figma.importStyleByKeyAsync("SHADOW_STYLE_KEY"),
-]);
-const primaryButton = buttonSet.children.find(c =>
-  c.type === "COMPONENT" && c.name.includes("variant=primary")
-) || buttonSet.defaultVariant;
-
-// Build section frame with variable bindings (not hardcoded values)
-const section = figma.createAutoLayout();
-section.name = "Header";
-section.setBoundVariable("paddingLeft", spacingVar);
-section.setBoundVariable("paddingRight", spacingVar);
-const bgPaint = figma.variables.setBoundVariableForPaint(
-  { type: 'SOLID', color: { r: 0, g: 0, b: 0 } }, 'color', bgColorVar
-);
-section.fills = [bgPaint];
-
-// Apply the effect style imported above
-section.effectStyleId = shadowStyle.id;
-
-// Create component instances inside the section
-const btnInstance = primaryButton.createInstance();
-section.appendChild(btnInstance);
-createdNodeIds.push(btnInstance.id);
-
-// Append section to wrapper
-wrapper.appendChild(section);
-section.layoutSizingHorizontal = "FILL"; // AFTER appending
-
-createdNodeIds.push(section.id);
-return { success: true, createdNodeIds };
-```
+**This is the most important step.** Start with the selected composite: customize the descendants it already covers and build only missing sections. Work in retry-safe construction phases, batching related sections when safe. Split only for page-context boundaries, hard-to-recover partial execution, or a targeted retry after a failure—not merely to create a validation checkpoint. At the start of each script, fetch the mutable wrapper frame and import all needed components, variables, and styles in parallel (`Promise.all`), append new sections directly to the wrapper, and set `layoutSizingHorizontal = "FILL"` after appending. See [references/build-scripts.md](references/build-scripts.md#step-4-section-build-template) for the full section build template.
 
 Return the created node IDs plus the relevant counts, names, and bounds from each call — this is your default structural validation. Run a separate structural read only when that evidence is missing or when a relevant mutation has invalidated it. Save the visual pass for Step 5.
 
 #### Override instance text with setProperties()
 
-Component instances ship with placeholder text ("Title", "Heading", "Button"). Use the component property keys you discovered in Step 2 to override them with `setProperties()` — this is more reliable than direct `node.characters` manipulation. See [component-patterns.md](../figma-use/references/component-patterns.md#overriding-text-in-a-component-instance) for the full pattern.
-
-For nested instances that expose their own TEXT properties, call `setProperties()` on the nested instance:
-
-```js
-// Use the type-indexed criteria for the type filter, then narrow by name.
-const nestedHeading = cardInstance
-  .findAllWithCriteria({ types: ["INSTANCE"] })
-  .find(n => n.name === "Text Heading");
-if (nestedHeading) {
-  nestedHeading.setProperties({ "Text#2104:5": "Actual heading from source code" });
-}
-```
-
-Only fall back to direct `node.characters` for text that is NOT managed by any component property.
+Component instances ship with placeholder text ("Title", "Heading", "Button"). Use the component property keys from Step 2 to override them with `setProperties()` on both top-level and nested instances (see [component-patterns.md](../figma-use/references/component-patterns.md#overriding-text-in-a-component-instance) and [references/build-scripts.md](references/build-scripts.md#nested-instance-text-override)). Only fall back to direct `node.characters` for text NOT managed by any component property.
 
 #### Read source code defaults carefully
 
@@ -334,25 +134,7 @@ See [references/componentization.md](references/componentization.md) for the bui
 
 #### Icons: import the SVG, never reconstruct from rotated primitives
 
-Icons are the **main exception to the build-manually-vs-import split above.** If the design system exposes an icon as a component, instance it (a single INSTANCE_SWAP property, not a variant per icon). Otherwise — most commonly when **grabbing an icon from the codebase to place or replace it in Figma** — import the icon's **SVG source directly** as a vector node. This is the primary, default path for icons; do not redraw them.
-
-1. **Get the SVG from the codebase.** Read the icon's source — inline `<svg>`, the imported `.svg` asset, or the icon-library entry — and pass that exact SVG string. Prefer the codebase's own SVG over hand-authoring one.
-2. **Import with `figma.createNodeFromSvg(svgString)`**, which returns a `FrameNode` of editable vector paths. The SVG string **must** include a `viewBox` plus explicit `width`/`height` (e.g. `<svg width="24" height="24" viewBox="0 0 24 24" ...>`). Without `width`/`height` it falls back to the `viewBox` size, which is often smaller than the slot — the usual cause of "the icon didn't size properly."
-3. **Size it to the slot.** `createNodeFromSvg` frames scale their contents on resize, so `icon.resize(size, size)` fits the whole icon (stroke weight included) to the target box. Equivalently author `width`/`height` equal to the target. Match the source's icon size — commonly 16/20/24px.
-4. **Never reconstruct an icon from rotated line/rect/ellipse primitives.** Figma's line rotation is unreliable in the `use_figma` context and produces broken, mis-rotated icons (a chevron collapses into a blob, an arrowhead detaches from its shaft). Importing the SVG is both more reliable and more editable.
-
-```js
-// Place / replace an icon from a codebase SVG into a 24px slot
-const icon = figma.createNodeFromSvg(
-  '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-  '<path d="m9 18 6-6-6-6" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-);
-icon.name = "icon/chevron-right";
-icon.resize(24, 24);          // scales the whole icon to the slot
-slotFrame.appendChild(icon);
-```
-
-**Codebase SVGs usually use `currentColor`** (e.g. `stroke="currentColor"` / `fill="currentColor"`), which `createNodeFromSvg` imports as **black** — it does not inherit the parent's color. Set the intended color after import: substitute the literal color into the SVG string before importing, or bind the imported vector fills/strokes to a design-system color variable with `setBoundVariableForPaint` (same as any paint). To turn an imported SVG into a reusable icon component (for INSTANCE_SWAP), see [figma-generate-library → Creating Icon Components](../figma-generate-library/references/component-creation.md) and the [INSTANCE_SWAP pattern](../figma-use/references/component-patterns.md#instance_swap-avoiding-variant-explosion).
+If the design system exposes an icon component, instance it (`INSTANCE_SWAP`). Otherwise, import the codebase's SVG directly via `figma.createNodeFromSvg(svgString)` (ensure `viewBox` + explicit `width`/`height`, call `icon.resize(size, size)`, and replace `currentColor` or bind fills/strokes to a color variable). Never reconstruct icons from rotated primitives. See [references/build-scripts.md](references/build-scripts.md#icons-import-svg-directly) for the SVG import code and `currentColor` guidance.
 
 ### Step 5: Validate the Full View and Transfer Images
 
@@ -377,67 +159,30 @@ Inspect the composition screenshot for:
 
 See [references/discover-product-font.md](references/discover-product-font.md#verify-the-font-after-building) for the read-back script (which separates free-standing text you fix from design-system-governed text you flag) and the screenshot-comparison steps.
 
-#### Transfer images from the generate_figma_design capture
+#### Transfer images & generating placeholders
 
-If you ran `generate_figma_design` in parallel, transfer only discrete content assets used by the app into your design system output. Never upload or transfer the capture root or any screenshot or flattened rendering of the complete UI.
-
-1. Find all image nodes in the capture output by searching for fills with `type === "IMAGE"`:
-   ```js
-   const capture = await figma.getNodeByIdAsync("CAPTURE_NODE_ID");
-   const imageNodes = capture.findAll(() => true).flatMap(n => {
-     if (!Array.isArray(n.fills)) return [];
-     const imageFill = n.fills.find(f => f.type === "IMAGE");
-     return imageFill ? [{ name: n.name, id: n.id, imageHash: imageFill.imageHash }] : [];
-   });
-   return imageNodes;
-   ```
-2. Match each captured image to the corresponding frame in your use_figma output (by position, name, or order).
-3. Apply the image hash to the target frame:
-   ```js
-   targetFrame.fills = [{ type: "IMAGE", imageHash: "hash_from_capture", scaleMode: "FILL" }];
-   ```
-4. Delete the `generate_figma_design` capture output after all images are transferred.
-
-#### Generating placeholder images and vectors
-
-Reuse existing assets if possible. If not, choose between `generate_image` and `generate_vector_illustration`. Then inform the user that Figma AI credits were used.
-
-If Figma AI is unavailable or its credit limit is reached, ask before using an alternative image-generation provider. Upload only these alternative-provider images with `upload_assets`.
+If you ran `generate_figma_design` in parallel, transfer only discrete content `imageHash` fills into your output and delete the capture afterwards. Reuse existing assets before calling `generate_image` / `generate_vector_illustration` (inform the user when Figma AI credits are used; ask before using an alternative provider with `upload_assets`). See [references/web-capture-and-images.md](references/web-capture-and-images.md) for the transfer script and full rules.
 
 ### Step 6: Updating an Existing View
 
 When updating rather than creating from scratch:
 
-1. Use `get_metadata` to inspect the existing screen structure.
-2. Identify which sections need updating and which can stay.
-3. For each section that needs changes:
-   - Locate the existing nodes by ID or name
-   - Swap component instances if the design system component changed
-   - Update text content, variant properties, or layout as needed
-   - Remove deprecated sections
-   - Add new sections
-4. Follow the same evidence and screenshot cadence as Steps 4–5: rely on returned IDs plus relevant counts, names, and bounds for structural validation, then take one full-view screenshot after the updates (and one post-fix screenshot only if a targeted visual fix is needed).
+1. Use `get_metadata` to inspect the existing screen structure and identify which sections need updating.
+2. Locate existing nodes by ID or name, swap component instances if changed, update text/variant/layout, remove deprecated sections, and add new ones.
+3. Follow the same evidence and screenshot cadence as Steps 4–5 (returned IDs/counts/bounds + one full-view screenshot, plus one post-fix screenshot only if needed).
 
-```js
-// Example: Swap a button variant in an existing screen.
-// Batch the node lookup and component-set import in parallel — they are
-// independent and awaiting them sequentially serializes two IPC round-trips.
-const [existingButton, buttonSet] = await Promise.all([
-  figma.getNodeByIdAsync("EXISTING_BUTTON_INSTANCE_ID"),
-  figma.importComponentSetByKeyAsync("BUTTON_SET_KEY"),
-]);
-if (existingButton && existingButton.type === "INSTANCE") {
-  const newVariant = buttonSet.children.find(c =>
-    c.name.includes("variant=primary") && c.name.includes("size=lg")
-  ) || buttonSet.defaultVariant;
-  existingButton.swapComponent(newVariant);
-}
-return { success: true, mutatedNodeIds: [existingButton.id] };
-```
+See [references/build-scripts.md](references/build-scripts.md#step-6-update-existing-view-script) for the parallel instance-swap example.
 
 ## Reference Docs
 
-For detailed API patterns and gotchas, load these from the [figma-use](../figma-use/SKILL.md) references as needed:
+Load these skill references and [figma-use](../figma-use/SKILL.md) references as needed:
+
+- [references/discovery-scripts.md](references/discovery-scripts.md) — Code Connect key lookup, single-pass existing-screen inventory, `get_libraries` / `search_design_system` & variable query examples
+- [references/build-scripts.md](references/build-scripts.md) — wrapper creation, parallel section build template, nested text override, SVG icon import, and existing-view update scripts
+- [references/web-capture-and-images.md](references/web-capture-and-images.md) — parallel `generate_figma_design` web capture workflow, `imageHash` transfer script, and placeholder asset rules
+- [references/componentization.md](references/componentization.md) — build-once-place-instances pattern
+- [references/discover-product-font.md](references/discover-product-font.md) — product font discovery and post-build verification
+- [references/best-practices.md](references/best-practices.md) — summary of design-system-first best practices
 
 - [component-patterns.md](../figma-use/references/component-patterns.md) — importing by key, finding variants, setProperties, text overrides, working with instances
 - [variable-patterns.md](../figma-use/references/variable-patterns.md) — creating/binding variables, importing library variables, scopes, aliasing, discovering existing variables
@@ -456,13 +201,4 @@ Because this skill works in retry-safe construction phases, errors are naturally
 
 ## Best Practices
 
-- **Always search before building.** The design system likely has the component, variable, or style you need. Manual construction and hardcoded values should be the exception, not the rule.
-- **Search unresolved gaps, one intent per query.** Try synonyms and partial terms as separate `{ entity, query }` entries in one `queries` call, never combined into one string—a "NavigationPill" might be found under "pill", "nav", "tab", or "chip", so pass those as four component entries. For variables, use `entity: "variable"` with queries like "color", "spacing", and "radius". Do this only for unresolved construction gaps, and stop once a suitable asset is found.
-- **Prefer design system tokens over hardcoded values.** Use variable bindings for colors, spacing, and radii. Use text styles for typography. Use effect styles for shadows. This keeps the screen linked to the design system.
-- **Prefer component instances over manual builds.** Instances stay linked to the source component and update automatically when the design system evolves.
-- **Componentize by default.** Build repeated or reusable elements as a component once, then place instances. Do not ship a flat tree of one-off frames that needs a second "make it componentized" pass.
-- **Work in retry-safe construction phases.** Batch related sections into one `use_figma` call when the script stays safe to retry; split only at page-context boundaries, hard-to-recover mutations, or a targeted retry after an actual failure.
-- **Return node IDs and validation evidence from every call.** Return created IDs plus the relevant counts, names, and bounds — this is your default structural validation, and you'll need the IDs to compose sections and for error recovery.
-- **Validate visually with one composition screenshot.** Take one full-view screenshot after composition, and one more only after a targeted visual fix; the most recent passing screenshot is final.
-- **Assert the font family, not just a successful load.** A script can load the wrong font without error. After building, verify rendered text uses the product font identified in Step 1 (see Step 5).
-- **Match existing conventions.** If the file already has screens, match their naming, sizing, and layout patterns.
+See [references/best-practices.md](references/best-practices.md) for the complete best-practices checklist (search before building, one-intent queries, design system tokens & instances, componentize by default, retry-safe batches, evidence returns, single composition screenshot, font-family assertion, and convention matching).
