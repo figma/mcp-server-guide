@@ -76,39 +76,53 @@ If the target framework or DOM semantics make `motion.p` awkward, wrap the `<p>`
 
 ## Interleaved transform example
 
-A vector with a static 45° base rotation *and* an animated rotate/translate. `get_design_context` nests three layers — an animated wrapper, a static-transform + sizing div, and the node — and the wrapper carries the markers:
+A rectangle with a static base rotation *and* an animated translate. `get_design_context` nests three layers — the `data-node-id` positioning div, a static-transform div, and the animated element, which carries `data-motion-for`:
 
 ```tsx
-// get_design_context (layout classes trimmed; the static rotate-45 + hypot sizing are the point)
-<motion.div
-  data-motion-wrapper-for="1:356"
-  data-motion-keys="rotate,x,y" {/* all the motion lives on this wrapper */}
->
-  <div className="rotate-45 w-[hypot(…)] h-[hypot(…)]"> {/* static rotation + sizing — NOT a motion node */}
-    <div data-node-id="1:356"> <img src={imgVector} /> </div>
+// get_design_context (layout classes trimmed; the static matrix is the point)
+<div className="absolute flex items-center justify-center …" data-node-id="1:23">
+  <div className="flex-none transform-[matrix(0.2955,_-0.9553,_0.9553,_0.2955,_0,_0)]"> {/* static base rotation — NOT a motion node */}
+    <motion.div
+      className="bg-[#f66] relative size-[120px]"
+      style={{ "--motion-design-transform": "initial", "--motion-design-transform-inverse": "initial", "--motion-layout-transform": "translate(0px)" } as React.CSSProperties}
+      data-motion-for="1:23" {/* 1:23's motion goes here */}
+    />
   </div>
-</motion.div>
+</div>
 
-// get_motion_context for 1:356 — ABSOLUTE (rotate starts at the 45° base)
-animate={{ rotate: [45, 125, 125], x: [0, 200, 200], y: [0, 0, 0] }} transition={{ … }}
+// get_motion_context for 1:23 (motion.dev snippet, trimmed)
+<motion.div
+  style={{ transformOrigin: '0 0', transform: 'var(--motion-layout-transform, translate(0px)) var(--motion-design-transform-inverse, matrix(…)) translate(calc(var(--motion-translate-x, 0) * 1px), calc(var(--motion-translate-y, 0) * 1px)) var(--motion-design-transform, matrix(…))' }}
+  initial={{ '--motion-translate-x': 14, '--motion-translate-y': -41 }}
+  animate={{ '--motion-translate-x': [14, 21, 21], '--motion-translate-y': [-41, 71, 71] }}
+  transition={{ /* … */ }}
+/>
 ```
 
-Keep all three layers and put the wrapper's tracks (`rotate,x,y`) on the wrapper — but the middle div *already* applies the 45° statically, and `get_motion_context`'s `rotate` is absolute (also starts at 45). Subtract the base so the wrapper animates the **offset** (`[0, 80, 80]` = `[45,125,125] − 45`); `x`/`y` have no static base so they pass through:
+Keep all three layers and merge the snippet onto the `data-motion-for` element as is. Its transform undoes and reapplies the static matrix around the translate, so the absolute values land in the right place inside the rotated div:
 
 ```tsx
-<motion.div
-  data-motion-wrapper-for="1:356"
-  initial={{ rotate: 0, x: 0, y: 0 }}
-  animate={{ rotate: [0, 80, 80], x: [0, 200, 200], y: [0, 0, 0] }} {/* rotate offset by the 45° base */}
-  transition={{ /* from the snippet */ }}
->
-  <div className="rotate-45 w-[hypot(…)] h-[hypot(…)]"> {/* static 45° base + sizing — kept verbatim */}
-    <div data-node-id="1:356"> <img src={imgVector} /> </div>
+<div className="absolute flex items-center justify-center …" data-node-id="1:23">
+  <div className="flex-none transform-[matrix(0.2955,_-0.9553,_0.9553,_0.2955,_0,_0)]"> {/* kept verbatim */}
+    <motion.div
+      className="bg-[#f66] relative size-[120px]"
+      data-motion-for="1:23"
+      style={{
+        "--motion-design-transform": "initial",
+        "--motion-design-transform-inverse": "initial",
+        "--motion-layout-transform": "translate(0px)",
+        transformOrigin: '0 0',
+        transform: '<the snippet transform, unchanged>',
+      } as React.CSSProperties}
+      initial={{ '--motion-translate-x': 14, '--motion-translate-y': -41 }}
+      animate={{ '--motion-translate-x': [14, 21, 21], '--motion-translate-y': [-41, 71, 71] }}
+      transition={{ /* from the snippet */ }}
+    />
   </div>
-</motion.div>
+</div>
 ```
 
-Two misses to avoid: (1) collapsing the middle `rotate-45` + sizing div — the vector then sizes to the wrapper's box (too big) and loses its base rotation; (2) putting the absolute `rotate: [45, …]` on the wrapper on top of that static 45° — it double-rotates to 90° at rest. Keep every static div, and offset the wrapper's animated transform by whatever base those divs apply.
+Two misses to avoid: (1) collapsing the static-transform div — the element then loses its base rotation and sizing; (2) putting the motion on the `data-node-id` div, or converting the snippet to plain `x`/`y` and offsetting by the base yourself — the snippet already accounts for the static matrix, so the transform ends up applied twice.
 
 ## SVG example
 

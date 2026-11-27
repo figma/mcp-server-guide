@@ -116,35 +116,47 @@ line.strokes = [{ type: "SOLID", color: { r: 0, g: 0, b: 0 }, opacity: 0.08 }];
 line.strokeWeight = 1;
 ```
 
-### Vectors (Custom Paths)
-
-Use `figma.createVector()` for any shape that can't be built from primitives — organic curves, flowing contours, custom silhouettes. The `vectorPaths` property accepts SVG path data.
-
-```javascript
-const vector = figma.createVector();
-vector.vectorPaths = [{
-  windingRule: "NONZERO",
-  data: "M 0 60 C 30 10 70 10 100 50 C 130 90 170 20 200 40 L 200 100 L 0 100 Z"
-}];
-vector.fills = [{ type: 'SOLID', color: { r: 0.15, g: 0.3, b: 0.55 } }];
-vector.strokes = [{ type: 'SOLID', color: { r: 0.1, g: 0.2, b: 0.4 } }];
-vector.strokeWeight = 2;
-```
-
-SVG path commands: `M` (move to), `L` (line to), `C x1 y1 x2 y2 x y` (cubic bezier), `Q x1 y1 x y` (quadratic bezier), `A rx ry rot large sweep x y` (arc), `Z` (close). Uppercase = absolute, lowercase = relative.
-
-Vectors support all the same properties as other shapes — fills, strokes, effects, brushes, dynamic strokes, variable-width strokes, and texture effects.
-
 ### SVG Import
+
+For a new shape from SVG source or general SVG path data, pass a complete SVG to `figma.createNodeFromSvg()`. The importer handles SVG path syntax, including arc commands such as `A` and shorthand such as `H` and `V`. It returns a frame containing editable shapes.
 
 ```javascript
 const svgString = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
   <path d="M5 12h14M12 5l7 7-7 7" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 
+const right = figma.currentPage.children.reduce((edge, child) => {
+  const bounds = child.absoluteBoundingBox;
+  return bounds ? Math.max(edge, bounds.x + bounds.width) : edge;
+}, 0);
 const node = figma.createNodeFromSvg(svgString);
 node.name = "Icon/Arrow Right";
-node.resize(24, 24);
+node.x = right + 80;
+return { createdNodeIds: [node.id, ...node.findAll().map(child => child.id)] };
+```
+
+### Vectors (Custom Paths)
+
+Assign `vectorPaths` to replace path data while keeping an existing vector's ID. To build a new native `VectorNode` from explicit coordinates, call `figma.createVector()` and use the same command subset. Write uppercase, absolute commands with space-separated coordinates and a letter for each segment. To continue from a contour's start after `Z`, write a new `M` at that start point.
+
+| Command | Arguments |
+|---------|-----------|
+| `M` | `x y` |
+| `L` | `x y` |
+| `C` | `x1 y1 x2 y2 x y` |
+| `Q` | `x1 y1 x y` |
+| `Z` | None. Closes the subpath. |
+
+Before assigning a general SVG path to `vectorPaths`, normalize relative coordinates to absolute coordinates, expand `H` and `V` into `L`, and convert arcs and shorthand curves into explicit supported curves. Use `Z` for contours that should close. Adding it to an intentionally open contour draws a closing stroke. For a new shape with a fill across open stroked contours, import the complete SVG. Use normalized path data for an in-place edit only when it preserves the intended fill and stroke.
+
+```javascript
+const vector = await figma.getNodeByIdAsync("<vector-id>");
+if (vector?.type !== "VECTOR") return { vectorNotFound: "<vector-id>" };
+vector.vectorPaths = [{
+  windingRule: "NONZERO",
+  data: "M 0 60 Q 20 20 50 45 C 70 70 85 35 100 50 L 100 100 L 0 100 Z"
+}];
+return { mutatedNodeIds: [vector.id] };
 ```
 
 ## Fills & Strokes

@@ -1,6 +1,6 @@
 ---
 name: figma-use-slides
-description: "This skill helps agents use Figma's use_figma MCP tool in the Slides context. Can be used alongside figma-use which has foundational context for using the use_figma tool."
+description: "Use this skill to create, edit, or inspect a Figma Slides deck. It covers building decks from scratch or from existing Design frames, adding and organizing slides, writing speaker notes, generating artwork, and fixing slide layouts. Load it alongside `figma-use` when calling `use_figma` in Slides."
 disable-model-invocation: false
 ---
 
@@ -74,6 +74,10 @@ Execute the plan in large batches. The goal is to minimize the number of think-t
 - **Validate every batch** with the deterministic batch validation script from [slide-gotchas.md](references/slide-gotchas.md#batch-validation-script). This checks for overlapping elements, text clipping, and out-of-bounds nodes in ~3 seconds. If the check passes, proceed without a screenshot. If it fails, screenshot the affected slides and fix before continuing.
 - **Screenshot at checkpoints only** — after the first batch (validates the visual system: colors, typography, design direction), and after the final batch (overall quality). Take a screenshot of 1–2 representative slides per checkpoint using inline `await slide.screenshot()`, not separate `get_screenshot` calls.
 - **Return all created node IDs** from every build script, as always.
+
+### Generating images and vectors
+
+Reuse suitable deck or reference assets first. Use `generate_image` for new imagery. Use `generate_vector_illustration` for new editable icons, logos, and illustrations. Then inform the user that Figma AI credits were used.
 
 ## Sections
 

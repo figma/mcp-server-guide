@@ -12,6 +12,15 @@ When available, call `create_session` with `fileKey` and `description` before fi
 
 **If Figma MCP tools appear as deferred tools, batch-load all their schemas in a single `ToolSearch` call** using the `select:` syntax — e.g. `ToolSearch query="select:use_figma,get_screenshot,get_metadata,create_new_file"`. One round trip beats six.
 
+**Routing for new images, icons, logos, and illustrations**
+
+In Design, Slides, or FigJam, call generation tools separately from `use_figma` scripts.
+
+- If the artwork exists, reuse the matching component or use `use_figma` to import its SVG or edit its paths.
+- For a new icon, logo, or illustration, call `generate_vector_illustration` before writing SVG or drawing paths. This includes simple button glyphs. Put size, stroke, and palette in the prompt, then use `use_figma` to refine the returned vector or build the surrounding layout.
+- If an attempt already failed, including one the user reports, finish the artwork with `use_figma`.
+- For new imagery, call `generate_image`.
+
 **MANDATORY for visible design changes:** Before the first mutating `use_figma` call, load [figma-generate-design](../figma-generate-design/SKILL.md) alongside this skill and include both names in every mutating call’s `skillNames`. This applies from a single visible property or element to a full page, screen, or composed multi-section view—even when the user calls that view a component. `figma-use` provides the Plugin API rules; `figma-generate-design` provides design-system discovery through `search_design_system`, asset importing, and incremental assembly.
 
 **If the task involves creating or building a standalone component or a component library in Figma** (even a single component as the deliverable), also load [figma-generate-library](../figma-generate-library/SKILL.md). It owns the component-creation workflow — variable foundations first, variant sets, then design token bindings — that `figma-use` alone doesn't cover. Build the token/variable foundation before the component, then bind the component's `fills`/`cornerRadius`/spacing to those variables rather than inlining literals where a token exists. For components that exist to be reused **inside a screen you are building**, follow [figma-generate-design → componentization](../figma-generate-design/references/componentization.md) instead.
@@ -64,6 +73,8 @@ Library keys (`componentKey`, `componentSetKey`, and style or variable `key` val
 Quote free-form attribute values in selectors, such as layer names. For a name discovered at runtime, reuse its node ID when available or use `$fig.query('FRAME', scope).filter(n => n.name === targetName)`.
 
 **Icons:** **Prefer real vector icons:** import the icon's SVG source (inline `<svg>`, the `.svg` asset, or the source icon-library glyph — e.g. lucide/heroicons) via `$fig.svg(...)` rather than approximating an icon with a typed emoji/Unicode glyph (★ ⚙ 🔍 ☰ ▾) or a plain rectangle. A simple glyph or shape is a fine fallback when the real SVG genuinely can't be obtained — just reach for the SVG first. (Don't reconstruct an icon from rotated line/rect primitives, though — that renders broken.) Full recipe (viewBox+width/height sizing, `currentColor`, INSTANCE_SWAP for design-system icons): [figma-generate-design → Icons](../figma-generate-design/SKILL.md#icons-import-the-svg-never-reconstruct-from-rotated-primitives).
+
+To preserve an existing vector's node ID, [replace its path in place](references/api-reference.md#replace-an-existing-vector-path) with the raw Plugin API.
 
 ### Copy these patterns
 
@@ -229,10 +240,9 @@ return { menuArrows, expandComponents }
 
 Page context resets to the first page at the start of each `use_figma` call. When an operation needs another current page, switch with `await figma.setCurrentPageAsync(page)` before queuing the plan; never assign `figma.currentPage` directly. Switch at most once per call. Split work requiring multiple current-page contexts into independent calls, one per page; issue independent calls in parallel. A scoped FigQuery search does not itself require a separate call for every page. Prefer a resolved page ID. On `pageNotFound`, list pages and resolve the target before retrying.
 ```js
-// Switch to a specific page (loads its content)
-const pageName = "My Page";
-const targetPage = figma.root.children.find(p => p.name === pageName);
-if (!targetPage) return { pageNotFound: pageName };
+// PAGE_ID comes from page discovery.
+const targetPage = await figma.getNodeByIdAsync(PAGE_ID);
+if (targetPage?.type !== 'PAGE') return { pageNotFound: PAGE_ID };
 await figma.setCurrentPageAsync(targetPage);
 $fig.query('INSTANCE[name="arrow_drop_down"]').set({ opacity: 0.8 })
 ```
@@ -299,7 +309,7 @@ $fig.autoLayout({ name: 'Screen', layoutMode: 'VERTICAL', width: 390 }, [
 
 8. **Empty / unsupported responses are terminal.** Accept and move on — don't try alternative bypass paths.
 
-9. **Verify node-type before touching a property.** Only `FRAME / COMPONENT / COMPONENT_SET / INSTANCE / GROUP / SECTION / PAGE` have `.children`. `GROUP` has no `fills` / `strokes` / `cornerRadius`. `TEXT` has no `cornerRadius` / `padding*` / `layoutMode`. `layoutPositioning='ABSOLUTE'` needs parent with `layoutMode !== 'NONE'`. Check `'<prop>' in node` or grep [references/plugin-api-standalone.d.ts](references/plugin-api-standalone.d.ts). Full list in [references/critical-rules-deep.md](references/critical-rules-deep.md).
+9. **Verify existence, type, and required scope before using a node.** A raw node lookup, first match, array element, or nested value can be absent. Before queuing writes, verify the required page or parent for both direct lookups and recovered targets. If an ID is stale, use evidence linking a replacement to the intended node, such as the returned ID from a known replacement operation. A unique name and type alone can match a different node. Report unresolved targets as incomplete. Before submitting raw Plugin API code, check nullable values throughout the script, including audits and returns. After property changes, resolve instance children again by their observed role and type. See [the nested lookup example](references/gotchas.md#inspect-the-current-instance-after-property-changes). Only `FRAME / COMPONENT / COMPONENT_SET / INSTANCE / GROUP / SECTION / PAGE` have `.children`. `GROUP` has no `fills` / `strokes` / `cornerRadius`. `TEXT` has no `cornerRadius` / `padding*` / `layoutMode`. `layoutPositioning='ABSOLUTE'` needs parent with `layoutMode !== 'NONE'`. Check `'<prop>' in node` or grep [references/plugin-api-standalone.d.ts](references/plugin-api-standalone.d.ts). Full list in [references/critical-rules-deep.md](references/critical-rules-deep.md).
 
 10. **Reuse evidence while it remains valid.** Do not repeat metadata reads or screenshots when nothing relevant changed. Reinspect when a mutation, external change, or recovery requirement invalidates earlier evidence.
 

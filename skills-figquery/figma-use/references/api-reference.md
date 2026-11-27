@@ -256,6 +256,30 @@ componentSet.documentationLinks = [
 const svgNode = figma.createNodeFromSvg('<svg>...</svg>')
 ```
 
+### Replace an existing vector path
+
+Use `$fig.svg()` to import new artwork. To replace an existing vector's path
+while preserving its node ID, assign `vectorPaths` with the raw Plugin API.
+
+For compatibility with the legacy parser, use uppercase, absolute `M`, `L`,
+`C`, `Q`, and `Z` commands with space-separated coordinates and a command
+letter for each segment. Convert relative coordinates to absolute coordinates,
+expand `H` and `V` into `L`, and convert arcs and shorthand curves to explicit
+supported curves. Use `Z` only where the contour should close. To continue from
+the contour's start after `Z`, write a new `M` at that point.
+
+```js
+const vector = await figma.getNodeByIdAsync('<vector-id>')
+if (vector?.type !== 'VECTOR') return { vectorNotFound: '<vector-id>' }
+
+vector.vectorPaths = [{
+  windingRule: 'NONZERO',
+  data: 'M 0 60 Q 20 20 50 45 C 70 70 85 35 100 50 L 100 100 L 0 100 Z',
+}]
+
+return { mutatedNodeIds: [vector.id] }
+```
+
 ## Images
 
 **`upload_assets` is the ONLY supported way to upload images into a Figma file** — Design, FigJam, and Slides all share this path. **Do NOT use `figma.createImage()` or `figma.createImageAsync()` from inside `use_figma`.** Both are unsupported as image-upload entry points and will be removed from agent flows; `use_figma` has no network access (so `createImageAsync(src)` cannot fetch URLs) and bytes inside the script are not durable assets in the file.

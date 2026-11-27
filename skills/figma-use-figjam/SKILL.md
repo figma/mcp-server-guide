@@ -1,6 +1,6 @@
 ---
 name: figma-use-figjam
-description: "This skill helps agents use Figma's use_figma MCP tool in the FigJam context. Can be used alongside figma-use which has foundational context for using the use_figma tool."
+description: "Use this skill to create, edit, or inspect a FigJam board. It covers working with board content, managing pages, and adding, replacing, or generating images and vectors. Load it alongside `figma-use` when calling `use_figma` in FigJam."
 disable-model-invocation: false
 ---
 
@@ -64,9 +64,15 @@ Every FigJam text mutation (sticky/shape/label/table cell/connector text, standa
 
 ## Adding Images to a FigJam Board
 
+### Uploading existing image files
+
 **`upload_assets` is the ONLY supported way to add images to a FigJam file.** Call `upload_assets` with the FigJam `fileKey`; the tool returns single-use upload URLs that you POST raw image bytes to, and the image is committed and placed automatically. Pass `nodeIds` (with one entry per upload) to attach uploads to existing FigJam nodes as fills; omit `nodeIds` to drop the images onto the board as new layers.
 
 For the full request/response shape, see [figma-use → api-reference.md → Images](../figma-use/references/api-reference.md#images).
+
+### Generating images and vectors
+
+Use `generate_image` for new images. Use `generate_vector_illustration` for new editable icons, logos, and illustrations. Then inform the user that Figma AI credits were used.
 
 ## Reference Docs
 

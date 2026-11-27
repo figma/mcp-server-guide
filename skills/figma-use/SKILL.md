@@ -12,6 +12,15 @@ When available, call `create_session` with `fileKey` and `description` before fi
 
 **If Figma MCP tools appear as deferred tools, batch-load all their schemas in a single `ToolSearch` call** using the `select:` syntax — e.g. `ToolSearch query="select:use_figma,get_screenshot,get_metadata,create_new_file"`. One round trip beats six.
 
+**Routing for new images, icons, logos, and illustrations**
+
+In Design, Slides, or FigJam, call generation tools separately from `use_figma` scripts.
+
+- If the artwork exists, reuse the matching component or use `use_figma` to import its SVG or edit its paths.
+- For a new icon, logo, or illustration, call `generate_vector_illustration` before writing SVG or drawing paths. This includes simple button glyphs. Put size, stroke, and palette in the prompt, then use `use_figma` to refine the returned vector or build the surrounding layout.
+- If an attempt already failed, including one the user reports, finish the artwork with `use_figma`.
+- For new imagery, call `generate_image`.
+
 **MANDATORY for visible design changes:** Before the first mutating `use_figma` call, load [figma-generate-design](../figma-generate-design/SKILL.md) alongside this skill and include both names in every mutating call’s `skillNames`. This applies from a single visible property or element to a full page, screen, or composed multi-section view—even when the user calls that view a component. `figma-use` provides the Plugin API rules; `figma-generate-design` provides design-system discovery through `search_design_system`, asset importing, and incremental assembly.
 
 **Reusable library exception:** If the primary deliverable is a reusable component, component set, variant system, variable/token collection, style foundation, or other library asset intended for reuse or publication, load [figma-generate-library](../figma-generate-library/SKILL.md) instead. It provides the component-creation workflow—variable foundations, variant sets, and design-token bindings—that `figma-use` alone does not cover. For tasks that include both library assets and a composed design that uses them, load both companion skills. Read-only `use_figma` calls need neither.
@@ -26,18 +35,20 @@ IMPORTANT: Whenever you work with design systems, start with [working-with-desig
 2.  **Write plain JavaScript with top-level `await` and `return`.** Code is automatically wrapped in an async context. Do NOT wrap in `(async () => { ... })()`.
 3.  `figma.notify()` **throws "not implemented"** — never use it
 3a. **Return node IDs and keep workflow state outside the Figma file.** Set human-readable component purpose and usage in `node.description` only on a `COMPONENT` or `COMPONENT_SET` — never on a frame or instance.
-3b. **Narrow before accessing type-specific properties.** Check `node.type`, use a capability guard such as `"characters" in node`, or prefilter with `findAllWithCriteria`. `characters` requires a text-capable node; optional chaining does not protect unsupported property access.
+3b. **Resolve required targets before editing.** Check that a node lookup, `.find()`, array element, or nested value exists before using it. Verify the node's type and any required page or parent on both direct lookups and recovered targets. If an ID is stale, use evidence linking a replacement to the intended node, such as the returned ID from a known replacement operation. A unique name and type alone can match a different node. Report an unresolved required target as incomplete. Use `node.type`, a capability guard such as `"characters" in node`, or `findAllWithCriteria` to narrow the type. Optional chaining does not make an unsupported property safe. See [the lookup recovery guidance](references/gotchas.md#resolve-required-targets-before-editing).
+3c. **Check every receiver before calling `use_figma`, including audits and return values.** Scan the submitted code for `.parent.`, `children[...]`, and accesses after `.find()` or `.findOne()`. Check each link separately, including children of an already verified child. For optional ancestry, use `main?.parent?.name ?? null`. After changing an instance's properties, verify configured state with `componentProperties` and resolve any rendered child again by its observed role and type. Report absent optional content and compare it with the expected state. For a required audit or edit, verify a unique intended child and report the operation as incomplete if it cannot be resolved. See [the nested lookup example](references/gotchas.md#inspect-the-current-instance-after-property-changes).
 4.  `console.log()` is NOT returned — use `return` for output
 5.  **Size construction calls for safe retry and validate from evidence.** Do not split a working operation solely to create validation checkpoints. Batch related work when the resulting script remains safe to retry; a complete section or page may be built in one call. Split when crossing page context, when partial execution would be difficult to recover, or after an actual failure requires a targeted retry. Return affected IDs and relevant counts, names, or bounds from each write—this counts as structural validation. Run a separate structural check only when required evidence is missing or after a relevant mutation. Normally take one screenshot after composition and one after a visual fix. The most recent passing screenshot is the final check; do not repeat it when nothing relevant changed. Stop once requirements pass.
 6.  Colors are **0–1 range** (not 0–255): `{r: 1, g: 0, b: 0}` = red. Paint `color` objects use `{r, g, b}` **only — no `a` field**; opacity goes at the paint level (`{ type: 'SOLID', color: {...}, opacity: 0.5 }`).
 7.  Fills/strokes are **read-only arrays** — clone, modify, reassign
-8.  **Every text edit follows the canonical recipe: load font → `await` → mutate → return affected node IDs.** Skipping the load throws `Cannot write to node with unloaded font "<family> <style>"`. The rule covers more than `characters` — it applies to any operation on nodes with unloaded fonts (`appendChild`, `insertChild`, `setBoundVariable`, `setExplicitVariableModeForCollection`, `setValueForMode`, `findAll` callbacks touching text). When mutating existing text, load the node's *current* fonts via `getStyledTextSegments(['fontName'])`, not a hardcoded default. Inter is preloaded in most environments so other families surface this bug more often — the recipe is the same for every font. Use `await figma.listAvailableFontsAsync()` first if the style string is unverified — **never guess** (`"SemiBold"` vs `"Semi Bold"` is a common footgun). For `FONT_FAMILY`-scoped variables, load every value across every relevant mode before `setBoundVariable("fontFamily", …)`, `setValueForMode`, or `setExplicitVariableModeForCollection`. `lineHeight`/`letterSpacing` take `{unit, value}`, not bare numbers. See [Canonical text-edit recipe](references/gotchas.md#canonical-text-edit-recipe-font-load--await--mutate--return-ids).
+7a. **Use `figma.createNodeFromSvg()` to create shapes from SVG.** To replace an existing vector's path data in place, assign its `vectorPaths` using [legacy-compatible absolute path commands](references/plugin-api-patterns.md#vectors-custom-paths).
+8.  **Every text edit follows the canonical recipe: load font → `await` → mutate → return affected node IDs.** Skipping the load throws `Cannot write to node with unloaded font "<family> <style>"`. The rule covers more than `characters` — it applies to any operation on nodes with unloaded fonts (`appendChild`, `insertChild`, `setBoundVariable`, `setExplicitVariableModeForCollection`, `setValueForMode`, `findAll` callbacks touching text). When mutating existing text, use the canonical recipe to load its current font family/style pairs. Read styled ranges for populated nodes because `textNode.fontName` can be `figma.mixed`. Inter is preloaded in most environments so other families surface this bug more often — the recipe is the same for every font. Use `await figma.listAvailableFontsAsync()` first if the style string is unverified — **never guess** (`"SemiBold"` vs `"Semi Bold"` is a common footgun). For `FONT_FAMILY`-scoped variables, load every value across every relevant mode before `setBoundVariable("fontFamily", …)`, `setValueForMode`, or `setExplicitVariableModeForCollection`. `lineHeight`/`letterSpacing` take `{unit, value}`, not bare numbers. See [Canonical text-edit recipe](references/gotchas.md#canonical-text-edit-recipe-font-load--await--mutate--return-ids).
 9.  **Pages load incrementally** — use `await figma.setCurrentPageAsync(page)` to switch pages and load their content. Prefer a resolved page ID. On `pageNotFound`, list pages and resolve the target before retrying the edit. The sync setter `figma.currentPage = page` does **NOT** work and throws `"Setting figma.currentPage is not supported"`. Page context resets to the **first page** at the start of every `use_figma` call, so re-switch each call; switch **at most once per call** and fan multi-page work out in parallel — see [Page Rules](#2-page-rules-critical) and [gotchas.md](references/gotchas.md#set-current-page-once-per-use_figma-call--split-multi-page-work-into-parallel-calls).
 10. `setBoundVariableForPaint` returns a **NEW** paint — must capture and reassign
 11. `createVariable` accepts collection **object or ID string** (object preferred)
-12. **`layoutSizingHorizontal/Vertical` is value-restricted by structural context — `FIXED` always works, `HUG` and `FILL` do not.** `'HUG'` is valid only on an auto-layout frame itself OR on a **TEXT** child of one. `'FILL'` is valid only on a child of an auto-layout frame that is also not absolute-positioned, not inside an immutable frame, and not a canvas-grid child. Practical consequence: append to an auto-layout parent FIRST, then set `HUG`/`FILL` — a newly-created or unparented node can't satisfy the rule yet. The property itself exists on every `SceneNode`; the error is value-rejection, not "no such property". See [Gotchas](references/gotchas.md#layoutsizinghorizontallayoutsizingvertical-value-rules-fixed-hug-fill).
+12. **`layoutSizingHorizontal/Vertical` is value-restricted by structural context — `FIXED` always works, `HUG` and `FILL` do not.** `'HUG'` is valid only on an auto-layout frame itself OR on a **TEXT** child of one. `'FILL'` is valid only on a child of an auto-layout frame that is also not absolute-positioned, not inside an immutable frame, and not a canvas-grid child. Append a new child to its intended auto-layout parent before setting `FILL` or applying `HUG` to a text child. To use `HUG` on an auto-layout frame itself, enable auto-layout on the frame first. The property itself exists on every `SceneNode`; the error is value-rejection, not "no such property". See [Gotchas](references/gotchas.md#layoutsizinghorizontallayoutsizingvertical-value-rules-fixed-hug-fill).
 12a. **Use auto-layout for containers that hold related children.** When children have a structural relationship — stacked, side-by-side, aligned, gapped, hugged — wrap them in `figma.createAutoLayout()`, not `figma.createFrame()` with absolute `x`/`y`. Absolute coordinates govern where a container sits on the canvas; auto-layout governs how its children relate inside it. Skipping the container leaves no protection against text reflow, content changes, or overlap.
-12b. **`layoutSizing*` and `*AxisSizingMode` are different enums — don't cross them.** `layoutSizingHorizontal`/`layoutSizingVertical` (set on a **child**) take `'FIXED'|'HUG'|'FILL'`; `primaryAxisSizingMode`/`counterAxisSizingMode` (set on the **frame** itself) take `'FIXED'|'AUTO'`. So `layoutSizingVertical = 'AUTO'` is invalid (use `'HUG'`), and `counterAxisSizingMode = 'FILL'` throws `Expected 'FIXED' | 'AUTO', received 'FILL'` (use `'FIXED'`/`'AUTO'`). Two more errors from the same setter — `Error: in set_layoutSizingHorizontal: node must be an auto-layout frame or a child of an auto-layout frame` and `Error: in set_layoutSizingHorizontal: FILL can only be set on children of auto-layout frames` — mean the node isn't in an auto-layout context yet; **recommendation: make the parent auto-layout (`figma.createAutoLayout()`) and `appendChild` the node before setting** (see Rule 12). See [Gotchas](references/gotchas.md#layoutsizing-vs-axissizingmode-two-different-sizing-enums).
+12b. **`layoutSizing*` and `*AxisSizingMode` are different enums — don't cross them.** `layoutSizingHorizontal`/`layoutSizingVertical` take `'FIXED'|'HUG'|'FILL'`; `primaryAxisSizingMode`/`counterAxisSizingMode` (set on the **frame** itself) take `'FIXED'|'AUTO'`. So `layoutSizingVertical = 'AUTO'` is invalid (use `'HUG'`), and `counterAxisSizingMode = 'FILL'` throws `Expected 'FIXED' | 'AUTO', received 'FILL'` (use `'FIXED'`/`'AUTO'`). Two more errors from the same setter — `Error: in set_layoutSizingHorizontal: node must be an auto-layout frame or a child of an auto-layout frame` and `Error: in set_layoutSizingHorizontal: FILL can only be set on children of auto-layout frames` — indicate a missing layout context. For `FILL`, append a new child to its intended auto-layout parent before sizing it. An existing child that belongs in a plain frame can keep its parent and use `resize()` and `x`/`y`. See [Gotchas](references/gotchas.md#layoutsizing-vs-axissizingmode-two-different-sizing-enums).
 12c. **`resize()` resets sizing modes to `FIXED`, so call it BEFORE setting `layoutSizing*`.** A wrapping **TEXT** block needs `textAutoResize = 'HEIGHT'` plus an explicit FIXED width (`resize()`), NOT `FILL` alone — the default `WIDTH_AND_HEIGHT` mode ignores `FILL` and collapses the node to a near-zero-width thread. Verify `node.width > 0` afterward.
 13. **Position new top-level nodes away from (0,0).** Nodes appended directly to the page default to (0,0). Scan `figma.currentPage.children` to find a clear position (e.g., to the right of the rightmost node). This only applies to page-level nodes — nodes nested inside other frames or auto-layout containers are positioned by their parent. See [Gotchas](references/gotchas.md).
 14. **On `use_figma` error, obey `safeToRetryWithoutCanvasRead`.** If `true`, fix the error and retry. If `false`, read the canvas, determine what changed, then make changes. See [Error Recovery](#7-error-recovery--self-correction).
@@ -198,20 +209,31 @@ figma.currentPage.query('RECTANGLE[name="Divider"]').set({
 
 Creates a frame with auto-layout already enabled and both axes hugging content. **This is the default container whenever children have a structural relationship to each other (see Rule 12a).**
 
-```js
-// BEFORE — manual setup, easy to get ordering wrong
-const frame = figma.createFrame()
-frame.layoutMode = 'VERTICAL'
-frame.primaryAxisSizingMode = 'AUTO'
-frame.counterAxisSizingMode = 'AUTO'
-frame.layoutSizingHorizontal = 'HUG'
-frame.layoutSizingVertical = 'HUG'
+Append a new child to its intended auto-layout parent before setting `FILL` or `layoutPositioning = 'ABSOLUTE'`. Use `FILL` for an in-flow child that should fill an axis. For an overlay, set `ABSOLUTE`, then resize and position it.
 
-// AFTER — one call, layout ready
-const frame = figma.createAutoLayout('VERTICAL')
+```js
+const right = figma.currentPage.children.reduce((edge, node) => Math.max(edge, node.x + node.width), 0)
+const card = figma.createAutoLayout('VERTICAL', { name: 'Card' })
+card.x = right + 80
+card.resize(320, 96) // Give the row a fixed width to fill.
+
+const row = figma.createRectangle()
+row.resize(120, 48)
+card.appendChild(row)
+row.layoutSizingHorizontal = 'FILL'
+
+const badge = figma.createEllipse()
+card.appendChild(badge)
+badge.layoutPositioning = 'ABSOLUTE'
+badge.resize(24, 24)
+badge.fills = [{ type: 'SOLID', color: { r: 0.2, g: 0.4, b: 0.9 } }]
+badge.x = card.width - badge.width - 8
+badge.y = 8
+
+return { createdNodeIds: [card.id, row.id, badge.id] }
 ```
 
-Children can immediately use `layoutSizingHorizontal/Vertical = 'FILL'` after being appended — no need to set sizing modes manually.
+For an existing child, check that its actual parent has auto-layout enabled (`parent && 'layoutMode' in parent && parent.layoutMode !== 'NONE'`). Use `FILL` only when the child is in flow (`layoutPositioning === 'AUTO'`) and satisfies Rule 12. Use `resize()` and `x`/`y` for children that should stay in a plain frame.
 
 Accepts an optional props object as the first or second argument:
 ```js
@@ -305,7 +327,7 @@ On any `use_figma` error, obey `safeToRetryWithoutCanvasRead` (Rule 14): `true` 
 | Error message | Likely cause | How to fix |
 |---|---|---|
 | Property value out of range | Color channel > 1 (used 0–255 instead of 0–1) | Divide by 255 |
-| `"Cannot read properties of null"` | Node doesn't exist (wrong ID, wrong page) | Check page context, verify ID |
+| `"cannot read/set property … of null/undefined"` | The expression before the property returned no value | Trace the missing value and resolve required targets before retrying (Rule 3b) |
 | Script hangs / no response | Infinite loop or unresolved promise | Check for `while(true)` or missing `await`; ensure code terminates |
 | `"The node with id X does not exist"` | Parent instance was implicitly detached by a child `detachInstance()`, changing IDs | Re-discover nodes by traversal from a stable (non-instance) parent frame |
 

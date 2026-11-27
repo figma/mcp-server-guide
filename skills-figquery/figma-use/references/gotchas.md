@@ -333,13 +333,25 @@ return { createdNodeIds: [node.id] }
 
 **This applies to every font, not just Inter.** Inter is preloaded in most environments so the missing-`loadFontAsync` bug often only surfaces with other families (`Roboto Mono`, `Merriweather`, `Figma Hand`, library fonts, etc.). Examples in these docs use `Inter` because it's available everywhere, but the recipe is identical for any family/style pair.
 
-**The same recipe also applies when mutating existing text** — the font already on the node, not a hardcoded default, must be loaded:
+**For raw Plugin API edits to existing text, load its current font family/style pairs.** A populated node with mixed fonts can return the `figma.mixed` symbol from `fontName`. `loadFontAsync` takes a font name object. An empty text node has no styled ranges, so use its current `fontName`. Deduplicate by family and style. If assigning a new font, load the destination family and style before setting it. Append with `insertCharacters()` to preserve the existing text ranges and their styles.
 
 ```js
-// CORRECT — load the node's own current font(s), then mutate
-const segments = textNode.getStyledTextSegments(['fontName'])
-await Promise.all(segments.map(s => figma.loadFontAsync(s.fontName)))
-textNode.characters = "Updated"
+async function loadCurrentFonts(textNodes) {
+  const fonts = new Map()
+  for (const node of textNodes) {
+    const names = node.characters.length === 0
+      ? [node.fontName]
+      : node.getStyledTextSegments(['fontName']).map(segment => segment.fontName)
+    for (const { family, style } of names) {
+      fonts.set(JSON.stringify([family, style]), { family, style })
+    }
+  }
+  await Promise.all([...fonts.values()].map(font => figma.loadFontAsync(font)))
+}
+
+await loadCurrentFonts([textNode])
+const end = textNode.characters.length
+textNode.insertCharacters(end, end === 0 ? "Updated" : " Updated")
 return { mutatedNodeIds: [textNode.id] }
 ```
 
@@ -402,14 +414,7 @@ for (const label of labels) {
 }
 ```
 
-If you do need different fonts per node, dedupe and `Promise.all` them up-front:
-
-```js
-const uniqueFonts = [...new Map(
-  textNodes.map(t => [JSON.stringify(t.fontName), t.fontName])
-).values()]
-await Promise.all(uniqueFonts.map(f => figma.loadFontAsync(f)))
-```
+For a batch of raw edits to existing text, copy `loadCurrentFonts` from the [canonical recipe above](#canonical-text-edit-recipe-font-load--await--mutate--return-ids) into the same script and call `await loadCurrentFonts(textNodes)` before editing. This loads each family/style pair once across all the nodes.
 
 ## Prefer indexed lookups over `findAll` / `findOne` full-tree scans
 
@@ -975,23 +980,27 @@ node.customColor = '#ff0000'  // Error — not a real API property
 
 **How to avoid this**: Before setting any property, verify it exists on the node type by grepping [plugin-api-standalone.d.ts](plugin-api-standalone.d.ts). Property names that sound plausible but aren't in the typings will always throw.
 
+## Resolve required targets before editing
+
+If an ID is stale, use a replacement only when evidence links it to the intended node, such as an ID returned by a known replacement operation. Verify its type and required page or parent before editing. Report the edit as incomplete if you cannot resolve the target.
+
+## Inspect the current instance after property changes
+
+Verify the configured state with `componentProperties`, then look up children again in the current variant. Given a verified instance and observed child names and types, check each lookup independently.
+
+```js
+const dismiss = instance.children.find(node => node.type === 'INSTANCE' && node.name === dismissName)
+const icon = dismiss?.children.find(node => node.type === 'INSTANCE' && node.name === iconName)
+return { hasDismiss: dismiss !== undefined, hasIcon: icon !== undefined }
+```
+
+A dismiss button can exist without its icon. Absence is expected when dismiss is off and fails the audit when that child is required.
+
 ## `detachInstance()` invalidates ancestor node IDs
 
 When `detachInstance()` is called on a nested instance inside a library component instance, the parent instance may also get implicitly detached (converted from INSTANCE to FRAME with a **new ID**). Any previously cached ID for the parent becomes invalid.
 
-```js
-// WRONG — using cached parent ID after child detach
-const parentId = parentInstance.id;
-nestedChild.detachInstance();
-const parent = await figma.getNodeByIdAsync(parentId); // null! ID changed.
-
-// CORRECT — re-discover by traversal from a stable (non-instance) frame
-const stableFrame = await figma.getNodeByIdAsync(manualFrameId);
-nestedChild.detachInstance();
-const parent = stableFrame.findOne(n => n.name === "ParentName");
-```
-
-If detaching multiple nested instances across siblings, do it in a **single** `use_figma` call — discover all targets by traversal before any detachment mutates the tree.
+Verify the child and its enclosing scope before detaching it. Capture the live frame returned by `detachInstance()` and inspect its ancestry to identify the converted parent. Detaching one nested child can invalidate sibling handles even within the same call. Re-resolve each remaining target in the updated tree before detaching it. If you cannot identify it, report which detaches completed and which edit is incomplete.
 
 ## Icons: import the SVG — never reconstruct from rotated line primitives
 
