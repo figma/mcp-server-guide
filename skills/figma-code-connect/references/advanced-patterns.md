@@ -165,9 +165,9 @@ Text nodes only have a single value available in the API:
 const hasIcon = instance.getBoolean("Has Icon");
 let icon = null;
 if (hasIcon) {
-  const iconInstance = instance.findInstance("Star Icon"); // INCORRECT: Will be null when icons with other names are in this slot.
+  const iconInstance = instance.findInstance("Star Icon"); // INCORRECT: Returns an ErrorHandle when icons with other names are in this slot.
   const iconInstance = instance.getInstanceSwap("Icon"); // CORRECT: Will refer to any instance in this slot.
-  if (iconInstance && iconInstance.type === 'INSTANCE' && iconInstance.hasCodeConnect()) {
+  if (iconInstance && iconInstance.type === 'INSTANCE') {
     icon = iconInstance.executeTemplate().example;
   }
 }
